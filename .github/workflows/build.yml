@@ -1,0 +1,260 @@
+name: Build, package and publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*-novamaas.*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GOWORK: 'off'
+
+jobs:
+  backend:
+    name: Go checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: |
+            go.sum
+            relaykit/go.sum
+      - name: Prepare embed path for static checks
+        run: |
+          mkdir -p web/dist
+          touch web/dist/index.html
+      - run: go vet ./...
+      - run: go build ./...
+      - name: Check relaykit independently
+        working-directory: relaykit
+        run: |
+          go vet ./...
+          go build ./...
+      - run: make test
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.0'
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+
+  build:
+    name: Package Linux ${{ matrix.arch }}
+    needs: [backend, frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    env:
+      ARCH: ${{ matrix.arch }}
+      CAN_PUBLISH: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-novamaas.')) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Resolve version and image name
+        run: |
+          base_version=$(cat VERSION)
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+            test "$version" = "$base_version"
+          else
+            version="${base_version}-dev.${GITHUB_SHA:0:12}"
+          fi
+          [[ "$version" =~ ^v[0-9A-Za-z.+-]+$ ]]
+          printf '%s\n' "$version" > VERSION
+          echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build image with embedded frontend
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: novamaas-ci:local
+          labels: |
+            org.opencontainers.image.title=NovaMaaS Workspace
+            org.opencontainers.image.description=Localized fork of QuantumNous/new-api v1.0.0-rc.26
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.BUILD_VERSION }}
+            org.opencontainers.image.licenses=AGPL-3.0
+          cache-from: type=gha,scope=linux-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
+      - name: Verify version and HTTP startup
+        run: |
+          test "$(docker run --rm novamaas-ci:local --version)" = "$BUILD_VERSION"
+          docker run -d --name novamaas-smoke -p 127.0.0.1:3000:3000 novamaas-ci:local
+          trap 'docker logs novamaas-smoke; docker rm -f novamaas-smoke' EXIT
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3000/api/status > /tmp/novamaas-status.json; then
+              jq -e '.success == true' /tmp/novamaas-status.json
+              curl -fsS http://127.0.0.1:3000/ > /tmp/novamaas-index.html
+              grep -qi '<!doctype html' /tmp/novamaas-index.html
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Package the tested binary and notices
+        run: |
+          package="novamaas-${BUILD_VERSION}-linux-${ARCH}"
+          mkdir -p "dist/$package"
+          container=$(docker create novamaas-ci:local)
+          trap 'docker rm "$container"' EXIT
+          docker cp "$container:/new-api" "dist/$package/new-api"
+          cp LICENSE NOTICE THIRD-PARTY-LICENSES.md UPSTREAM.md VERSION "dist/$package/"
+          cp docs/BUILD.zh_CN.md "dist/$package/BUILD.zh_CN.md"
+          printf 'repository=%s\ncommit=%s\nupstream=%s\nversion=%s\n' \
+            "$GITHUB_REPOSITORY" "$GITHUB_SHA" \
+            '8f6961c675932f406260ff0c218bc2aa0603e9b2' "$BUILD_VERSION" \
+            > "dist/$package/BUILD-INFO.txt"
+          tar -C dist -czf "dist/$package.tar.gz" "$package"
+          cd dist
+          sha256sum "$package.tar.gz" > "$package.tar.gz.sha256"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Log in to GHCR
+        if: env.CAN_PUBLISH == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push tested image
+        if: env.CAN_PUBLISH == 'true'
+        run: |
+          ref="${IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
+          docker tag novamaas-ci:local "$ref"
+          docker push "$ref"
+          mkdir -p digests
+          docker inspect --format '{{index .RepoDigests 0}}' "$ref" > "digests/$ARCH"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: env.CAN_PUBLISH == 'true'
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish multi-arch image
+    needs: build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-novamaas.'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate image tags
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,format=long
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+      - name: Create and verify manifest
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          mapfile -t tags < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          args=()
+          for tag in "${tags[@]}"; do args+=(--tag "$tag"); done
+          docker buildx imagetools create "${args[@]}" "$(cat digests/amd64)" "$(cat digests/arm64)"
+          docker buildx imagetools inspect "${tags[0]}" --raw > manifest.json
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' manifest.json
+          printf '### Published images\n\n' >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- `%s`\n' "${tags[@]}" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Attach release packages
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-novamaas.')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: package-linux-*
+          path: dist
+          merge-multiple: true
+      - name: Create release and upload packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > release-notes.md <<EOF
+          NovaMaaS Workspace localized fork of QuantumNous/new-api.
+
+          Upstream baseline: v1.0.0-rc.26 (8f6961c675932f406260ff0c218bc2aa0603e9b2).
+          Source commit: ${GITHUB_SHA}
+          Container: ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}
+
+          Linux amd64/arm64 packages include the embedded frontend, license notices and SHA-256 checksums.
+          EOF
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --prerelease --title "NovaMaaS $GITHUB_REF_NAME" --notes-file release-notes.md
+          fi
+          gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.sha256 \
+            --repo "$GITHUB_REPOSITORY" --clobber

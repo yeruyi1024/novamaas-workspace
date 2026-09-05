@@ -1,3 +1,21 @@
+# NovaMaaS Workspace
+
+本项目来源于开源项目 **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)**，初始源码严格基于 **[v1.0.0-rc.26](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.26)**，对应提交 `8f6961c675932f406260ff0c218bc2aa0603e9b2`，保留上游完整 Git 历史。
+
+结合我们的使用需求，上游变更幅度较大，仍有较多 issue 未关闭，现有版本难以直接满足本土化适配需求。为了更好地使用和维护项目，我们在该固定版本上进行 fork 和本土化改造，并会不定期评估、同步上游中有益、兼容、适合本项目的友好改动。感谢上游作者与所有贡献者。
+
+本项目独立维护，沿用上游 [AGPL-3.0 许可证](LICENSE)，保留 [NOTICE](NOTICE)、[第三方许可](THIRD-PARTY-LICENSES.md) 和源码署名。来源与同步策略见 [UPSTREAM.md](UPSTREAM.md)。
+
+- 本仓库：[yeruyi1024/novamaas-workspace](https://github.com/yeruyi1024/novamaas-workspace)
+- 自动构建：[GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)
+- 镜像：`ghcr.io/yeruyi1024/novamaas-workspace:latest`（Linux amd64/arm64）
+- 安装包：[Releases](https://github.com/yeruyi1024/novamaas-workspace/releases) 或 Actions Artifacts
+- [构建、下载、部署与发布指南](docs/BUILD.zh_CN.md)
+
+## 上游项目原始说明
+
+下方保留上游说明与署名；其中的仓库、发布页及镜像地址指向上游，使用本分支请以上方地址为准。
+
 <div align="center">
 
 ![new-api](/web/public/logo.png)

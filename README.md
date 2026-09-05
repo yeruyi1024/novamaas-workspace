@@ -1,3 +1,35 @@
+# NovaMaaS Workspace
+
+[![Build, package and publish](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml/badge.svg)](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)
+
+本项目是基于 **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** 的独立维护开源分支，初始源码严格来自 **[v1.0.0-rc.26](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.26)**，对应提交 **`8f6961c675932f406260ff0c218bc2aa0603e9b2`**，并保留上游 Git 历史。
+
+结合我们的实际使用场景，上游变更幅度较大，仍有较多未关闭的 issue，现有版本难以直接满足本土化适配需求。因此，我们选择固定该版本进行 fork 和本土化改造，以便更好地使用和维护项目。我们会不定期评估并同步上游中有益、兼容且适合本项目的友好改动。感谢上游作者和所有贡献者。
+
+**NovaMaaS Workspace is an independently maintained fork of QuantumNous/new-api, based on exactly `v1.0.0-rc.26`.** We maintain this fork for our localization and operational needs, given the scale of upstream changes and outstanding issues relevant to our usage. Useful and compatible upstream improvements will be reviewed and integrated periodically.
+
+本项目沿用上游 [AGPL-3.0 许可证](LICENSE)，保留 [NOTICE](NOTICE)、[第三方许可](THIRD-PARTY-LICENSES.md) 和原作者署名。初始化改动限于分支说明、版本标识及构建发布配置；应用业务源码保持指定上游版本。详细来源及同步策略见 [UPSTREAM.md](UPSTREAM.md)。
+
+## 本仓库构建与使用
+
+- [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：推送 `main`、提交 PR 或手动运行时，执行检查并构建 Linux amd64/arm64 安装包和容器镜像。
+- 主分支镜像：`ghcr.io/yeruyi1024/novamaas-workspace:latest`，支持 amd64/arm64。PR 只构建验证，发布由主分支或本项目发行标签触发。
+- [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：推送与 `VERSION` 一致的 `v*-novamaas.*` 标签后，CI 自动发布预发布安装包和 SHA-256 校验文件。
+- [构建、下载、部署及发布说明](docs/BUILD.zh_CN.md)。本仓库使用 GHCR 和自动提供的 `GITHUB_TOKEN`，无需 Docker Hub 凭据。
+
+```bash
+git clone https://github.com/yeruyi1024/novamaas-workspace.git
+cd novamaas-workspace
+docker pull ghcr.io/yeruyi1024/novamaas-workspace:latest
+docker run -d --name novamaas --restart unless-stopped \
+  -p 3000:3000 -e TZ=Asia/Shanghai -v novamaas-data:/data \
+  ghcr.io/yeruyi1024/novamaas-workspace:latest
+```
+
+## 上游项目原始说明 / Original upstream documentation
+
+以下保留上游说明及署名，其中的仓库、发布页和镜像地址指向上游。使用本分支请以上面的地址和构建说明为准。
+
 <div align="center">
 
 ![new-api](/web/public/logo.png)
