@@ -12,10 +12,10 @@
 
 ## 本仓库构建与使用
 
-- [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：推送 `main`、提交 PR 或手动运行时，执行检查并构建 Linux amd64/arm64 安装包和容器镜像。
-- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：主分支使用 `sha-<完整提交 SHA>` 标签，支持 amd64/arm64；工作流不再更新 `latest` 或 `main`。PR 只构建验证。
-- [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：发布与 `VERSION` 同名的 Release 后，CI 自动生成同名镜像，并将安装包和 SHA-256 校验文件上传到该 Release。仅推送 Git Tag 或保存草稿不会发布镜像。
-- [构建、下载、部署及发布说明](docs/BUILD.zh_CN.md)。本仓库使用 GHCR 和自动提供的 `GITHUB_TOKEN`，无需 Docker Hub 凭据。
+- [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：普通 PR、直接推送 `main` 和手动运行只执行检查；仅在 PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。
+- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：合并提交使用 `sha-<完整提交 SHA>` 标签，支持 amd64/arm64；同一镜像还会推送至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
+- [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：发布 Release 或推送 Git Tag 不会触发镜像构建；镜像发布以合并到 `main` 的 PR 为准。
+- [构建、下载、部署及 CCR 凭据配置说明](docs/BUILD.zh_CN.md)。GHCR 使用自动提供的 `GITHUB_TOKEN`，腾讯云凭据保存在 GitHub Actions Secrets 中。
 - [火山方舟原生 API 渠道说明](docs/VOLC_NATIVE.zh_CN.md)：记录从上游 PR #6653 选择性同步的 Volc Native 渠道、调用路径和兼容性边界。
 
 ```bash

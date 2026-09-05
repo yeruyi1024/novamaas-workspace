@@ -7,13 +7,17 @@ on:
     types: [published]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened]
+  pull_request_target:
+    branches: [main]
+    types: [closed]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
+  group: build-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -22,6 +26,7 @@ env:
 jobs:
   backend:
     name: Go checks
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -49,6 +54,7 @@ jobs:
 
   frontend:
     name: Frontend checks
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -68,6 +74,7 @@ jobs:
   build:
     name: Package Linux ${{ matrix.arch }}
     needs: [backend, frontend]
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     strategy:
       fail-fast: false
       matrix:
@@ -86,32 +93,16 @@ jobs:
       packages: write
     env:
       ARCH: ${{ matrix.arch }}
-      CAN_PUBLISH: ${{ github.event_name == 'release' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - name: Resolve version and image name
         id: version
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           base_version=$(cat VERSION)
           image_tag="sha-${GITHUB_SHA}"
-          if [[ "$GITHUB_EVENT_NAME" == release ]]; then
-            version="$RELEASE_TAG"
-            image_tag="$RELEASE_TAG"
-            if [[ "$version" != "$base_version" ]]; then
-              echo "::error::Release tag must match VERSION ($base_version)."
-              exit 1
-            fi
-          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            version="$GITHUB_REF_NAME"
-            test "$version" = "$base_version"
-          else
-            version="${base_version}-dev.${GITHUB_SHA:0:12}"
-          fi
-          # Release tags must also be valid, unmodified Docker tags.
+          version="${base_version}-dev.${GITHUB_SHA:0:12}"
           [[ "$version" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]
           test "${#image_tag}" -le 128
           printf '%s\n' "$version" > VERSION
@@ -119,6 +110,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "CCR_IMAGE=ccr.ccs.tencentyun.com/nova-proj/nova-maas" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build image with embedded frontend
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -164,22 +156,33 @@ jobs:
           retention-days: 30
           compression-level: 0
       - name: Log in to GHCR
-        if: env.CAN_PUBLISH == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push tested image
-        if: env.CAN_PUBLISH == 'true'
+      - name: Log in to Tencent CCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ccr.ccs.tencentyun.com
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Push tested images
         run: |
-          ref="${IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
-          docker tag novamaas-ci:local "$ref"
-          docker push "$ref"
+          ghcr_ref="${IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
+          ccr_ref="${CCR_IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
+          docker tag novamaas-ci:local "$ghcr_ref"
+          docker tag novamaas-ci:local "$ccr_ref"
+          docker push "$ghcr_ref"
+          docker push "$ccr_ref"
           mkdir -p digests
-          docker inspect --format '{{index .RepoDigests 0}}' "$ref" > "digests/$ARCH"
+          ghcr_digest=$(docker buildx imagetools inspect "$ghcr_ref" --format '{{.Manifest.Digest}}')
+          ccr_digest=$(docker buildx imagetools inspect "$ccr_ref" --format '{{.Manifest.Digest}}')
+          [[ "$ghcr_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$ccr_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf '%s@%s\n' "$IMAGE" "$ghcr_digest" > "digests/ghcr-$ARCH"
+          printf '%s@%s\n' "$CCR_IMAGE" "$ccr_digest" > "digests/ccr-$ARCH"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: env.CAN_PUBLISH == 'true'
         with:
           name: digest-${{ matrix.arch }}
           path: digests/*
@@ -189,11 +192,12 @@ jobs:
   publish:
     name: Publish multi-arch image
     needs: build
-    if: github.event_name == 'release' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       digest: ${{ steps.manifest.outputs.digest }}
+      ccr_digest: ${{ steps.manifest.outputs.ccr_digest }}
     permissions:
       packages: write
     steps:
@@ -202,28 +206,46 @@ jobs:
           pattern: digest-*
           path: digests
           merge-multiple: true
-      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Resolve image names
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "CCR_IMAGE=ccr.ccs.tencentyun.com/nova-proj/nova-maas" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create and verify manifest
+      - name: Log in to Tencent CCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ccr.ccs.tencentyun.com
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Create and verify manifests
         id: manifest
         env:
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: |
-          ref="${IMAGE}:${IMAGE_TAG}"
-          docker buildx imagetools create --tag "$ref" "$(cat digests/amd64)" "$(cat digests/arm64)"
-          docker buildx imagetools inspect "$ref" --raw > manifest.json
-          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' manifest.json
-          digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
+          ghcr_ref="${IMAGE}:${IMAGE_TAG}"
+          ccr_ref="${CCR_IMAGE}:${IMAGE_TAG}"
+          docker buildx imagetools create --tag "$ghcr_ref" "$(cat digests/ghcr-amd64)" "$(cat digests/ghcr-arm64)"
+          docker buildx imagetools create --tag "$ccr_ref" "$(cat digests/ccr-amd64)" "$(cat digests/ccr-arm64)"
+          docker buildx imagetools inspect "$ghcr_ref" --raw > ghcr-manifest.json
+          docker buildx imagetools inspect "$ccr_ref" --raw > ccr-manifest.json
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' ghcr-manifest.json
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' ccr-manifest.json
+          digest=$(docker buildx imagetools inspect "$ghcr_ref" --format '{{.Manifest.Digest}}')
+          ccr_digest=$(docker buildx imagetools inspect "$ccr_ref" --format '{{.Manifest.Digest}}')
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$ccr_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          printf '### Published image\n\n- `%s`\n\n' "$ref" >> "$GITHUB_STEP_SUMMARY"
+          echo "ccr_digest=$ccr_digest" >> "$GITHUB_OUTPUT"
+          printf '### Published images\n\n- `%s`\n- `%s`\n\n' "$ghcr_ref" "$ccr_ref" >> "$GITHUB_STEP_SUMMARY"
           printf -- '- Pinned reference: `%s@%s`\n\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
-          docker buildx imagetools inspect "$ref" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Pinned CCR reference: `%s@%s`\n\n' "$CCR_IMAGE" "$ccr_digest" >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "$ghcr_ref" >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "$ccr_ref" >> "$GITHUB_STEP_SUMMARY"
 
   verify-published:
     name: Verify published image ${{ matrix.arch }}
@@ -240,6 +262,7 @@ jobs:
     timeout-minutes: 10
     env:
       IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
+      CCR_IMAGE_DIGEST: ${{ needs.publish.outputs.ccr_digest }}
       EXPECTED_VERSION: ${{ needs.build.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -253,25 +276,16 @@ jobs:
           revision=$(docker image inspect "$ref" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
           test "$revision" = "$GITHUB_SHA"
           bash .github/scripts/verify-image.sh "$ref" "$EXPECTED_VERSION"
-
-  release:
-    name: Attach release packages
-    needs: verify-published
-    if: github.event_name == 'release'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Log in to Tencent CCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
-          pattern: package-linux-*
-          path: dist
-          merge-multiple: true
-      - name: Upload packages to the published release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          registry: ccr.ccs.tencentyun.com
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Pull and verify Tencent CCR image
         run: |
-          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
-            --repo "$GITHUB_REPOSITORY" --clobber
+          ref="ccr.ccs.tencentyun.com/nova-proj/nova-maas@${CCR_IMAGE_DIGEST}"
+          docker pull "$ref"
+          revision=$(docker image inspect "$ref" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+          test "$revision" = "$GITHUB_SHA"
+          bash .github/scripts/verify-image.sh "$ref" "$EXPECTED_VERSION"

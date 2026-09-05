@@ -8,10 +8,10 @@
 
 - 本仓库：[yeruyi1024/novamaas-workspace](https://github.com/yeruyi1024/novamaas-workspace)
 - 自动构建：[GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)
-- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：`ghcr.io/yeruyi1024/novamaas-workspace:sha-<完整提交 SHA>` 或已发布的 Release Tag（Linux amd64/arm64）；不再更新 `latest` 或 `main`。
-- 发布 Release（含预发布）后，CI 生成与 Release Tag 同名的镜像，Tag 必须与根目录 `VERSION` 一致。仅推送 Tag 不发布镜像。
-- 安装包：[Releases](https://github.com/yeruyi1024/novamaas-workspace/releases) 或 Actions Artifacts
-- [构建、下载、部署与发布指南](docs/BUILD.zh_CN.md)
+- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：PR 合并到 `main` 后发布 `ghcr.io/yeruyi1024/novamaas-workspace:sha-<完整合并提交 SHA>`（Linux amd64/arm64），并同步至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
+- 普通 PR、直接推送 `main`、发布 Release 和手动运行只执行检查，不构建容器镜像；工作流不更新 `latest` 或 `main`。
+- 安装包：PR 合并构建的 Actions Artifacts
+- [构建、下载、部署与 CCR 凭据配置指南](docs/BUILD.zh_CN.md)
 
 ## 上游项目原始说明
 
