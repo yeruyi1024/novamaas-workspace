@@ -121,7 +121,7 @@ export function Home() {
   }
 
   return (
-    <PublicLayout showMainContainer={false}>
+    <PublicLayout showMainContainer={false} appearance='maas'>
       <Hero isAuthenticated={isAuthenticated} />
       <Stats />
       <Features />

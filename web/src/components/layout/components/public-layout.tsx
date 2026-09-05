@@ -16,12 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { cn } from '@/lib/utils'
+
 import type { TopNavLink } from '../types'
 import { PublicHeader, type PublicHeaderProps } from './public-header'
 
 type PublicLayoutProps = {
   children: React.ReactNode
   showMainContainer?: boolean
+  appearance?: 'maas'
   navContent?: React.ReactNode
   headerProps?: Omit<PublicHeaderProps, 'navContent'>
   navLinks?: TopNavLink[]
@@ -34,7 +37,12 @@ type PublicLayoutProps = {
 
 export function PublicLayout(props: PublicLayoutProps) {
   return (
-    <div className='bg-background text-foreground relative min-h-svh overflow-x-clip'>
+    <div
+      className={cn(
+        'text-foreground relative min-h-svh overflow-x-clip',
+        props.appearance === 'maas' ? 'maas-public' : 'bg-background'
+      )}
+    >
       <PublicHeader
         navContent={props.navContent}
         navLinks={props.navLinks}

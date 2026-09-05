@@ -29,7 +29,7 @@ export function HowItWorks() {
       num: '1',
       title: t('Configure'),
       desc: t(
-        'Add your API keys, set up channels and configure access permissions'
+        'Choose a model and create an API key with the permissions your application needs.'
       ),
       icon: <Settings className='size-6' strokeWidth={1.5} />,
     },
@@ -67,7 +67,7 @@ export function HowItWorks() {
               key={step.num}
               delay={i * 150}
               animation='fade-up'
-              className='relative flex flex-col items-center text-center'
+              className='maas-step border-border/50 relative flex flex-col items-center rounded-2xl border px-5 py-8 text-center'
             >
               <div className='relative mb-6'>
                 <div className='text-muted-foreground border-border/50 bg-muted/30 flex size-16 items-center justify-center rounded-2xl border transition-colors'>

@@ -1,0 +1,113 @@
+/* Public presentation only. Keep global tokens and portal themes unchanged. */
+@layer components {
+  .maas-public {
+    --maas-surface: #f6f8ff;
+    --maas-panel: #ffffffd9;
+    --maas-accent: #365bc2;
+    --maas-violet: #7951c5;
+    --maas-glow: #6a91f51f;
+    background-color: var(--maas-surface);
+    background-image: radial-gradient(
+      ellipse 70% 34% at 85% 8%,
+      var(--maas-glow),
+      transparent 75%
+    );
+  }
+
+  .dark .maas-public {
+    --maas-surface: #080d1b;
+    --maas-panel: #10192bcf;
+    --maas-accent: #8ebcff;
+    --maas-violet: #c4a1ff;
+    --maas-glow: #576fff26;
+  }
+
+  .maas-public .maas-navigation {
+    background-color: color-mix(in srgb, var(--maas-surface) 88%, transparent);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--maas-accent) 14%, transparent);
+  }
+
+  .maas-public .maas-hero-atmosphere {
+    background-image:
+      radial-gradient(
+        ellipse 42% 48% at 75% 40%,
+        var(--maas-glow),
+        transparent 80%
+      ),
+      radial-gradient(
+        ellipse 45% 45% at 0% 12%,
+        var(--maas-glow),
+        transparent 90%
+      ),
+      radial-gradient(
+        circle at 1px 1px,
+        color-mix(in srgb, var(--maas-accent) 22%, transparent) 1px,
+        transparent 0
+      );
+    background-size:
+      auto,
+      auto,
+      48px 48px;
+    mask-image: linear-gradient(black 65%, transparent);
+  }
+
+  .maas-public .maas-gradient-text {
+    background: linear-gradient(
+      110deg,
+      var(--maas-accent) 5%,
+      var(--maas-violet) 85%
+    );
+    background-clip: text;
+    color: transparent;
+  }
+
+  .maas-public .maas-accent {
+    color: var(--maas-accent);
+  }
+
+  .maas-public .maas-capabilities {
+    background: linear-gradient(110deg, var(--maas-panel), transparent);
+  }
+
+  .maas-public .maas-feature-card,
+  .maas-public .maas-step {
+    background: linear-gradient(
+      145deg,
+      var(--maas-panel),
+      color-mix(in srgb, var(--maas-surface) 90%, var(--maas-accent))
+    );
+    box-shadow: inset 0 1px 0
+      color-mix(in srgb, var(--maas-accent) 8%, transparent);
+  }
+
+  .maas-public .maas-feature-card:hover {
+    border-color: color-mix(in srgb, var(--maas-accent) 45%, transparent);
+  }
+
+  .maas-public .maas-feature-icon {
+    background: color-mix(in srgb, var(--maas-accent) 9%, transparent);
+  }
+
+  .maas-public .maas-terminal {
+    filter: drop-shadow(0 24px 48px var(--maas-glow));
+  }
+
+  .maas-public footer {
+    background-color: var(--maas-panel);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .maas-public *,
+    .maas-public *::before,
+    .maas-public *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    .maas-public [class*='landing-animate-'] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

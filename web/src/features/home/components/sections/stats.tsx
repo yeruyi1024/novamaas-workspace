@@ -16,112 +16,62 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useRef, useEffect, useCallback } from 'react'
+import { Layers, Cable, ChartNoAxesCombined, KeyRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-interface CounterProps {
-  end: number
-  suffix?: string
-  prefix?: string
-  duration?: number
-  decimals?: number
-}
+import { cn } from '@/lib/utils'
 
-function Counter(props: CounterProps) {
-  const { end, suffix = '', prefix = '', duration = 1600, decimals = 0 } = props
-  const ref = useRef<HTMLSpanElement>(null)
-  const startedRef = useRef(false)
-
-  const formatValue = useCallback(
-    (v: number) =>
-      decimals > 0 ? v.toFixed(decimals) : Math.round(v).toLocaleString(),
-    [decimals]
-  )
-
-  const animate = useCallback(() => {
-    const el = ref.current
-    if (!el) return
-    const start = performance.now()
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      el.textContent = `${prefix}${formatValue(eased * end)}${suffix}`
-      if (progress < 1) requestAnimationFrame(step)
-    }
-    requestAnimationFrame(step)
-  }, [end, duration, prefix, suffix, formatValue])
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mq.matches) {
-      el.textContent = `${prefix}${formatValue(end)}${suffix}`
-      return
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !startedRef.current) {
-          startedRef.current = true
-          animate()
-          observer.unobserve(el)
-        }
-      },
-      { threshold: 0.5 }
-    )
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [animate, end, prefix, suffix, formatValue])
-
-  return (
-    <span ref={ref} className='tabular-nums'>
-      {prefix}0{suffix}
-    </span>
-  )
-}
-
-interface StatsProps {
-  className?: string
-}
-
-interface StatItem {
-  end: number
-  suffix: string
-  label: string
-  decimals?: number
-}
-
-export function Stats(_props: StatsProps) {
+export function Stats(props: { className?: string }) {
   const { t } = useTranslation()
-
-  const stats: StatItem[] = [
-    { end: 50, suffix: '+', label: t('upstream services integrated') },
-    { end: 100, suffix: '+', label: t('model billing support') },
-    { end: 50, suffix: '+', label: t('compatible API routes') },
-    { end: 10, suffix: '+', label: t('scheduling controls') },
+  const capabilities = [
+    {
+      icon: Layers,
+      title: t('Multi-model access'),
+      description: t('One model service catalog'),
+    },
+    {
+      icon: Cable,
+      title: t('Multi-protocol Compatible'),
+      description: t('Connect your existing AI tools'),
+    },
+    {
+      icon: ChartNoAxesCombined,
+      title: t('Transparent Billing'),
+      description: t('Understand usage and costs'),
+    },
+    {
+      icon: KeyRound,
+      title: t('Access control'),
+      description: t('Manage keys and permissions'),
+    },
   ]
 
   return (
-    <div className='border-border/40 bg-muted/10 relative z-10 border-y'>
-      <div className='mx-auto max-w-6xl px-6 py-10 md:py-12'>
-        <div className='grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12'>
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className='flex flex-col items-center text-center'
-            >
-              <span className='text-2xl font-bold tracking-tight md:text-3xl'>
-                <Counter end={s.end} suffix={s.suffix} decimals={s.decimals} />
-              </span>
-              <span className='text-muted-foreground mt-1.5 text-xs'>
-                {s.label}
-              </span>
-            </div>
-          ))}
-        </div>
+    <div
+      className={cn(
+        'maas-capabilities relative z-10 border-y border-border/50',
+        props.className
+      )}
+    >
+      <div className='mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 py-10 md:grid-cols-4 md:py-12'>
+        {capabilities.map((item) => (
+          <div
+            key={item.title}
+            className='flex min-w-0 flex-col items-start gap-2'
+          >
+            <item.icon
+              aria-hidden
+              className='maas-accent mb-2 size-5'
+              strokeWidth={1.5}
+            />
+            <span className='text-sm font-semibold md:text-base'>
+              {item.title}
+            </span>
+            <span className='text-muted-foreground text-xs leading-relaxed'>
+              {item.description}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )

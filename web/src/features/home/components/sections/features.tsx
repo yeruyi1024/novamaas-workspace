@@ -41,9 +41,9 @@ export function Features(_props: FeaturesProps) {
     {
       id: 'fast',
       num: '01',
-      title: t('Lightning Fast'),
+      title: t('Multi-model access'),
       desc: t(
-        'Optimized network architecture ensures millisecond response times'
+        'Discover model capabilities and pricing in one catalog. Choose services that fit your applications.'
       ),
       span: 'md:col-span-2',
       icon: <Zap className='size-4 text-blue-400' />,
@@ -65,9 +65,9 @@ export function Features(_props: FeaturesProps) {
     {
       id: 'secure',
       num: '02',
-      title: t('Secure & Reliable'),
+      title: t('Access control'),
       desc: t(
-        'Enterprise-grade security with comprehensive permission management'
+        'Manage API keys, user groups and access permissions from one console.'
       ),
       span: 'md:col-span-1',
       icon: <Shield className='size-4 text-emerald-400' />,
@@ -102,8 +102,10 @@ export function Features(_props: FeaturesProps) {
     {
       id: 'global',
       num: '03',
-      title: t('Global Coverage'),
-      desc: t('Multi-region deployment for stable global access'),
+      title: t('Routing and resilience'),
+      desc: t(
+        'Configure channel priorities, load balancing and retries for your model services.'
+      ),
       span: 'md:col-span-1',
       icon: <Globe className='size-4 text-violet-400' />,
       visual: (
@@ -159,8 +161,8 @@ export function Features(_props: FeaturesProps) {
   const additionalFeatures = [
     {
       icon: <Gauge className='size-5' strokeWidth={1.5} />,
-      title: t('High Performance'),
-      desc: t('Support for high concurrency with automatic load balancing'),
+      title: t('Load Balancing'),
+      desc: t('Distribute requests across configured channels'),
     },
     {
       icon: <DollarSign className='size-5' strokeWidth={1.5} />,
@@ -169,7 +171,7 @@ export function Features(_props: FeaturesProps) {
     },
     {
       icon: <Users className='size-5' strokeWidth={1.5} />,
-      title: t('Team Collaboration'),
+      title: t('User Management'),
       desc: t('Multi-user management with flexible permission allocation'),
     },
     {
@@ -187,23 +189,29 @@ export function Features(_props: FeaturesProps) {
             {t('Core Features')}
           </p>
           <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-3xl'>
-            {t('Built for developers,')}
+            {t('From model access')}
             <br />
-            {t('designed for scale')}
+            {t('to everyday productivity.')}
           </h2>
         </AnimateInView>
 
         {/* Bento grid */}
-        <div className='border-border/40 bg-border/40 grid gap-px overflow-hidden rounded-xl border md:grid-cols-3'>
+        <div className='grid gap-4 md:grid-cols-3'>
           {features.map((f, i) => (
             <AnimateInView
               key={f.id}
               delay={i * 100}
               animation='scale-in'
-              className={`bg-background group hover:bg-muted/20 p-7 transition-colors duration-300 md:p-8 ${f.span}`}
+              className={`maas-feature-card group border-border/50 rounded-2xl border p-7 transition-colors duration-300 md:p-8 ${f.span}`}
             >
               <div className='mb-3 flex items-center gap-3'>
-                <span className='border-border/40 bg-muted text-muted-foreground flex size-7 items-center justify-center rounded-md border text-[10px] font-semibold tabular-nums'>
+                <span
+                  aria-hidden
+                  className='maas-feature-icon border-border/50 flex size-9 items-center justify-center rounded-xl border'
+                >
+                  {f.icon}
+                </span>
+                <span className='text-muted-foreground ml-auto font-mono text-xs'>
                   {f.num}
                 </span>
                 <h3 className='text-sm font-semibold'>{f.title}</h3>

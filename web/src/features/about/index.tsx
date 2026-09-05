@@ -17,98 +17,68 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { Construction } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ArrowUpRight, Layers } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
 import { RichContent } from '@/components/rich-content'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSystemConfig } from '@/hooks/use-system-config'
 import { isHttpUrl, isLikelyHtml } from '@/lib/content-format'
 
 import { getAboutContent } from './api'
+import { ProjectNotice } from './components/project-notice'
 
 function EmptyAboutState() {
   const { t } = useTranslation()
-  const currentYear = new Date().getFullYear()
+  const { systemName } = useSystemConfig()
 
   return (
-    <div className='flex min-h-[60vh] items-center justify-center p-8'>
-      <div className='max-w-2xl space-y-6 text-center'>
-        <div className='flex justify-center'>
-          <Construction className='text-muted-foreground h-24 w-24' />
-        </div>
-        <div className='space-y-2'>
-          <h2 className='text-2xl font-bold'>{t('No About Content Set')}</h2>
-          <p className='text-muted-foreground'>
-            {t(
-              'The administrator has not configured any about content yet. You can set it in the settings page, supporting HTML or URL.'
-            )}
-          </p>
-        </div>
-        <div className='space-y-4 text-sm'>
-          <p>
-            {t('New API Project Repository:')}{' '}
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('https://github.com/QuantumNous/new-api')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('NewAPI')}
-            </a>{' '}
-            © {currentYear}{' '}
-            <a
-              href='https://github.com/QuantumNous'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('QuantumNous')}
-            </a>{' '}
-            {t('| Based on')}{' '}
-            <a
-              href='https://github.com/songquanpeng/one-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('One API')}
-            </a>{' '}
-            © 2023{' '}
-            <a
-              href='https://github.com/songquanpeng'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('JustSong')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            {t('This project must be used in compliance with the')}{' '}
-            <a
-              href='https://github.com/QuantumNous/new-api/blob/main/LICENSE'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('AGPL v3.0 License')}
-            </a>
-            .
-          </p>
-        </div>
+    <section className='mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center gap-6 px-4 py-16 text-center'>
+      <div className='maas-feature-icon border-border/50 flex size-16 items-center justify-center rounded-2xl border'>
+        <Layers aria-hidden className='maas-accent size-8' strokeWidth={1.5} />
       </div>
-    </div>
+      <p className='maas-accent text-xs font-semibold tracking-widest uppercase'>
+        {t('Model as a Service')}
+      </p>
+      <h1 className='maas-gradient-text text-4xl font-bold tracking-tight break-words sm:text-5xl'>
+        {systemName}
+      </h1>
+      <p className='max-w-2xl text-lg font-medium'>
+        {t('Unified model services for AI productivity')}
+      </p>
+      <p className='text-muted-foreground max-w-2xl text-sm leading-7'>
+        {t(
+          'Connect models, applications and people through one platform. Manage API access, usage and costs in one workspace.'
+        )}
+      </p>
+      <div className='flex flex-wrap justify-center gap-3'>
+        <Button render={<Link to='/pricing' />}>{t('Model Square')}</Button>
+        <Button
+          variant='outline'
+          render={
+            <a
+              href='https://ai.shilijia.xyz/'
+              target='_blank'
+              rel='noopener noreferrer'
+            />
+          }
+        >
+          {t('Explore Shilijia AI')}
+          <ArrowUpRight aria-hidden className='size-4' />
+        </Button>
+      </div>
+      <a
+        className='text-muted-foreground hover:text-foreground mt-4 text-xs underline underline-offset-4'
+        href='https://github.com/yeruyi1024/novamaas-workspace'
+        target='_blank'
+        rel='noopener noreferrer'
+      >
+        {t('Source Code')}
+      </a>
+    </section>
   )
 }
 
@@ -133,14 +103,16 @@ export function About() {
           <Skeleton className='h-4 w-[90%]' />
           <Skeleton className='h-4 w-[80%]' />
         </div>
+        <ProjectNotice />
       </PublicLayout>
     )
   }
 
   if (!hasContent) {
     return (
-      <PublicLayout>
+      <PublicLayout appearance='maas'>
         <EmptyAboutState />
+        <ProjectNotice />
       </PublicLayout>
     )
   }
@@ -154,6 +126,7 @@ export function About() {
           title={t('About')}
           sandbox='allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts'
         />
+        <ProjectNotice />
       </PublicLayout>
     )
   }
@@ -167,6 +140,7 @@ export function About() {
           content={rawContent}
           className='prose-neutral dark:prose-invert max-w-none'
         />
+        <ProjectNotice />
       </PublicLayout>
     )
   }
@@ -180,6 +154,7 @@ export function About() {
           className='prose-neutral dark:prose-invert max-w-none'
         />
       </div>
+      <ProjectNotice />
     </PublicLayout>
   )
 }

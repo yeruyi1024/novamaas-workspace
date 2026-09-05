@@ -42,12 +42,6 @@ interface FooterProps {
   className?: string
 }
 
-const NEW_API_FOOTER_ATTRIBUTION_KEY = [
-  'footer',
-  'new' + 'api',
-  'projectAttributionSuffix',
-].join('.')
-
 function FooterLinkItem(props: { link: FooterLink }) {
   const { t } = useTranslation()
   const isExternal = props.link.href.startsWith('http')
@@ -118,34 +112,6 @@ function LegalLinks(props: { leadingSeparator?: boolean }) {
         </Fragment>
       ))}
     </>
-  )
-}
-
-// inline=true returns just the inner span for composition in a parent flex
-// row. inline=false wraps in a centered/right-aligned div (default).
-function ProjectAttribution(props: { currentYear: number; inline?: boolean }) {
-  const { t } = useTranslation()
-  const content = (
-    <span className='text-muted-foreground/45'>
-      &copy; {props.currentYear}{' '}
-      <a
-        href='https://github.com/QuantumNous/new-api'
-        target='_blank'
-        rel='noopener noreferrer'
-        className='text-foreground/70 hover:text-foreground font-medium transition-colors'
-      >
-        {t('New API')}
-      </a>
-      . {t(NEW_API_FOOTER_ATTRIBUTION_KEY)}
-    </span>
-  )
-  if (props.inline) {
-    return content
-  }
-  return (
-    <div className='text-muted-foreground/45 text-center text-xs sm:text-right'>
-      {content}
-    </div>
   )
 }
 
@@ -238,7 +204,17 @@ export function Footer(props: FooterProps) {
             />
             <div className='border-border/60 text-muted-foreground/45 flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t pt-4 text-xs sm:w-auto sm:justify-end sm:border-t-0 sm:border-l sm:pt-0 sm:pl-5'>
               <LegalLinks />
-              <ProjectAttribution currentYear={currentYear} inline />
+              <Link to='/about' className='hover:text-foreground'>
+                {t('Open-source information')}
+              </Link>
+              <a
+                href='https://github.com/yeruyi1024/novamaas-workspace'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='hover:text-foreground'
+              >
+                {t('Source Code')}
+              </a>
             </div>
           </div>
         </div>
@@ -265,21 +241,21 @@ export function Footer(props: FooterProps) {
               </span>
             </Link>
             <p className='text-muted-foreground/60 mt-3 max-w-[200px] text-xs leading-relaxed'>
-              {t('Powerful API Management Platform')}
+              {t('Unified model services for AI productivity')}
             </p>
           </div>
 
           {/* Links columns */}
           {isDemoSiteMode && (
             <div className='grid grid-cols-3 gap-8 md:gap-16'>
-              {displayColumns.map((column, index) => (
-                <div key={index}>
+              {displayColumns.map((column) => (
+                <div key={column.title}>
                   <p className='text-muted-foreground/50 mb-3 text-xs font-medium tracking-wider uppercase'>
                     {t(column.title)}
                   </p>
                   <ul className='space-y-2.5'>
-                    {column.links.map((link, linkIndex) => (
-                      <li key={linkIndex}>
+                    {column.links.map((link) => (
+                      <li key={link.href}>
                         <FooterLinkItem link={link} />
                       </li>
                     ))}
@@ -290,8 +266,7 @@ export function Footer(props: FooterProps) {
           )}
         </div>
 
-        {/* Copyright + optional legal links inline on the left, project
-            attribution on the right; wraps on narrow screens. */}
+        {/* Operator copyright, configured legal links and fork source. */}
         <div className='border-border/30 mt-12 flex flex-col items-center justify-between gap-x-3 gap-y-2 border-t pt-6 sm:flex-row'>
           <div className='text-muted-foreground/40 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs sm:justify-start'>
             <span>
@@ -299,8 +274,18 @@ export function Footer(props: FooterProps) {
               {props.copyright ?? t('footer.defaultCopyright')}
             </span>
             <LegalLinks leadingSeparator />
+            <Link to='/about' className='hover:text-foreground'>
+              {t('Open-source information')}
+            </Link>
           </div>
-          <ProjectAttribution currentYear={currentYear} />
+          <a
+            href='https://github.com/yeruyi1024/novamaas-workspace'
+            target='_blank'
+            rel='noopener noreferrer'
+            className='text-muted-foreground hover:text-foreground text-xs'
+          >
+            {t('Source Code')}
+          </a>
         </div>
       </div>
     </footer>
