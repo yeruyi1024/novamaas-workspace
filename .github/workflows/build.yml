@@ -68,6 +68,7 @@ jobs:
   build:
     name: Package Linux ${{ matrix.arch }}
     needs: [backend, frontend]
+    if: github.event_name == 'release' || (github.ref == 'refs/heads/main' && github.event_name != 'pull_request')
     strategy:
       fail-fast: false
       matrix:
@@ -254,9 +255,52 @@ jobs:
           test "$revision" = "$GITHUB_SHA"
           bash .github/scripts/verify-image.sh "$ref" "$EXPECTED_VERSION"
 
+  mirror-tencent:
+    name: Mirror multi-arch image to Tencent CCR
+    needs: [build, publish, verify-published]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+      SOURCE_DIGEST: ${{ needs.publish.outputs.digest }}
+      SOURCE_IMAGE: ghcr.io/${{ github.repository }}
+      TENCENT_CCR_IMAGE: ccr.ccs.tencentyun.com/itcode/novamaas
+      TENCENT_CCR_REGISTRY: ccr.ccs.tencentyun.com
+    steps:
+      - name: Install Skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends skopeo
+      - name: Log in to Tencent CCR
+        env:
+          TENCENT_CCR_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
+          TENCENT_CCR_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
+        run: |
+          if [[ -z "$TENCENT_CCR_USERNAME" || -z "$TENCENT_CCR_PASSWORD" ]]; then
+            echo '::error::TENCENT_CCR_USERNAME and TENCENT_CCR_PASSWORD repository secrets are required.'
+            exit 1
+          fi
+          printf '%s' "$TENCENT_CCR_PASSWORD" | skopeo login \
+            --username "$TENCENT_CCR_USERNAME" \
+            --password-stdin "$TENCENT_CCR_REGISTRY"
+      - name: Copy and verify multi-arch image
+        id: mirror
+        run: |
+          source_ref="docker://${SOURCE_IMAGE}@${SOURCE_DIGEST}"
+          target_ref="docker://${TENCENT_CCR_IMAGE}:${IMAGE_TAG}"
+          skopeo copy --all --retry-times 5 "$source_ref" "$target_ref"
+          skopeo inspect --raw "$target_ref" > manifest.json
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' manifest.json
+          digest=$(skopeo inspect "$target_ref" | jq -er '.Digest | select(test("^sha256:[0-9a-f]{64}$"))')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          printf '### Tencent CCR mirror\n\n- `%s:%s`\n\n' \
+            "$TENCENT_CCR_IMAGE" "$IMAGE_TAG" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Pinned reference: `%s@%s`\n' \
+            "$TENCENT_CCR_IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
+
   release:
     name: Attach release packages
-    needs: verify-published
+    needs: [verify-published, mirror-tencent]
     if: github.event_name == 'release'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

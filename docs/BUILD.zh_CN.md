@@ -4,19 +4,19 @@
 
 ## 自动构建
 
-| 触发方式 | 检查与打包 | GHCR 镜像 | GitHub Release |
+| 触发方式 | CI 检查 | 打包与镜像 | GitHub Release |
 | --- | --- | --- | --- |
-| 推送 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 包 | `sha-<完整提交 SHA>` | 不创建 |
-| 向 `main` 提交 PR | 相同检查、双架构构建与启动验证 | 不发布 | 不创建 |
-| 发布 Release（含预发布） | 相同检查和打包，Release Tag 须与 `VERSION` 一致 | 与 Release Tag 完全同名 | 将安装包及校验文件上传到你发布的 Release |
-| 仅推送 Git Tag / 保存 Release 草稿 | 不触发此工作流 | 不发布 | 不创建 |
-| Actions 页面手动运行 | 构建所选分支/标签 | 仅选择 `main` 时发布 SHA 标签 | 不创建 |
+| 推送 `main` | Go vet/build/test、前端类型检查和测试 | 构建 Linux amd64/arm64 包，发布相同 `sha-<完整提交 SHA>` 标签到 GHCR 和腾讯 CCR | 不创建 |
+| 向 `main` 提交 PR | Go vet/build/test、前端类型检查和测试 | 不构建二进制包或容器镜像 | 不创建 |
+| 发布 Release（含预发布） | 相同检查 | 构建 Linux amd64/arm64 包，向两个镜像仓库发布与 Release Tag 完全同名的标签 | 将安装包及校验文件上传到你发布的 Release |
+| 仅推送 Git Tag / 保存 Release 草稿 | 不触发此工作流 | 不构建或发布 | 不创建 |
+| Actions 页面手动运行 | 检查所选分支 | 仅选择 `main` 时构建并发布 SHA 标签 | 不创建 |
 
 构建使用上游 Dockerfile 中固定的 Bun `1.4.0` 和 Go `1.26.1`，执行 `bun install --frozen-lockfile`，保留 `go.mod`、`go.sum` 与 `web/bun.lock`。两种架构分别使用 GitHub 的原生 Linux runner。
 
 前端编译进 Go 可执行文件。CI 会运行容器，验证版本号、`/api/status` 及首页响应，然后从已验证的镜像提取二进制文件打包，最后发布同一镜像。安装包包含 `new-api`、许可证、署名、来源记录、版本及 `BUILD-INFO.txt`；镜像中的许可和来源文件位于 `/licenses`。
 
-发布后，两个新的原生架构 runner 会按镜像 digest 从 GHCR 匿名拉取，核对源码提交、运行版本、API 状态和首页。Release 的安装包只在这两项验证通过后上传。
+发布后，两个新的原生架构 runner 会按镜像 digest 从 GHCR 匿名拉取，核对源码提交、运行版本、API 状态和首页。两项验证通过后，工作流将完整的多架构镜像复制到腾讯 CCR，并核对目标清单同时包含 amd64 和 arm64。Release 的安装包只在国内镜像同步成功后上传。
 
 ## 下载与运行安装包
 
@@ -57,6 +57,30 @@ docker run -d --name novamaas --restart unless-stopped \
 Tag 是可由维护者重新指向的名称。需要锁定确切镜像内容时，使用 `ghcr.io/yeruyi1024/novamaas-workspace@sha256:<digest>`；`docker buildx imagetools inspect` 会显示 digest。发布新版本时请使用新 Tag，不要移动已有发行标签。
 
 CI 通过仓库自动提供的 `GITHUB_TOKEN` 和 `packages: write` 权限发布到 GHCR，无需配置 Docker Hub 账号或额外 Secret。GHCR 新建包可能默认是私有的；维护者需在包的 **Package settings → Change visibility** 中设为 **Public**，匿名用户才能拉取。公开源码仓库和容器包的可见性是分别管理的。
+
+## 腾讯云 CCR 国内镜像
+
+GHCR 镜像通过运行验证后，CI 使用相同标签将整个多架构镜像复制到 `ccr.ccs.tencentyun.com/itcode/novamaas`。此过程不会重复编译，也不会生成 `latest`。例如主分支标签为 `sha-<完整提交 SHA>` 时，国内镜像地址为：
+
+```text
+ccr.ccs.tencentyun.com/itcode/novamaas:sha-<完整提交 SHA>
+```
+
+在腾讯云控制台创建 `itcode/novamaas` 仓库后，进入 GitHub 仓库的 **Settings → Secrets and variables → Actions**，配置以下 Repository secrets：
+
+```text
+TENCENT_CCR_USERNAME
+TENCENT_CCR_PASSWORD
+```
+
+工作流不会输出密码。两个 Secret 未配置或凭证无推送权限时，国内镜像同步任务会明确失败，GHCR 中已经通过验证的镜像不会受到影响。国内机器拉取私有仓库前需要先登录；如需免登录拉取，请在腾讯云控制台将该仓库设置为公开。
+
+```bash
+docker login ccr.ccs.tencentyun.com
+docker pull ccr.ccs.tencentyun.com/itcode/novamaas:sha-<完整提交 SHA>
+docker buildx imagetools inspect \
+  ccr.ccs.tencentyun.com/itcode/novamaas:sha-<完整提交 SHA>
+```
 
 ## 发布新版本
 
