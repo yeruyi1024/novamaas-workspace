@@ -3,7 +3,8 @@ name: Build, package and publish
 on:
   push:
     branches: [main]
-    tags: ['v*-novamaas.*']
+  release:
+    types: [published]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -77,27 +78,45 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
+    outputs:
+      image_tag: ${{ steps.version.outputs.image_tag }}
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
       packages: write
     env:
       ARCH: ${{ matrix.arch }}
-      CAN_PUBLISH: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-novamaas.')) }}
+      CAN_PUBLISH: ${{ github.event_name == 'release' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - name: Resolve version and image name
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           base_version=$(cat VERSION)
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          image_tag="sha-${GITHUB_SHA}"
+          if [[ "$GITHUB_EVENT_NAME" == release ]]; then
+            version="$RELEASE_TAG"
+            image_tag="$RELEASE_TAG"
+            if [[ "$version" != "$base_version" ]]; then
+              echo "::error::Release tag must match VERSION ($base_version)."
+              exit 1
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             version="$GITHUB_REF_NAME"
             test "$version" = "$base_version"
           else
             version="${base_version}-dev.${GITHUB_SHA:0:12}"
           fi
-          [[ "$version" =~ ^v[0-9A-Za-z.+-]+$ ]]
+          # Release tags must also be valid, unmodified Docker tags.
+          [[ "$version" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]
+          test "${#image_tag}" -le 128
           printf '%s\n' "$version" > VERSION
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -118,20 +137,7 @@ jobs:
           cache-from: type=gha,scope=linux-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
       - name: Verify version and HTTP startup
-        run: |
-          test "$(docker run --rm novamaas-ci:local --version)" = "$BUILD_VERSION"
-          docker run -d --name novamaas-smoke -p 127.0.0.1:3000:3000 novamaas-ci:local
-          trap 'docker logs novamaas-smoke; docker rm -f novamaas-smoke' EXIT
-          for attempt in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:3000/api/status > /tmp/novamaas-status.json; then
-              jq -e '.success == true' /tmp/novamaas-status.json
-              curl -fsS http://127.0.0.1:3000/ > /tmp/novamaas-index.html
-              grep -qi '<!doctype html' /tmp/novamaas-index.html
-              exit 0
-            fi
-            sleep 2
-          done
-          exit 1
+        run: bash .github/scripts/verify-image.sh novamaas-ci:local "$BUILD_VERSION"
       - name: Package the tested binary and notices
         run: |
           package="novamaas-${BUILD_VERSION}-linux-${ARCH}"
@@ -183,9 +189,11 @@ jobs:
   publish:
     name: Publish multi-arch image
     needs: build
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-novamaas.'))
+    if: github.event_name == 'release' || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
     permissions:
       packages: write
     steps:
@@ -201,34 +209,55 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate image tags
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.IMAGE }}
-          flavor: latest=false
-          tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha,format=long
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
       - name: Create and verify manifest
+        id: manifest
         env:
-          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: |
-          mapfile -t tags < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
-          args=()
-          for tag in "${tags[@]}"; do args+=(--tag "$tag"); done
-          docker buildx imagetools create "${args[@]}" "$(cat digests/amd64)" "$(cat digests/arm64)"
-          docker buildx imagetools inspect "${tags[0]}" --raw > manifest.json
+          ref="${IMAGE}:${IMAGE_TAG}"
+          docker buildx imagetools create --tag "$ref" "$(cat digests/amd64)" "$(cat digests/arm64)"
+          docker buildx imagetools inspect "$ref" --raw > manifest.json
           jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' manifest.json
-          printf '### Published images\n\n' >> "$GITHUB_STEP_SUMMARY"
-          printf -- '- `%s`\n' "${tags[@]}" >> "$GITHUB_STEP_SUMMARY"
+          digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          printf '### Published image\n\n- `%s`\n\n' "$ref" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Pinned reference: `%s@%s`\n\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "$ref" >> "$GITHUB_STEP_SUMMARY"
+
+  verify-published:
+    name: Verify published image ${{ matrix.arch }}
+    needs: [build, publish]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    env:
+      IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
+      EXPECTED_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Pull anonymously and verify published image
+        run: |
+          ref="ghcr.io/${GITHUB_REPOSITORY,,}@${IMAGE_DIGEST}"
+          # A fresh runner without registry login verifies public pull access.
+          docker pull "$ref"
+          revision=$(docker image inspect "$ref" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+          test "$revision" = "$GITHUB_SHA"
+          bash .github/scripts/verify-image.sh "$ref" "$EXPECTED_VERSION"
 
   release:
     name: Attach release packages
-    needs: publish
-    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-novamaas.')
+    needs: verify-published
+    if: github.event_name == 'release'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -239,22 +268,10 @@ jobs:
           pattern: package-linux-*
           path: dist
           merge-multiple: true
-      - name: Create release and upload packages
+      - name: Upload packages to the published release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          cat > release-notes.md <<EOF
-          NovaMaaS Workspace localized fork of QuantumNous/new-api.
-
-          Upstream baseline: v1.0.0-rc.26 (8f6961c675932f406260ff0c218bc2aa0603e9b2).
-          Source commit: ${GITHUB_SHA}
-          Container: ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}
-
-          Linux amd64/arm64 packages include the embedded frontend, license notices and SHA-256 checksums.
-          EOF
-          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-              --verify-tag --prerelease --title "NovaMaaS $GITHUB_REF_NAME" --notes-file release-notes.md
-          fi
-          gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.sha256 \
+          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
             --repo "$GITHUB_REPOSITORY" --clobber

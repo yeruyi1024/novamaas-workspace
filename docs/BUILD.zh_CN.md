@@ -6,14 +6,17 @@
 
 | 触发方式 | 检查与打包 | GHCR 镜像 | GitHub Release |
 | --- | --- | --- | --- |
-| 推送 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 包 | `main`、`latest`、`sha-<完整提交 SHA>` | 不创建 |
+| 推送 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 包 | `sha-<完整提交 SHA>` | 不创建 |
 | 向 `main` 提交 PR | 相同检查、双架构构建与启动验证 | 不发布 | 不创建 |
-| 推送 `v*-novamaas.*` 标签 | 相同检查和打包，标签须与 `VERSION` 一致 | 对应标签、`sha-<完整提交 SHA>` | 创建预发布并上传安装包、校验文件 |
-| Actions 页面手动运行 | 构建所选分支/标签 | 仅 `main` 或符合规则的发行标签可发布 | 仅符合规则的发行标签 |
+| 发布 Release（含预发布） | 相同检查和打包，Release Tag 须与 `VERSION` 一致 | 与 Release Tag 完全同名 | 将安装包及校验文件上传到你发布的 Release |
+| 仅推送 Git Tag / 保存 Release 草稿 | 不触发此工作流 | 不发布 | 不创建 |
+| Actions 页面手动运行 | 构建所选分支/标签 | 仅选择 `main` 时发布 SHA 标签 | 不创建 |
 
 构建使用上游 Dockerfile 中固定的 Bun `1.4.0` 和 Go `1.26.1`，执行 `bun install --frozen-lockfile`，保留 `go.mod`、`go.sum` 与 `web/bun.lock`。两种架构分别使用 GitHub 的原生 Linux runner。
 
 前端编译进 Go 可执行文件。CI 会运行容器，验证版本号、`/api/status` 及首页响应，然后从已验证的镜像提取二进制文件打包，最后发布同一镜像。安装包包含 `new-api`、许可证、署名、来源记录、版本及 `BUILD-INFO.txt`；镜像中的许可和来源文件位于 `/licenses`。
+
+发布后，两个新的原生架构 runner 会按镜像 digest 从 GHCR 匿名拉取，核对源码提交、运行版本、API 状态和首页。Release 的安装包只在这两项验证通过后上传。
 
 ## 下载与运行安装包
 
@@ -33,29 +36,49 @@ cd <解压后的安装包目录>
 
 ## 使用容器镜像
 
-镜像地址：`ghcr.io/yeruyi1024/novamaas-workspace`。`latest` 跟随通过构建的 `main`；固定版本部署可使用具体发行标签或镜像 digest。
+镜像地址：`ghcr.io/yeruyi1024/novamaas-workspace`。主分支构建使用 `sha-<完整提交 SHA>`，发行构建使用与 Release 一致的 Tag。工作流不再写入 `latest` 或 `main`；旧的这两个标签仅代表初始化时的历史构建，不再用于部署示例。
+
+在仓库首页右侧点击 **Packages → novamaas-workspace**，或直接打开 [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)。选择一个版本即可查看标签、digest、架构和拉取命令。CI 运行详情中 **Publish multi-arch image** 的 Summary 也会输出固定引用。
+
+下面以已经发布的初始化构建为例；使用新构建时，将 `NOVAMAAS_IMAGE` 换成 Packages 中的对应标签：
 
 ```bash
-docker pull ghcr.io/yeruyi1024/novamaas-workspace:latest
+NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:sha-65be9f0f7456bf86e61dbbb43835df40731a311b
+docker buildx imagetools inspect "$NOVAMAAS_IMAGE"
+docker pull "$NOVAMAAS_IMAGE"
+docker run --rm "$NOVAMAAS_IMAGE" --version
 docker run -d --name novamaas --restart unless-stopped \
   -p 3000:3000 \
   -e TZ=Asia/Shanghai \
   -v novamaas-data:/data \
-  ghcr.io/yeruyi1024/novamaas-workspace:latest
+  "$NOVAMAAS_IMAGE"
 ```
+
+Tag 是可由维护者重新指向的名称。需要锁定确切镜像内容时，使用 `ghcr.io/yeruyi1024/novamaas-workspace@sha256:<digest>`；`docker buildx imagetools inspect` 会显示 digest。发布新版本时请使用新 Tag，不要移动已有发行标签。
 
 CI 通过仓库自动提供的 `GITHUB_TOKEN` 和 `packages: write` 权限发布到 GHCR，无需配置 Docker Hub 账号或额外 Secret。GHCR 新建包可能默认是私有的；维护者需在包的 **Package settings → Change visibility** 中设为 **Public**，匿名用户才能拉取。公开源码仓库和容器包的可见性是分别管理的。
 
 ## 发布新版本
 
-版本号格式示例为 `v1.0.0-rc.26-novamaas.1`。修改根目录 `VERSION`，提交并推送到 `main`，确认检查通过后，再创建同名标签：
+版本号格式示例为 `v1.0.0-rc.26-novamaas.1`。发布步骤：
+
+1. 修改根目录 `VERSION`，提交并推送到 `main`，等待 CI 通过。
+2. 打开仓库 **Releases → Draft a new release**。
+3. 选择或创建与 `VERSION` 完全一致的 Tag，指向包含该版本文件和新工作流的提交，填写标题与说明。
+4. 点击 **Publish release**。候选版可以勾选 **Set as a pre-release**；两种发布方式都会触发 CI。
+5. 等待 CI 完成；GHCR 中将出现 `ghcr.io/yeruyi1024/novamaas-workspace:v1.0.0-rc.26-novamaas.1`，该 Release 的 Assets 中将出现安装包与校验文件。
+
+也可以先创建 Git Tag，再使用 GitHub CLI 发布 Release：
 
 ```bash
 git tag -a v1.0.0-rc.26-novamaas.1 -m "NovaMaaS initial localized fork"
 git push origin v1.0.0-rc.26-novamaas.1
+gh release create v1.0.0-rc.26-novamaas.1 \
+  --repo yeruyi1024/novamaas-workspace --verify-tag --prerelease \
+  --title "NovaMaaS v1.0.0-rc.26-novamaas.1" --notes-file release-notes.md
 ```
 
-后续发行递增 `novamaas` 后缀；示例标签已经存在时不要重复创建。本分支基于上游候选版本，因此此工作流将发行版标记为 prerelease。CI 不自动合入上游新版本。
+CLI 示例中的 `release-notes.md` 由发布者提前编写。后续发行递增 `novamaas` 后缀；示例标签已经存在时不要重复创建。仅推送 Tag 不再生成发行镜像，必须发布 Release。Tag 必须以 `v` 和数字开头，只含字母、数字、点、下划线或短横线，且不超过 128 个字符。CI 不会替你创建 Release、改写 Release 正文或自动合入上游新版本。
 
 ## 本地从源码构建
 

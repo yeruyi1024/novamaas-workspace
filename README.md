@@ -13,17 +13,19 @@
 ## 本仓库构建与使用
 
 - [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：推送 `main`、提交 PR 或手动运行时，执行检查并构建 Linux amd64/arm64 安装包和容器镜像。
-- 主分支镜像：`ghcr.io/yeruyi1024/novamaas-workspace:latest`，支持 amd64/arm64。PR 只构建验证，发布由主分支或本项目发行标签触发。
-- [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：推送与 `VERSION` 一致的 `v*-novamaas.*` 标签后，CI 自动发布预发布安装包和 SHA-256 校验文件。
+- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：主分支使用 `sha-<完整提交 SHA>` 标签，支持 amd64/arm64；工作流不再更新 `latest` 或 `main`。PR 只构建验证。
+- [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：发布与 `VERSION` 同名的 Release 后，CI 自动生成同名镜像，并将安装包和 SHA-256 校验文件上传到该 Release。仅推送 Git Tag 或保存草稿不会发布镜像。
 - [构建、下载、部署及发布说明](docs/BUILD.zh_CN.md)。本仓库使用 GHCR 和自动提供的 `GITHUB_TOKEN`，无需 Docker Hub 凭据。
 
 ```bash
 git clone https://github.com/yeruyi1024/novamaas-workspace.git
 cd novamaas-workspace
-docker pull ghcr.io/yeruyi1024/novamaas-workspace:latest
+# 已发布的初始化构建；新版本请从 Packages 选择对应固定标签。
+NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:sha-65be9f0f7456bf86e61dbbb43835df40731a311b
+docker pull "$NOVAMAAS_IMAGE"
 docker run -d --name novamaas --restart unless-stopped \
   -p 3000:3000 -e TZ=Asia/Shanghai -v novamaas-data:/data \
-  ghcr.io/yeruyi1024/novamaas-workspace:latest
+  "$NOVAMAAS_IMAGE"
 ```
 
 ## 上游项目原始说明 / Original upstream documentation
