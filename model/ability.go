@@ -148,9 +148,9 @@ func GetChannel(group string, model string, retry int, requestPath string) (*Cha
 
 // filterAbilitiesByRequestPathAndModel restricts candidates by request path and
 // model for the DB (non-memory-cache) selection path. Only Advanced Custom
-// (type 58) channels are path-checked: kept only when one of their routes matches
-// requestPath and model; all other channel types always pass. When requestPath is
-// empty, filtering is skipped.
+// (type 58) channels are checked against their configured routes. Volc Native
+// routes and channels are isolated from compatible channel types. When
+// requestPath is empty, filtering is skipped.
 func filterAbilitiesByRequestPathAndModel(abilities []Ability, requestPath string, model string) []Ability {
 	if requestPath == "" || len(abilities) == 0 {
 		return abilities
@@ -173,22 +173,17 @@ func filterAbilitiesByRequestPathAndModel(abilities []Ability, requestPath strin
 	}
 
 	advancedConfigs := make(map[int]*dto.AdvancedCustomConfig)
-	volcNativeChannels := make(map[int]bool)
+	channelTypes := make(map[int]int)
 	for _, channel := range channels {
 		if channel.Type == constant.ChannelTypeAdvancedCustom {
 			advancedConfigs[channel.Id] = channel.GetOtherSettings().AdvancedCustom
 		}
-		if channel.Type == constant.ChannelTypeVolcNative {
-			volcNativeChannels[channel.Id] = true
-		}
+		channelTypes[channel.Id] = channel.Type
 	}
 
 	filtered := make([]Ability, 0, len(abilities))
 	for _, ability := range abilities {
-		if volcNativeChannels[ability.ChannelId] {
-			if strings.HasPrefix(requestPath, "/api/v3/images/generations") || strings.HasPrefix(requestPath, "/api/v3/contents/generations/tasks") {
-				filtered = append(filtered, ability)
-			}
+		if !constant.VolcNativeChannelMatchesPath(channelTypes[ability.ChannelId], requestPath) {
 			continue
 		}
 		config, isAdvancedCustom := advancedConfigs[ability.ChannelId]

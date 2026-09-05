@@ -176,14 +176,14 @@ func Distribute() func(c *gin.Context) {
 
 // channelSupportsRequestPath reports whether a channel can serve the request path.
 // Advanced Custom channels use their configured route list. Volc Native channels
-// are deliberately limited to Fire Ark's native /api/v3 endpoints so a native
-// channel is never selected for an OpenAI-compatible /v1 request.
+// are deliberately isolated to Fire Ark's native /api/v3 endpoints, in both
+// directions, so compatible and native routes cannot select each other's channels.
 func channelSupportsRequestPath(channel *model.Channel, requestPath string, requestModel string) bool {
 	if channel == nil {
 		return false
 	}
-	if channel.Type == constant.ChannelTypeVolcNative {
-		return isVolcNativePath(requestPath)
+	if !constant.VolcNativeChannelMatchesPath(channel.Type, requestPath) {
+		return false
 	}
 	if channel.Type != constant.ChannelTypeAdvancedCustom {
 		return true
@@ -435,11 +435,6 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 	}
 
 	return &modelRequest, shouldSelectChannel, nil
-}
-
-func isVolcNativePath(requestPath string) bool {
-	return strings.HasPrefix(requestPath, "/api/v3/images/generations") ||
-		strings.HasPrefix(requestPath, "/api/v3/contents/generations/tasks")
 }
 
 // 修复 #4834: GET /v1/video/generations/:task_id && /v1/video/:task_id 此前不解析 model，

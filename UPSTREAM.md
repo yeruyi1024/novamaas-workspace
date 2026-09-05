@@ -14,6 +14,10 @@
 
 后续会不定期评估并选择性同步上游中有益、兼容、适合本项目的改动。每次同步应记录上游提交、改动原因和验证结果；不会自动全量跟随上游主分支。
 
+## 已选择同步的上游改动
+
+- 2026-09-05：同步 [QuantumNous/new-api#6653](https://github.com/QuantumNous/new-api/pull/6653) 的提交 `362c9d666ab4dddbe789cba2c1acc4217573d6a5`，新增独立的 Volc Native（渠道类型 61）和火山方舟原生 `/api/v3` 图片、视频任务接口。本仓库补充了双向渠道隔离、任务凭据延续、令牌访问限制、请求边界校验、完整任务响应、前端国际化、测试和使用文档。上游 PR 在同步时仍处于未合并状态，因此本改动会在独立分支和本仓库 PR 中验证后再决定是否进入主分支。
+
 This independently maintained fork starts at exactly the upstream commit above and retains its Git history. Initial changes cover fork documentation, build versioning and GitHub Actions; application source code is unchanged. Future upstream improvements will be reviewed and integrated selectively, with their source commits and validation recorded.
 
 ## 同步上游

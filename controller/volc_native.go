@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,11 +18,14 @@ import (
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+const volcNativeCancelReason = "cancelled"
 
 var volcNativeTaskPlatform = constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeVolcNative))
 
@@ -155,22 +159,48 @@ func RelayVolcNativeTaskList(c *gin.Context) {
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	query := model.SyncTaskQueryParams{Platform: volcNativeTaskPlatform}
-	tasks := model.TaskGetAllUserTask(c.GetInt("id"), (page-1)*pageSize, pageSize, query)
-	items := make([]volcNativeTaskListItem, 0, len(tasks))
-	for _, task := range tasks {
-		items = append(items, volcNativeTaskListItem{
-			ID:        task.TaskID,
-			Model:     volcNativeTaskModel(task),
-			Status:    volcNativeTaskStatus(task),
-			CreatedAt: task.CreatedAt,
-			UpdatedAt: task.UpdatedAt,
-		})
+	if page > 500 {
+		page = 500
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"items": items,
-		"total": model.TaskCountAllUserTask(c.GetInt("id"), query),
-	})
+	offset := (page - 1) * pageSize
+	query := model.DB.WithContext(c.Request.Context()).Model(&model.Task{}).
+		Where("user_id = ? AND platform = ?", c.GetInt("id"), volcNativeTaskPlatform).Order("id desc")
+	rows, err := query.Rows()
+	if err != nil {
+		respondVolcNativeError(c, http.StatusInternalServerError, "task_lookup_failed", "failed to list tasks")
+		return
+	}
+	defer rows.Close()
+	items := make([]json.RawMessage, 0, pageSize)
+	total := 0
+	for rows.Next() {
+		task := &model.Task{}
+		if err := model.DB.ScanRows(rows, task); err != nil {
+			respondVolcNativeError(c, http.StatusInternalServerError, "task_lookup_failed", "failed to list tasks")
+			return
+		}
+		if !volcNativeTaskAllowed(c, task) {
+			continue
+		}
+		if filter := c.Query("filter.model"); filter != "" && volcNativeTaskModel(task) != filter {
+			continue
+		}
+		if filter := c.Query("filter.status"); filter != "" && volcNativeTaskStatus(task) != filter {
+			continue
+		}
+		if filter := c.Query("filter.service_tier"); filter != "" && gjson.GetBytes(task.Data, "service_tier").String() != filter {
+			continue
+		}
+		if total >= offset && len(items) < pageSize {
+			items = append(items, buildVolcNativeTaskResponse(task))
+		}
+		total++
+	}
+	if err := rows.Err(); err != nil {
+		respondVolcNativeError(c, http.StatusInternalServerError, "task_lookup_failed", "failed to list tasks")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": total})
 }
 
 // RelayVolcNativeTaskDelete cancels only a task owned by the current user. The
@@ -191,10 +221,14 @@ func RelayVolcNativeTaskDelete(c *gin.Context) {
 		respondVolcNativeError(c, http.StatusBadRequest, "invalid_task_channel", "task does not belong to a Volc Native channel")
 		return
 	}
-	key, _, keyErr := channel.GetNextEnabledKey()
-	if keyErr != nil {
-		respondVolcNativeError(c, keyErr.StatusCode, "channel_no_available_key", "no upstream credential is available")
-		return
+	key := task.PrivateData.Key
+	if key == "" {
+		selectedKey, _, keyErr := channel.GetNextEnabledKey()
+		if keyErr != nil {
+			respondVolcNativeError(c, keyErr.StatusCode, "channel_no_available_key", "no upstream credential is available")
+			return
+		}
+		key = selectedKey
 	}
 	baseURL := strings.TrimRight(channel.GetBaseURL(), "/")
 	if baseURL == "" {
@@ -236,7 +270,7 @@ func RelayVolcNativeTaskDelete(c *gin.Context) {
 	previousStatus := task.Status
 	task.Status = model.TaskStatusFailure
 	task.Progress = "100%"
-	task.FailReason = "cancelled"
+	task.FailReason = volcNativeCancelReason
 	task.FinishTime = time.Now().Unix()
 	won, err := task.UpdateWithStatus(previousStatus)
 	if err != nil {
@@ -244,7 +278,7 @@ func RelayVolcNativeTaskDelete(c *gin.Context) {
 		return
 	}
 	if won {
-		service.RefundTaskQuota(c.Request.Context(), task, "cancelled")
+		service.RefundTaskQuota(c.Request.Context(), task, volcNativeCancelReason)
 	} else {
 		// A concurrent poll completed the task. Return the durable state and do
 		// not perform a second refund.
@@ -273,6 +307,10 @@ func getVolcNativeTask(c *gin.Context) (*model.Task, bool) {
 		respondVolcNativeError(c, http.StatusNotFound, "task_not_found", "task not found")
 		return nil, false
 	}
+	if !volcNativeTaskAllowed(c, task) {
+		respondVolcNativeError(c, http.StatusForbidden, "task_access_denied", "the token cannot access this task")
+		return nil, false
+	}
 	return task, true
 }
 
@@ -294,7 +332,9 @@ func volcNativeRequestBody(c *gin.Context) ([]byte, error) {
 func buildVolcNativeTaskResponse(task *model.Task) []byte {
 	if status := gjson.GetBytes(task.Data, "status"); status.Exists() {
 		if body, err := sjson.SetBytes(task.Data, "id", task.TaskID); err == nil {
-			return body
+			if body, err = sjson.SetBytes(body, "status", volcNativeTaskStatus(task)); err == nil {
+				return body
+			}
 		}
 	}
 	body, err := common.Marshal(gin.H{
@@ -322,8 +362,8 @@ func volcNativeTaskStatus(task *model.Task) string {
 	case model.TaskStatusSuccess:
 		return "succeeded"
 	case model.TaskStatusFailure:
-		if task.FailReason == "cancelled" {
-			return "cancelled"
+		if task.FailReason == volcNativeCancelReason || task.FailReason == "expired" {
+			return task.FailReason
 		}
 		return "failed"
 	case model.TaskStatusInProgress:
@@ -354,10 +394,23 @@ func respondVolcNativeError(c *gin.Context, statusCode int, code, message string
 	})
 }
 
-type volcNativeTaskListItem struct {
-	ID        string `json:"id"`
-	Model     string `json:"model,omitempty"`
-	Status    string `json:"status"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
+// Authenticated task operations use stored ownership and token model/channel
+// restrictions, without selecting an unrelated channel from an empty GET body.
+func volcNativeTaskAllowed(c *gin.Context, task *model.Task) bool {
+	if value := common.GetContextKeyString(c, constant.ContextKeyTokenSpecificChannelId); value != "" && value != strconv.Itoa(task.ChannelId) {
+		return false
+	}
+	if !common.GetContextKeyBool(c, constant.ContextKeyTokenModelLimitEnabled) {
+		return true
+	}
+	value, exists := common.GetContextKey(c, constant.ContextKeyTokenModelLimit)
+	if !exists {
+		return false
+	}
+	allowed, ok := value.(map[string]bool)
+	if !ok {
+		return false
+	}
+	_, exists = allowed[ratio_setting.FormatMatchingModelName(volcNativeTaskModel(task))]
+	return exists
 }

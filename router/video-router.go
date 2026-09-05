@@ -40,9 +40,9 @@ func SetVideoRouter(router *gin.Engine) {
 	volcNativeRouter.Use(middleware.ModelRequestRateLimit())
 	{
 		volcNativeRouter.POST("/contents/generations/tasks", middleware.Distribute(), controller.RelayTask)
-		volcNativeRouter.GET("/contents/generations/tasks", middleware.Distribute(), controller.RelayVolcNativeTaskList)
-		volcNativeRouter.GET("/contents/generations/tasks/:task_id", middleware.Distribute(), controller.RelayVolcNativeTaskFetch)
-		volcNativeRouter.DELETE("/contents/generations/tasks/:task_id", middleware.Distribute(), controller.RelayVolcNativeTaskDelete)
+		volcNativeRouter.GET("/contents/generations/tasks", controller.RelayVolcNativeTaskList)
+		volcNativeRouter.GET("/contents/generations/tasks/:task_id", controller.RelayVolcNativeTaskFetch)
+		volcNativeRouter.DELETE("/contents/generations/tasks/:task_id", controller.RelayVolcNativeTaskDelete)
 	}
 
 	klingV1Router := router.Group("/kling/v1")

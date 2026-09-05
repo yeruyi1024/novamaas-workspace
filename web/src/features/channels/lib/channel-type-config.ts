@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { CHANNEL_TYPES } from '../constants'
+import { CHANNEL_TYPES, CHANNEL_TYPE_VOLC_NATIVE } from '../constants'
 
 // ============================================================================
 // Channel Type Configuration
@@ -164,15 +164,16 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       models: 'Models',
     },
   },
-  61: {
-    id: 61,
-    name: CHANNEL_TYPES[61],
+  [CHANNEL_TYPE_VOLC_NATIVE]: {
+    id: CHANNEL_TYPE_VOLC_NATIVE,
+    name: CHANNEL_TYPES[CHANNEL_TYPE_VOLC_NATIVE],
     icon: 'volcengine',
     defaultBaseUrl: 'https://ark.cn-beijing.volces.com',
     hints: {
-      key: 'Fire Ark API Key',
-      models: 'Use the Fire Ark native model ID',
-      other: 'Only supports /api/v3/images/generations and /api/v3/contents/generations/tasks',
+      key: 'Volcengine Ark API Key',
+      models: 'Use the upstream model ID',
+      other:
+        'Use native /api/v3 endpoints with upstream model IDs. Model mapping and parameter overrides are not supported.',
     },
   },
 }

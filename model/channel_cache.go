@@ -210,7 +210,7 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 
 // filterChannelsByRequestPathAndModel restricts candidates by request path and
 // model. Advanced Custom channels are checked against their configured routes;
-// Volc Native channels are restricted to Fire Ark's native /api/v3 routes.
+// Volc Native routes and channels are isolated from compatible channel types.
 // When requestPath is empty (non-relay callers) filtering is skipped.
 // Caller must hold channelSyncLock (read lock). The cached slice is never mutated.
 func filterChannelsByRequestPathAndModel(channels []int, requestPath string, model string) []int {
@@ -225,10 +225,7 @@ func filterChannelsByRequestPathAndModel(channels []int, requestPath string, mod
 			filtered = append(filtered, channelId)
 			continue
 		}
-		if channel.Type == constant.ChannelTypeVolcNative {
-			if isVolcNativeRequestPath(requestPath) {
-				filtered = append(filtered, channelId)
-			}
+		if !constant.VolcNativeChannelMatchesPath(channel.Type, requestPath) {
 			continue
 		}
 		if channel.Type != constant.ChannelTypeAdvancedCustom {
@@ -240,11 +237,6 @@ func filterChannelsByRequestPathAndModel(channels []int, requestPath string, mod
 		}
 	}
 	return filtered
-}
-
-func isVolcNativeRequestPath(requestPath string) bool {
-	return strings.HasPrefix(requestPath, "/api/v3/images/generations") ||
-		strings.HasPrefix(requestPath, "/api/v3/contents/generations/tasks")
 }
 
 func CacheGetChannel(id int) (*Channel, error) {

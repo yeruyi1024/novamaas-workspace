@@ -7,14 +7,17 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay/channel/task/doubao"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/helper"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -47,7 +50,30 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if !model.Exists() || model.Type != gjson.String || strings.TrimSpace(model.String()) == "" {
 		return taskError(fmt.Errorf("model is required"), "invalid_request", http.StatusBadRequest)
 	}
+	content := gjson.GetBytes(body, "content")
+	if !content.IsArray() || len(content.Array()) == 0 {
+		return taskError(fmt.Errorf("content must be a non-empty array"), "invalid_request", http.StatusBadRequest)
+	}
+	if duration := gjson.GetBytes(body, "duration"); duration.Exists() {
+		value := duration.Float()
+		// -1 is the provider's adaptive-duration sentinel, not a billing multiplier.
+		if duration.Type != gjson.Number || math.Trunc(value) != value || value < -1 || value > relaycommon.MaxTaskDurationSeconds {
+			return taskError(fmt.Errorf("duration is outside the supported bounds"), "invalid_request", http.StatusBadRequest)
+		}
+	}
 	info.OriginModelName = model.String()
+	if err := helper.ModelMappedHelper(c, info, nil); err != nil {
+		return taskError(err, "model_mapping_failed", http.StatusBadRequest)
+	}
+	if info.IsModelMapped || len(info.ParamOverride) != 0 {
+		return taskError(fmt.Errorf("Volc Native requires the upstream model id and does not support parameter overrides"), "invalid_request", http.StatusBadRequest)
+	}
+	var metadata map[string]interface{}
+	if err := common.Unmarshal(body, &metadata); err != nil {
+		return taskError(err, "invalid_request", http.StatusBadRequest)
+	}
+	// Only the billing context is decoded. BuildRequestBody still sends raw bytes.
+	c.Set("task_request", relaycommon.TaskSubmitReq{Model: model.String(), Metadata: metadata})
 	info.Action = constant.TaskActionGenerate
 	return nil
 }
@@ -73,14 +99,14 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 // upstream id remains private in Task.PrivateData and is never returned to the
 // caller; all remaining response fields are forwarded as received.
 func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (string, []byte, *dto.TaskError) {
-	if resp == nil {
+	if resp == nil || resp.Body == nil {
 		return "", nil, taskError(fmt.Errorf("upstream response is empty"), "invalid_response", http.StatusBadGateway)
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", nil, taskError(err, "read_response_body_failed", http.StatusInternalServerError)
 	}
-	_ = resp.Body.Close()
 
 	upstreamID := gjson.GetBytes(body, "id")
 	if !upstreamID.Exists() || upstreamID.Type != gjson.String || upstreamID.String() == "" {
@@ -118,4 +144,18 @@ func responseContentType(resp *http.Response) string {
 
 func taskError(err error, code string, statusCode int) *dto.TaskError {
 	return &dto.TaskError{Error: err, Code: code, Message: err.Error(), StatusCode: statusCode, LocalError: true}
+}
+
+func (a *TaskAdaptor) ParseTaskResult(body []byte) (*relaycommon.TaskInfo, error) {
+	result, err := a.TaskAdaptor.ParseTaskResult(body)
+	if err != nil {
+		return nil, err
+	}
+	status := gjson.GetBytes(body, "status").String()
+	if status == "cancelled" || status == "expired" {
+		result.Status = string(model.TaskStatusFailure)
+		result.Progress = "100%"
+		result.Reason = status
+	}
+	return result, nil
 }

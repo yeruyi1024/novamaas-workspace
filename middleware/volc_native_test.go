@@ -16,3 +16,10 @@ func TestChannelSupportsRequestPathVolcNativeOnlyAllowsNativeRoutes(t *testing.T
 	require.False(t, channelSupportsRequestPath(channel, "/v1/chat/completions", "doubao-seed-1-6"))
 	require.False(t, channelSupportsRequestPath(channel, "/v1/images/generations", "doubao-seedream-4-0"))
 }
+
+func TestVolcNativeRouteRejectsExistingChannelsAndPrefixLookalikes(t *testing.T) {
+	for _, channelType := range []int{constant.ChannelTypeDoubaoVideo, constant.ChannelTypeVolcEngine, constant.ChannelTypeOpenAI} {
+		require.False(t, channelSupportsRequestPath(&model.Channel{Type: channelType}, "/api/v3/contents/generations/tasks", "seedance"))
+	}
+	require.False(t, channelSupportsRequestPath(&model.Channel{Type: constant.ChannelTypeVolcNative}, "/api/v3/images/generations-invalid", "seedream"))
+}
