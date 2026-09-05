@@ -141,6 +141,7 @@ import {
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_STATUS_LABELS,
   CHANNEL_TYPE_OPTIONS,
+  CHANNEL_TYPE_VOLC_NATIVE,
   CHANNEL_TYPE_WARNINGS,
   ERROR_MESSAGES,
   FIELD_PASSTHROUGH_TYPES,
@@ -1276,8 +1277,8 @@ export function ChannelMutateDrawer({
   useEffect(() => {
     if (isEditing) return // Don't auto-set defaults when editing
 
-    // Type 45 (VolcEngine) - set default base_url
-    if (currentType === 45) {
+    // VolcEngine and Volc Native share the Fire Ark API origin.
+    if (currentType === 45 || currentType === CHANNEL_TYPE_VOLC_NATIVE) {
       const currentBaseUrlValue = form.getValues('base_url')
       if (!currentBaseUrlValue || currentBaseUrlValue === '') {
         form.setValue('base_url', 'https://ark.cn-beijing.volces.com')

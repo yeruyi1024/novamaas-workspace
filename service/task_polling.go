@@ -454,6 +454,15 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		return fmt.Errorf("task %s not found", taskId)
 	}
 	key := ch.Key
+	// New Volc Native tasks retain the exact key used at submission. The selector
+	// is a fallback for tasks created before that credential snapshot existed.
+	if ch.Type == constant.ChannelTypeVolcNative && task.PrivateData.Key == "" {
+		selectedKey, _, keyErr := ch.GetNextEnabledKey()
+		if keyErr != nil {
+			return fmt.Errorf("select key for task %s failed: %w", taskId, keyErr)
+		}
+		key = selectedKey
+	}
 
 	privateData := task.PrivateData
 	if privateData.Key != "" {

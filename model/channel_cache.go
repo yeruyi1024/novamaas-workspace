@@ -209,9 +209,9 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 }
 
 // filterChannelsByRequestPathAndModel restricts candidates by request path and
-// model. Only Advanced Custom (type 58) channels are path-checked: they are kept
-// only when one of their configured routes matches requestPath and model. All
-// other channel types always pass. When requestPath is empty, filtering is skipped.
+// model. Advanced Custom channels are checked against their configured routes;
+// Volc Native routes and channels are isolated from compatible channel types.
+// When requestPath is empty (non-relay callers) filtering is skipped.
 // Caller must hold channelSyncLock (read lock). The cached slice is never mutated.
 func filterChannelsByRequestPathAndModel(channels []int, requestPath string, model string) []int {
 	if requestPath == "" || len(channels) == 0 {
@@ -223,6 +223,9 @@ func filterChannelsByRequestPathAndModel(channels []int, requestPath string, mod
 		if !ok {
 			// keep it so the downstream consistency error is raised as before
 			filtered = append(filtered, channelId)
+			continue
+		}
+		if !constant.VolcNativeChannelMatchesPath(channel.Type, requestPath) {
 			continue
 		}
 		if channel.Type != constant.ChannelTypeAdvancedCustom {

@@ -22,6 +22,7 @@ import { formatTimestampToDate } from '@/lib/format'
 import {
   CHANNEL_STATUS_CONFIG,
   CHANNEL_TYPES,
+  CHANNEL_TYPE_VOLC_NATIVE,
   MULTI_KEY_STATUS_CONFIG,
   RESPONSE_TIME_CONFIG,
   RESPONSE_TIME_THRESHOLDS,
@@ -81,6 +82,7 @@ export function getChannelTypeIcon(type: number): string {
     31: 'Yi', // LingYiWanWu
     35: 'Minimax', // MiniMax
     45: 'Volcengine', // VolcEngine
+    [CHANNEL_TYPE_VOLC_NATIVE]: 'Volcengine', // Volc Native
 
     // Other AI providers
     4: 'Ollama', // Ollama

@@ -161,6 +161,10 @@ func Distribute() func(c *gin.Context) {
 				}
 			}
 		}
+		if channel != nil && !channelSupportsRequestPath(channel, c.Request.URL.Path, modelRequest.Model) {
+			abortWithOpenAiMessage(c, http.StatusBadRequest, "the selected channel does not support this request path")
+			return
+		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
 		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
 		c.Next()
@@ -171,10 +175,14 @@ func Distribute() func(c *gin.Context) {
 }
 
 // channelSupportsRequestPath reports whether a channel can serve the request path.
-// Only Advanced Custom (type 58) channels are path-checked; all other channel types
-// always pass. A type-58 channel is usable only when one of its routes matches.
+// Advanced Custom channels use their configured route list. Volc Native channels
+// are deliberately isolated to Fire Ark's native /api/v3 endpoints, in both
+// directions, so compatible and native routes cannot select each other's channels.
 func channelSupportsRequestPath(channel *model.Channel, requestPath string, requestModel string) bool {
 	if channel == nil {
+		return false
+	}
+	if !constant.VolcNativeChannelMatchesPath(channel.Type, requestPath) {
 		return false
 	}
 	if channel.Type != constant.ChannelTypeAdvancedCustom {
@@ -336,6 +344,22 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		if _, ok := c.Get("relay_mode"); !ok {
 			c.Set("relay_mode", relayMode)
 		}
+	} else if strings.HasPrefix(c.Request.URL.Path, "/api/v3/contents/generations/tasks") {
+		if c.Request.Method == http.MethodPost {
+			req, err := getModelFromRequest(c)
+			if err != nil {
+				return nil, false, err
+			}
+			modelRequest.Model = req.Model
+		} else {
+			shouldSelectChannel = false
+		}
+	} else if strings.HasPrefix(c.Request.URL.Path, "/api/v3/images/generations") {
+		req, err := getModelFromRequest(c)
+		if err != nil {
+			return nil, false, err
+		}
+		modelRequest.Model = req.Model
 	} else if strings.HasPrefix(c.Request.URL.Path, "/v1beta/models/") || strings.HasPrefix(c.Request.URL.Path, "/v1/models/") {
 		// Gemini API 路径处理: /v1beta/models/gemini-2.0-flash:generateContent
 		relayMode := relayconstant.RelayModeGemini

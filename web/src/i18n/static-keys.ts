@@ -19,6 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 // Static translation keys that don't get picked up by the t('...') regex.
 // These cover dynamic labels (e.g. constants, configs) that are passed into t at runtime.
 export const STATIC_I18N_KEYS = [
+  // Volc Native channel
+  'Volc Native',
+  'Volcengine Ark API Key',
+  'Use the upstream model ID',
+  'Use native /api/v3 endpoints with upstream model IDs. Model mapping and parameter overrides are not supported.',
+
   // Header navigation
   'Home',
   'Console',
