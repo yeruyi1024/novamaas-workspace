@@ -66,13 +66,13 @@ NovaMaaS 将围绕供应聚合、商业运营和算力资源三个方向持续�
 - **供应接入：**选择性引入尚未进入上游主线的火山方舟原生渠道，并补充模型映射、凭据隔离和任务持久化保护。
 - **产品化：**维护 NovaMaaS 独立首页、供应网络定位和商业化路线图，同时完整保留上游来源、文档和署名。
 - **交付基础设施：**形成 PR 合并后才发布的 GHCR 多架构与腾讯云 CCR 构建链路，并提供可追溯的时间戳镜像标签。
-- **供应商兼容：**持续跟踪上游接口格式变化；当前正在修复百炼 Wan3 任务轮询对小数时长字段的兼容问题。
+- **供应商兼容：**持续跟踪上游接口格式变化；[#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) 已实现百炼 Wan3 任务轮询对小数时长字段的兼容修复。
 
 <!-- novamaas-pr-ledger:start -->
 
 | PR / 工作项 | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 待提交：Wan3 轮询兼容 | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | 开发中；创建 PR 后必须替换为真实 PR 链接 |
+| [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | PR 审核中 |
 | [#10](https://github.com/yeruyi1024/novamaas-workspace/pull/10) | 2026-09-06 | `fix(ci)` | 构建兼容 | 调整 self-hosted Runner 的 Buildx 校验方式，兼容不支持 `inspect --format` 的 CLI。 | 下游运行环境专属修复。 | 已合并 |
 | [#9](https://github.com/yeruyi1024/novamaas-workspace/pull/9) | 2026-09-06 | `ci/refactor` | 镜像发布 | 使用合并时间生成稳定的架构与多架构标签，并将 self-hosted 构建改为本机 Shell、Git 和 Docker 链路。 | 下游交付策略，未计划提交上游。 | 已合并 |
 | [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 | 已合并 |
