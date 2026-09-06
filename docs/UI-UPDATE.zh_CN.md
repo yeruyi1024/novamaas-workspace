@@ -15,7 +15,7 @@
 
 ## 部署与验收
 
-使用本次提交对应的 `ghcr.io/yeruyi1024/novamaas-workspace:sha-<完整提交 SHA>` 镜像，或 CI Summary 中的 digest 地址。不要使用历史 `latest` / `main` 标签。`VERSION` 为 `v1.0.0-rc.26-novamaas.2`，主分支镜像运行版本另带 `-dev.<提交前 12 位>`。
+使用本次合并对应的 `ghcr.io/yeruyi1024/novamaas-workspace:build_<UTC 合并时间>_multiarch` 镜像，或 CI Summary 中的 digest 地址。不要使用历史 `latest` / `main` 标签。`VERSION` 为 `v1.0.0-rc.26-novamaas.2`，主分支镜像运行版本另带 `-dev.<提交前 12 位>`。
 
 部署后检查：
 
