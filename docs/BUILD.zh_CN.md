@@ -7,16 +7,18 @@
 | 触发方式 | 检查与打包 | 容器镜像 |
 | --- | --- | --- |
 | 向 `main` 新建或更新 PR | 相同检查；不打包 | 不构建、不发布 |
-| PR 合并到 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 打包与启动验证 | 同时发布到 GHCR 和腾讯云 CCR，标签为 `sha-<合并提交 SHA>` |
+| PR 合并到 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 打包与启动验证 | GitHub 托管 runner 发布 GHCR amd64/arm64 多架构镜像；self-hosted runner 独立构建并发布腾讯云 CCR amd64 镜像；标签均为 `sha-<合并提交 SHA>` |
 | 关闭但未合并 PR | 跳过 | 不构建、不发布 |
 | Actions 页面手动运行 | 只执行源码检查；不打包 | 不构建、不发布 |
 | 直接推送 `main`、发布 Release 或推送 Git Tag | 不触发此工作流 | 不构建、不发布 |
 
-构建使用上游 Dockerfile 中固定的 Bun `1.4.0` 和 Go `1.26.1`，执行 `bun install --frozen-lockfile`，保留 `go.mod`、`go.sum` 与 `web/bun.lock`。两种架构分别使用 GitHub 的原生 Linux runner。
+构建使用上游 Dockerfile 中固定的 Bun `1.4.0` 和 Go `1.26.1`，执行 `bun install --frozen-lockfile`，保留 `go.mod`、`go.sum` 与 `web/bun.lock`。GHCR 的两种架构分别使用 GitHub 的原生 Linux runner；腾讯云 CCR 的 amd64 镜像使用带有 `self-hosted`、`Linux`、`X64`、`novamaas-image` 标签的自托管 runner。
 
-前端编译进 Go 可执行文件。只有 PR 成功合并到 `main` 后，CI 才会运行容器，验证版本号、`/api/status` 及首页响应，然后从已验证的镜像提取二进制文件打包，最后发布同一镜像。安装包包含 `new-api`、许可证、署名、来源记录、版本及 `BUILD-INFO.txt`；镜像中的许可和来源文件位于 `/licenses`。
+self-hosted 任务使用 Docker driver 复用主机的基础镜像与构建缓存，并为 Go 依赖下载传入 `GOPROXY=https://goproxy.cn,direct`；GitHub 托管构建继续使用 Dockerfile 的默认 `https://proxy.golang.org,direct`。
 
-发布后，两个新的原生架构 runner 会按镜像 digest 分别从 GHCR 和腾讯云 CCR 拉取，核对源码提交、运行版本、API 状态和首页。GHCR 使用匿名拉取验证，CCR 使用仓库 Secret 登录后验证。
+前端编译进 Go 可执行文件。只有 PR 成功合并到 `main` 后，CI 才会运行容器，验证版本号、`/api/status` 及首页响应。GitHub 托管 runner 从已验证的 amd64/arm64 镜像提取二进制文件打包，并将两种架构发布为一个 GHCR 多架构镜像；self-hosted runner 单独构建、验证 amd64 镜像并直接推送腾讯云 CCR。安装包包含 `new-api`、许可证、署名、来源记录、版本及 `BUILD-INFO.txt`；镜像中的许可和来源文件位于 `/licenses`。
+
+GHCR 发布后，两个新的原生架构 runner 会按多架构镜像 digest 匿名拉取各自架构，核对源码提交、运行版本、API 状态和首页。腾讯云 CCR 镜像在 self-hosted runner 上通过同样的启动检查后直接推送，并校验远端 digest。
 
 ## 下载与运行安装包
 
@@ -36,7 +38,7 @@ cd <解压后的安装包目录>
 
 ## 使用容器镜像
 
-镜像地址为 `ghcr.io/yeruyi1024/novamaas-workspace`，腾讯云镜像副本地址为 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。PR 合并构建使用 `sha-<完整合并提交 SHA>`；工作流不写入 `latest` 或 `main`。
+GHCR 多架构镜像地址为 `ghcr.io/yeruyi1024/novamaas-workspace`。腾讯云的 Linux amd64 镜像地址为 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`，它由 self-hosted runner 独立构建，并非从 GHCR 复制。PR 合并构建使用 `sha-<完整合并提交 SHA>`；工作流不写入 `latest` 或 `main`。
 
 在仓库首页右侧点击 **Packages → novamaas-workspace**，或直接打开 [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)。选择一个版本即可查看标签、digest、架构和拉取命令。CI 运行详情中 **Publish multi-arch image** 的 Summary 也会输出固定引用。
 
@@ -67,9 +69,9 @@ CI 通过仓库自动提供的 `GITHUB_TOKEN` 和 `packages: write` 权限发布
 - `TENCENT_CCR_USERNAME`：腾讯云账号 ID，即执行 `docker login ccr.ccs.tencentyun.com` 时使用的用户名。
 - `TENCENT_CCR_PASSWORD`：腾讯云容器镜像服务个人版初始化或重置得到的固定登录密码。
 
-不要把真实账号或密码写进工作流、提交记录或普通 GitHub Variables。工作流仅在 PR 已合并到 `main` 的 `closed` 事件中读取这两个 Secret，因此普通 PR 校验不会接触 CCR 凭据。
+不要把真实账号或密码写进工作流、提交记录或普通 GitHub Variables。工作流仅在 PR 已合并到 `main` 的 `closed` 事件中，由 self-hosted CCR 发布任务读取这两个 Secret，因此普通 PR 校验和 GHCR 发布任务都不会接触 CCR 凭据。
 
-腾讯云 CCR 的认证服务要求仓库 scope，而通用 `docker login` 会先发送不带 scope 的探测请求并收到 `no scope specify`。工作流因此直接将 Secret 写入临时 Docker 凭据配置，由后续 `docker push`、`docker pull` 或 Buildx 命令按目标仓库申请 scoped token。若这些实际操作返回 `insufficient scope` 或 `unauthorized`，请重新核对账号 ID、个人版固定登录密码，以及 `nova-proj/nova-maas` 的读写权限。
+腾讯云 CCR 的认证服务要求仓库 scope，而通用 `docker login` 会先发送不带 scope 的探测请求并收到 `no scope specify`。工作流因此将 Secret 写入该任务专用的 `$RUNNER_TEMP` Docker 凭据目录，由后续 `docker push` 或 Buildx 命令按目标仓库申请 scoped token，避免凭据落入 self-hosted 用户的默认 Docker 配置。若这些实际操作返回 `insufficient scope` 或 `unauthorized`，请重新核对账号 ID、个人版固定登录密码，以及 `nova-proj/nova-maas` 的读写权限。
 
 ## 发布新版本
 

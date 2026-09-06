@@ -8,7 +8,7 @@
 
 - 本仓库：[yeruyi1024/novamaas-workspace](https://github.com/yeruyi1024/novamaas-workspace)
 - 自动构建：[GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)
-- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：PR 合并到 `main` 后发布 `ghcr.io/yeruyi1024/novamaas-workspace:sha-<完整合并提交 SHA>`（Linux amd64/arm64），并同步至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
+- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：PR 合并到 `main` 后由 GitHub 托管 runner 发布 `ghcr.io/yeruyi1024/novamaas-workspace:sha-<完整合并提交 SHA>`（Linux amd64/arm64）；self-hosted runner 独立构建 Linux amd64 镜像并直接推送至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
 - 普通 PR 和手动运行只执行检查，不构建容器镜像；仅在 PR 合并到 `main` 后才构建并发布镜像。直接推送 `main`、发布 Release 或推送 Git Tag 不触发该工作流，且工作流不更新 `latest` 或 `main`。
 - 安装包：PR 合并构建的 Actions Artifacts
 - [构建、下载、部署与 CCR 凭据配置指南](docs/BUILD.zh_CN.md)
