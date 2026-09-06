@@ -24,7 +24,7 @@ if ((start_line >= end_line)); then
   exit 1
 fi
 
-if ! sed -n "${start_line},${end_line}p" "$readme" | grep -Fq '| PR / 工作项 | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |'; then
+if ! sed -n "${start_line},${end_line}p" "$readme" | grep -Fq '| 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |'; then
   echo "README PR ledger table header is missing." >&2
   exit 1
 fi
@@ -41,12 +41,31 @@ fi
 repository=${README_LEDGER_REPOSITORY:?README_LEDGER_REPOSITORY is required for PR validation}
 entry_prefix="| [#${pr_number}](https://github.com/${repository}/pull/${pr_number}) |"
 entry_count=$(sed -n "${start_line},${end_line}p" "$readme" | grep -Fc "$entry_prefix" || true)
-if [[ "$entry_count" != 1 ]]; then
-  echo "Add the current PR to the README ledger using: $entry_prefix" >&2
-  exit 1
-fi
 if sed -n "${start_line},${end_line}p" "$readme" | grep -Eq '^\| (TBD|#TBD|待定|待提交)'; then
   echo "Replace provisional README ledger work items with real PR links before merging." >&2
+  exit 1
+fi
+
+pr_body=${README_LEDGER_PR_BODY:?README_LEDGER_PR_BODY is required for PR validation}
+key_classification='- [x] **关键差异：**已在 README 关键差异表新增当前 PR 的真实编号和链接。'
+routine_classification='- [x] **常规变更：**不进入 README 关键差异表；原因：'
+key_count=$(grep -Fxc -- "$key_classification" <<<"$pr_body" || true)
+routine_count=$(grep -Fc -- "$routine_classification" <<<"$pr_body" || true)
+if ((key_count + routine_count != 1)); then
+  echo "Select exactly one PR classification: 关键差异 or 常规变更." >&2
+  exit 1
+fi
+
+if ((routine_count == 1)); then
+  if [[ "$entry_count" != 0 ]]; then
+    echo "A routine PR must not add a README ledger row for itself." >&2
+    exit 1
+  fi
+  exit 0
+fi
+
+if [[ "$entry_count" != 1 ]]; then
+  echo "Add the key-difference PR to the README ledger using: $entry_prefix" >&2
   exit 1
 fi
 

@@ -3,7 +3,7 @@ name: Build, package and publish
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
   pull_request_target:
     branches: [main]
     types: [closed]
@@ -38,6 +38,7 @@ jobs:
           README_LEDGER_REPOSITORY: ${{ github.repository }}
           README_LEDGER_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           README_LEDGER_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          README_LEDGER_PR_BODY: ${{ github.event.pull_request.body }}
         run: bash .github/scripts/check-readme-pr-ledger.sh
 
   backend:
