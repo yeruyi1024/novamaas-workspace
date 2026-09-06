@@ -135,7 +135,7 @@ export function Home() {
         <MarketNetwork />
         <CTA isAuthenticated={isAuthenticated} />
       </main>
-      <Footer />
+      <Footer showSourceLink={false} />
     </PublicLayout>
   )
 }

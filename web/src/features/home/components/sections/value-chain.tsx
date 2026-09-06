@@ -85,7 +85,7 @@ export function ValueChain() {
               id='value-chain-title'
               className='mt-4 max-w-2xl text-3xl leading-tight font-semibold tracking-[-0.035em] text-balance md:text-5xl'
             >
-              {t('One platform. Three layers of value.')}
+              {t('One platform, three layers of value')}
             </h2>
           </div>
           <p className='text-muted-foreground max-w-xl text-base leading-7 text-pretty lg:justify-self-end'>

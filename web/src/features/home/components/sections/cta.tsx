@@ -55,7 +55,7 @@ export function CTA(props: CTAProps) {
               id='home-cta-title'
               className='mt-4 text-3xl leading-tight font-semibold tracking-[-0.04em] text-balance md:text-6xl'
             >
-              {t('Build the operating system for AI supply.')}
+              {t('Build the operating system for AI supply')}
             </h2>
             <p className='text-muted-foreground mx-auto mt-6 max-w-2xl text-base leading-7 text-pretty md:text-lg'>
               {t(

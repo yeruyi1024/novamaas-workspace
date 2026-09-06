@@ -33,7 +33,7 @@ export function MarketNetwork() {
     {
       icon: CloudServerIcon,
       label: t('For suppliers'),
-      title: t('Turn fragmented inventory into reachable demand.'),
+      title: t('Turn fragmented inventory into reachable demand'),
       description: t(
         'Connect upstream token resources today and prepare schedulable compute supply for tomorrow.'
       ),
@@ -42,7 +42,7 @@ export function MarketNetwork() {
     {
       icon: Building02Icon,
       label: t('For operators'),
-      title: t('Build a distribution business with control.'),
+      title: t('Build a distribution business with control'),
       description: t(
         'Define products, routes, permissions and commercial policies without rebuilding the infrastructure layer.'
       ),
@@ -51,7 +51,7 @@ export function MarketNetwork() {
     {
       icon: ComputerProgramming01Icon,
       label: t('For AI builders'),
-      title: t('Access the right supply through one endpoint.'),
+      title: t('Access the right supply through one endpoint'),
       description: t(
         'Give applications and teams reliable model access while the platform handles upstream complexity.'
       ),
@@ -71,7 +71,7 @@ export function MarketNetwork() {
             id='market-network-title'
             className='mt-4 text-3xl leading-tight font-semibold tracking-[-0.035em] text-balance md:text-5xl'
           >
-            {t('One platform, multiple business models.')}
+            {t('One platform, multiple business models')}
           </h2>
           <p className='text-muted-foreground mt-5 max-w-2xl text-base leading-7 text-pretty'>
             {t(

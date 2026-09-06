@@ -99,13 +99,46 @@ test('empty administrator content presents the AI supply value chain and configu
   expect(
     within(main).getByRole('heading', {
       level: 2,
-      name: 'One platform. Three layers of value.',
+      name: 'One platform, three layers of value',
     })
   ).toBeVisible()
   expect(
     within(main).getByRole('group', { name: 'AI supply network' })
   ).toBeVisible()
   expect(within(main).getAllByText('Roadmap')).not.toHaveLength(0)
+})
+
+test('default homepage applies the balanced typography treatment to its primary value statement', async () => {
+  await renderHome('')
+  expect(
+    await screen.findByRole('heading', {
+      level: 1,
+      name: /Turn fragmented AI supply into one programmable market/,
+    })
+  ).toHaveClass('maas-hero-title')
+})
+
+test('default homepage stacks the value statement above the centered supply network', async () => {
+  await renderHome('')
+  const layout = await screen.findByTestId('home-hero-layout')
+  const heroTitle = await screen.findByRole('heading', {
+    level: 1,
+    name: /Turn fragmented AI supply into one programmable market/,
+  })
+  const network = screen.getByRole('group', { name: 'AI supply network' })
+
+  expect(layout).toHaveClass('flex-col', 'items-center')
+  expect(heroTitle.compareDocumentPosition(network)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING
+  )
+})
+
+test('default homepage omits the project source code entry', async () => {
+  await renderHome('')
+  const footer = await screen.findByRole('contentinfo')
+  expect(
+    within(footer).queryByRole('link', { name: 'Source Code' })
+  ).not.toBeInTheDocument()
 })
 
 test('authenticated visitors keep dashboard access from the homepage', async () => {

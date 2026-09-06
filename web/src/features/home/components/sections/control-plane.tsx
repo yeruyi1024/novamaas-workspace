@@ -50,7 +50,7 @@ export function ControlPlane() {
             id='control-plane-title'
             className='mt-4 text-3xl leading-tight font-semibold tracking-[-0.035em] text-balance md:text-5xl'
           >
-            {t('Operate the economics, not just the API.')}
+            {t('Operate the economics, not just the API')}
           </h2>
           <p className='text-muted-foreground mx-auto mt-5 max-w-2xl text-base leading-7 text-pretty'>
             {t(

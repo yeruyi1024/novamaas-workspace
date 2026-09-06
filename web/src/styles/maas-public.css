@@ -107,6 +107,13 @@ For commercial licensing, please contact support@quantumnous.com
     background-clip: text;
   }
 
+  .maas-public .maas-hero-title {
+    font-size: clamp(2.625rem, 4.25vw, 4.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+
   .maas-public .maas-live-dot,
   .maas-public .maas-provider-signal {
     background: var(--maas-success);

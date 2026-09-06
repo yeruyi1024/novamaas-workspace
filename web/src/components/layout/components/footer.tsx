@@ -40,6 +40,7 @@ interface FooterProps {
   columns?: FooterColumnProps[]
   copyright?: string
   className?: string
+  showSourceLink?: boolean
 }
 
 function FooterLinkItem(props: { link: FooterLink }) {
@@ -207,14 +208,16 @@ export function Footer(props: FooterProps) {
               <Link to='/about' className='hover:text-foreground'>
                 {t('Open-source information')}
               </Link>
-              <a
-                href='https://github.com/yeruyi1024/novamaas-workspace'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='hover:text-foreground'
-              >
-                {t('Source Code')}
-              </a>
+              {props.showSourceLink !== false ? (
+                <a
+                  href='https://github.com/yeruyi1024/novamaas-workspace'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='hover:text-foreground'
+                >
+                  {t('Source Code')}
+                </a>
+              ) : null}
             </div>
           </div>
         </div>
@@ -278,14 +281,16 @@ export function Footer(props: FooterProps) {
               {t('Open-source information')}
             </Link>
           </div>
-          <a
-            href='https://github.com/yeruyi1024/novamaas-workspace'
-            target='_blank'
-            rel='noopener noreferrer'
-            className='text-muted-foreground hover:text-foreground text-xs'
-          >
-            {t('Source Code')}
-          </a>
+          {props.showSourceLink !== false ? (
+            <a
+              href='https://github.com/yeruyi1024/novamaas-workspace'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='text-muted-foreground hover:text-foreground text-xs'
+            >
+              {t('Source Code')}
+            </a>
+          ) : null}
         </div>
       </div>
     </footer>

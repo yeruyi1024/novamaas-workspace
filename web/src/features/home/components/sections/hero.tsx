@@ -62,8 +62,11 @@ export function Hero(props: HeroProps) {
         className='maas-hero-orb maas-hero-orb-secondary absolute -z-10'
       />
 
-      <div className='mx-auto grid max-w-7xl items-center gap-16 xl:grid-cols-[minmax(0,0.9fr)_minmax(32rem,1.1fr)]'>
-        <div className='flex min-w-0 flex-col items-start'>
+      <div
+        className='mx-auto flex max-w-7xl flex-col items-center'
+        data-testid='home-hero-layout'
+      >
+        <div className='flex w-full max-w-4xl min-w-0 flex-col items-center text-center'>
           <Badge
             variant='outline'
             className='maas-hero-badge landing-animate-fade-up h-7 gap-2 rounded-full px-3 opacity-0'
@@ -74,17 +77,17 @@ export function Hero(props: HeroProps) {
 
           <h1
             id='home-hero-title'
-            className='landing-animate-fade-up mt-7 max-w-4xl text-[clamp(2.75rem,6vw,5.75rem)] leading-[0.98] font-semibold tracking-[-0.055em] text-balance opacity-0'
+            className='maas-hero-title landing-animate-fade-up mt-7 max-w-4xl font-semibold opacity-0'
             style={{ animationDelay: '70ms' }}
           >
-            {t('Turn fragmented AI supply into')}{' '}
-            <span className='maas-gradient-text'>
-              {t('one programmable market.')}
+            <span className='block'>{t('Turn fragmented AI supply into')}</span>{' '}
+            <span className='maas-gradient-text block'>
+              {t('one programmable market')}
             </span>
           </h1>
 
           <p
-            className='landing-animate-fade-up text-muted-foreground mt-7 max-w-2xl text-base leading-7 text-pretty opacity-0 md:text-lg md:leading-8'
+            className='landing-animate-fade-up text-muted-foreground mx-auto mt-7 max-w-2xl text-base leading-7 text-pretty opacity-0 md:text-lg md:leading-8'
             style={{ animationDelay: '140ms' }}
           >
             {t(
@@ -93,7 +96,7 @@ export function Hero(props: HeroProps) {
           </p>
 
           <div
-            className='landing-animate-fade-up mt-9 flex flex-wrap items-center gap-3 opacity-0'
+            className='landing-animate-fade-up mt-9 flex flex-wrap items-center justify-center gap-3 opacity-0'
             style={{ animationDelay: '210ms' }}
           >
             <Button
@@ -144,7 +147,7 @@ export function Hero(props: HeroProps) {
           </div>
 
           <div
-            className='landing-animate-fade-up text-muted-foreground mt-9 flex flex-wrap gap-x-5 gap-y-2 text-xs opacity-0 sm:text-sm'
+            className='landing-animate-fade-up text-muted-foreground mt-9 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs opacity-0 sm:text-sm'
             style={{ animationDelay: '280ms' }}
             aria-label={t('Platform capabilities')}
           >
@@ -169,7 +172,7 @@ export function Hero(props: HeroProps) {
         </div>
 
         <div
-          className='landing-animate-fade-up min-w-0 opacity-0'
+          className='landing-animate-fade-up mt-16 w-full min-w-0 opacity-0 md:mt-20'
           style={{ animationDelay: '220ms' }}
         >
           <TokenNetworkVisual />

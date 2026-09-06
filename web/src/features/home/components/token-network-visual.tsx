@@ -112,7 +112,7 @@ export function TokenNetworkVisual() {
 
   return (
     <div
-      className='maas-network-panel relative mx-auto max-w-3xl overflow-hidden rounded-[1.75rem] p-3 sm:p-4'
+      className='maas-network-panel relative mx-auto max-w-5xl overflow-hidden rounded-[1.75rem] p-3 sm:p-4'
       role='group'
       aria-label={t('AI supply network')}
     >
