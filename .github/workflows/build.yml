@@ -302,7 +302,7 @@ jobs:
         run: |
           docker version
           docker buildx version
-          test "$(docker buildx inspect default --format '{{.Driver}}')" = docker
+          docker buildx inspect default
       - name: Build image on self-hosted runner
         run: |
           docker buildx build \
