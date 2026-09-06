@@ -106,7 +106,6 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "CCR_IMAGE=ccr.ccs.tencentyun.com/nova-proj/nova-maas" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build image with embedded frontend
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -157,27 +156,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Configure Tencent CCR credentials
-        env:
-          REGISTRY: ccr.ccs.tencentyun.com
-          REGISTRY_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
-        run: bash .github/scripts/configure-docker-registry-auth.sh
-      - name: Push tested images
+      - name: Push tested GHCR image
         run: |
           ghcr_ref="${IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
-          ccr_ref="${CCR_IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
           docker tag novamaas-ci:local "$ghcr_ref"
-          docker tag novamaas-ci:local "$ccr_ref"
           docker push "$ghcr_ref"
-          docker push "$ccr_ref"
           mkdir -p digests
           ghcr_digest=$(docker buildx imagetools inspect "$ghcr_ref" --format '{{.Manifest.Digest}}')
-          ccr_digest=$(docker buildx imagetools inspect "$ccr_ref" --format '{{.Manifest.Digest}}')
           [[ "$ghcr_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          [[ "$ccr_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf '%s@%s\n' "$IMAGE" "$ghcr_digest" > "digests/ghcr-$ARCH"
-          printf '%s@%s\n' "$CCR_IMAGE" "$ccr_digest" > "digests/ccr-$ARCH"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: digest-${{ matrix.arch }}
@@ -193,7 +180,6 @@ jobs:
     timeout-minutes: 10
     outputs:
       digest: ${{ steps.manifest.outputs.digest }}
-      ccr_digest: ${{ steps.manifest.outputs.ccr_digest }}
     permissions:
       contents: read
       packages: write
@@ -209,43 +195,94 @@ jobs:
       - name: Resolve image names
         run: |
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "CCR_IMAGE=ccr.ccs.tencentyun.com/nova-proj/nova-maas" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and verify GHCR manifest
+        id: manifest
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        run: |
+          ghcr_ref="${IMAGE}:${IMAGE_TAG}"
+          docker buildx imagetools create --tag "$ghcr_ref" "$(cat digests/ghcr-amd64)" "$(cat digests/ghcr-arm64)"
+          docker buildx imagetools inspect "$ghcr_ref" --raw > ghcr-manifest.json
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' ghcr-manifest.json
+          digest=$(docker buildx imagetools inspect "$ghcr_ref" --format '{{.Manifest.Digest}}')
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          printf '### Published GHCR image\n\n- `%s`\n\n' "$ghcr_ref" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- Pinned reference: `%s@%s`\n\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "$ghcr_ref" >> "$GITHUB_STEP_SUMMARY"
+
+  publish-ccr-amd64:
+    name: Publish Tencent CCR Linux amd64
+    needs: [backend, frontend]
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: [self-hosted, Linux, X64, novamaas-image]
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Isolate Docker credentials for this job
+        run: |
+          docker_config="$RUNNER_TEMP/novamaas-docker-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$docker_config"
+          echo "DOCKER_CONFIG=$docker_config" >> "$GITHUB_ENV"
+      - name: Resolve version and Tencent CCR image name
+        run: |
+          base_version=$(cat VERSION)
+          image_tag="sha-${GITHUB_SHA}"
+          version="${base_version}-dev.${GITHUB_SHA:0:12}"
+          [[ "$version" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]
+          test "${#image_tag}" -le 128
+          printf '%s\n' "$version" > VERSION
+          echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=$image_tag" >> "$GITHUB_ENV"
+          echo "CCR_IMAGE=ccr.ccs.tencentyun.com/nova-proj/nova-maas" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          driver: docker
+      - name: Build image on self-hosted runner
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: novamaas-ccr:local
+          build-args: |
+            GOPROXY=https://goproxy.cn,direct
+          labels: |
+            org.opencontainers.image.title=NovaMaaS Workspace
+            org.opencontainers.image.description=Localized fork of QuantumNous/new-api v1.0.0-rc.26
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.BUILD_VERSION }}
+            org.opencontainers.image.licenses=AGPL-3.0
+      - name: Verify version and HTTP startup
+        run: bash .github/scripts/verify-image.sh novamaas-ccr:local "$BUILD_VERSION"
       - name: Configure Tencent CCR credentials
         env:
           REGISTRY: ccr.ccs.tencentyun.com
           REGISTRY_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
         run: bash .github/scripts/configure-docker-registry-auth.sh
-      - name: Create and verify manifests
-        id: manifest
-        env:
-          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+      - name: Push tested image directly to Tencent CCR
         run: |
-          ghcr_ref="${IMAGE}:${IMAGE_TAG}"
-          ccr_ref="${CCR_IMAGE}:${IMAGE_TAG}"
-          docker buildx imagetools create --tag "$ghcr_ref" "$(cat digests/ghcr-amd64)" "$(cat digests/ghcr-arm64)"
-          docker buildx imagetools create --tag "$ccr_ref" "$(cat digests/ccr-amd64)" "$(cat digests/ccr-arm64)"
-          docker buildx imagetools inspect "$ghcr_ref" --raw > ghcr-manifest.json
-          docker buildx imagetools inspect "$ccr_ref" --raw > ccr-manifest.json
-          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' ghcr-manifest.json
-          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' ccr-manifest.json
-          digest=$(docker buildx imagetools inspect "$ghcr_ref" --format '{{.Manifest.Digest}}')
-          ccr_digest=$(docker buildx imagetools inspect "$ccr_ref" --format '{{.Manifest.Digest}}')
+          ref="${CCR_IMAGE}:${IMAGE_TAG}"
+          architecture=$(docker image inspect novamaas-ccr:local --format '{{.Architecture}}')
+          test "$architecture" = amd64
+          docker tag novamaas-ccr:local "$ref"
+          docker push "$ref"
+          digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          [[ "$ccr_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "ccr_digest=$ccr_digest" >> "$GITHUB_OUTPUT"
-          printf '### Published images\n\n- `%s`\n- `%s`\n\n' "$ghcr_ref" "$ccr_ref" >> "$GITHUB_STEP_SUMMARY"
-          printf -- '- Pinned reference: `%s@%s`\n\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
-          printf -- '- Pinned CCR reference: `%s@%s`\n\n' "$CCR_IMAGE" "$ccr_digest" >> "$GITHUB_STEP_SUMMARY"
-          docker buildx imagetools inspect "$ghcr_ref" >> "$GITHUB_STEP_SUMMARY"
-          docker buildx imagetools inspect "$ccr_ref" >> "$GITHUB_STEP_SUMMARY"
+          printf '### Published Tencent CCR image\n\n- `%s`\n- Pinned reference: `%s@%s`\n' \
+            "$ref" "$CCR_IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
 
   verify-published:
     name: Verify published image ${{ matrix.arch }}
@@ -262,7 +299,6 @@ jobs:
     timeout-minutes: 10
     env:
       IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
-      CCR_IMAGE_DIGEST: ${{ needs.publish.outputs.ccr_digest }}
       EXPECTED_VERSION: ${{ needs.build.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -272,19 +308,6 @@ jobs:
         run: |
           ref="ghcr.io/${GITHUB_REPOSITORY,,}@${IMAGE_DIGEST}"
           # A fresh runner without registry login verifies public pull access.
-          docker pull "$ref"
-          revision=$(docker image inspect "$ref" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
-          test "$revision" = "$GITHUB_SHA"
-          bash .github/scripts/verify-image.sh "$ref" "$EXPECTED_VERSION"
-      - name: Configure Tencent CCR credentials
-        env:
-          REGISTRY: ccr.ccs.tencentyun.com
-          REGISTRY_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
-        run: bash .github/scripts/configure-docker-registry-auth.sh
-      - name: Pull and verify Tencent CCR image
-        run: |
-          ref="ccr.ccs.tencentyun.com/nova-proj/nova-maas@${CCR_IMAGE_DIGEST}"
           docker pull "$ref"
           revision=$(docker image inspect "$ref" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
           test "$revision" = "$GITHUB_SHA"
