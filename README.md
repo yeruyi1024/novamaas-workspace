@@ -12,7 +12,7 @@
 
 ## 本仓库构建与使用
 
-- [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：普通 PR、直接推送 `main` 和手动运行只执行检查；仅在 PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。
+- [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：普通 PR 和手动运行只执行检查；仅在 PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。直接推送 `main` 不触发该工作流。
 - [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：合并提交使用 `sha-<完整提交 SHA>` 标签，支持 amd64/arm64；同一镜像还会推送至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
 - [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：发布 Release 或推送 Git Tag 不会触发镜像构建；镜像发布以合并到 `main` 的 PR 为准。
 - [构建、下载、部署及 CCR 凭据配置说明](docs/BUILD.zh_CN.md)。GHCR 使用自动提供的 `GITHUB_TOKEN`，腾讯云凭据保存在 GitHub Actions Secrets 中。
