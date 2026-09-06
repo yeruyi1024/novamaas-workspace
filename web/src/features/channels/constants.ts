@@ -481,7 +481,7 @@ export const TYPE_TO_KEY_PROMPT: Record<number, string> = {
 
 export const CHANNEL_TYPE_WARNINGS: Record<number, string> = {
   [CHANNEL_TYPE_VOLC_NATIVE]:
-    'Use native /api/v3 endpoints with upstream model IDs. Model mapping and parameter overrides are not supported.',
+    'Use native /api/v3 endpoints. Model mapping rewrites only the top-level model field; parameter overrides are not supported.',
   3: 'For channels added after May 10, 2025, no need to remove "." from model names during deployment',
   8: 'If connecting to upstream One API or New API relay projects, use OpenAI type instead unless you know what you are doing',
   37: 'Dify channels only support chatflow and agent, and agent does not support images',

@@ -19,6 +19,23 @@ func TestVolcNativeTaskKeepsSubmissionCredentialPrivate(t *testing.T) {
 	require.NotContains(t, string(body), "submission-key")
 }
 
+func TestVolcNativeTaskPersistsOriginalAndUpstreamModels(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		OriginModelName: "public-seedance",
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelType:       constant.ChannelTypeVolcNative,
+			UpstreamModelName: "doubao-seedance-2-0-260128",
+			IsModelMapped:     true,
+		},
+		TaskRelayInfo: &relaycommon.TaskRelayInfo{},
+	}
+
+	task := InitTask("61", info)
+
+	require.Equal(t, "public-seedance", task.Properties.OriginModelName)
+	require.Equal(t, "doubao-seedance-2-0-260128", task.Properties.UpstreamModelName)
+}
+
 func TestVolcNativeChannelIsolationWithAndWithoutCache(t *testing.T) {
 	setupChannelStatusTest(t)
 	native := &Channel{Type: constant.ChannelTypeVolcNative}

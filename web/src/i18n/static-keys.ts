@@ -22,8 +22,8 @@ export const STATIC_I18N_KEYS = [
   // Volc Native channel
   'Volc Native',
   'Volcengine Ark API Key',
-  'Use the upstream model ID',
-  'Use native /api/v3 endpoints with upstream model IDs. Model mapping and parameter overrides are not supported.',
+  'Use an upstream model ID or a mapped alias',
+  'Use native /api/v3 endpoints. Model mapping rewrites only the top-level model field; parameter overrides are not supported.',
 
   // Header navigation
   'Home',

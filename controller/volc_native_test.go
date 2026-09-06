@@ -1,13 +1,16 @@
 package controller
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +48,25 @@ func TestBuildVolcNativeTaskResponseSynthesizesPendingTask(t *testing.T) {
 	require.Equal(t, "task_public_id", gjson.GetBytes(body, "id").String())
 	require.Equal(t, "doubao-seedance-2-0-260128", gjson.GetBytes(body, "model").String())
 	require.Equal(t, "queued", gjson.GetBytes(body, "status").String())
+}
+
+func TestBuildVolcNativeTaskResponseRestoresMappedAlias(t *testing.T) {
+	task := &model.Task{
+		TaskID: "task_public_id",
+		Status: model.TaskStatusInProgress,
+		Properties: model.Properties{
+			OriginModelName:   "public-seedance",
+			UpstreamModelName: "doubao-seedance-2-0-260128",
+		},
+		Data: []byte(`{"id":"upstream-task-id","status":"running","model":"doubao-seedance-2-0-260128","watermark":false}`),
+	}
+
+	body := buildVolcNativeTaskResponse(task)
+
+	require.Equal(t, "task_public_id", gjson.GetBytes(body, "id").String())
+	require.Equal(t, "public-seedance", gjson.GetBytes(body, "model").String())
+	require.NotContains(t, string(body), "doubao-seedance-2-0-260128")
+	require.Contains(t, string(body), `"watermark":false`)
 }
 
 func TestVolcNativeResponseUsesDurableTerminalState(t *testing.T) {
@@ -120,6 +142,55 @@ func TestVolcNativeFetchAndListRespectOwnershipAndTokenModels(t *testing.T) {
 	assert.Equal(t, int64(1), gjson.Get(recorder.Body.String(), "total").Int())
 	assert.Equal(t, "task_allowed", gjson.Get(recorder.Body.String(), "items.0.id").String())
 	assert.Equal(t, "720p", gjson.Get(recorder.Body.String(), "items.0.resolution").String())
+}
+
+func TestRelayVolcNativeImageMapsOnlyModelAndRestoresAlias(t *testing.T) {
+	db := setupVolcNativeControllerTest(t)
+	savedModelPrices := ratio_setting.ModelPrice2JSONString()
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"public-seedream":0}`))
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(savedModelPrices))
+	})
+
+	requestBody := `{"model":"public-seedream","prompt":"hello","watermark":false,"seed":0,"extra":9007199254740993}`
+	expectedUpstreamBody := `{"model":"doubao-seedream-4-0-250828","prompt":"hello","watermark":false,"seed":0,"extra":9007199254740993}`
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedUpstreamBody, string(body))
+		assert.Equal(t, "Bearer upstream-key", r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write([]byte(`{"model":"doubao-seedream-4-0-250828","data":[{"url":"https://example.com/image.png"}],"watermark":false}`))
+		assert.NoError(t, err)
+	}))
+	defer upstream.Close()
+
+	baseURL := upstream.URL
+	channel := &model.Channel{Type: constant.ChannelTypeVolcNative, Key: "upstream-key", BaseURL: &baseURL}
+	require.NoError(t, db.Create(channel).Error)
+	user := &model.User{Username: "volc-image-mapping", Quota: 1000}
+	require.NoError(t, db.Create(user).Error)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v3/images/generations", strings.NewReader(requestBody))
+	common.SetContextKey(c, constant.ContextKeyUserId, user.Id)
+	common.SetContextKey(c, constant.ContextKeyUserQuota, user.Quota)
+	common.SetContextKey(c, constant.ContextKeyUserSetting, dto.UserSetting{BillingPreference: "wallet_only"})
+	common.SetContextKey(c, constant.ContextKeyUsingGroup, "default")
+	common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
+	common.SetContextKey(c, constant.ContextKeyOriginalModel, "public-seedream")
+	common.SetContextKey(c, constant.ContextKeyChannelId, channel.Id)
+	common.SetContextKey(c, constant.ContextKeyChannelType, constant.ChannelTypeVolcNative)
+	common.SetContextKey(c, constant.ContextKeyChannelBaseUrl, upstream.URL)
+	common.SetContextKey(c, constant.ContextKeyChannelKey, "upstream-key")
+	common.SetContextKey(c, constant.ContextKeyChannelModelMapping, `{"public-seedream":"doubao-seedream-4-0-250828"}`)
+
+	RelayVolcNativeImage(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, "public-seedream", gjson.Get(recorder.Body.String(), "model").String())
+	assert.Equal(t, false, gjson.Get(recorder.Body.String(), "watermark").Bool())
 }
 
 func TestVolcNativeCancelReusesSubmissionKeyAndRefundsOnce(t *testing.T) {

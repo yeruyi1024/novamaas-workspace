@@ -61,6 +61,69 @@ func TestVolcNativeRequestPreservesBodyAndBillingContext(t *testing.T) {
 	assert.Equal(t, raw, string(got))
 }
 
+func TestVolcNativeRequestMapsOnlyTopLevelModel(t *testing.T) {
+	raw := `{"model":"public-seedance","content":[{"type":"text","text":"hello"}],"watermark":false,"seed":0,"extra":9007199254740993}`
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", strings.NewReader(raw))
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{
+			IsModelMapped:     true,
+			UpstreamModelName: "doubao-seedance-2-0-260128",
+		},
+		TaskRelayInfo: &relaycommon.TaskRelayInfo{},
+	}
+	adaptor := &TaskAdaptor{}
+	require.Nil(t, adaptor.ValidateRequestAndSetAction(ctx, info))
+
+	body, err := adaptor.BuildRequestBody(ctx, info)
+	require.NoError(t, err)
+	got, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.Equal(t, `{"model":"doubao-seedance-2-0-260128","content":[{"type":"text","text":"hello"}],"watermark":false,"seed":0,"extra":9007199254740993}`, string(got))
+}
+
+func TestVolcNativeRequestStillRejectsParameterOverrides(t *testing.T) {
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", strings.NewReader(`{"model":"seedance","content":[{"type":"text","text":"hello"}]}`))
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ParamOverride: map[string]interface{}{"watermark": true},
+		},
+		TaskRelayInfo: &relaycommon.TaskRelayInfo{},
+	}
+
+	taskErr := (&TaskAdaptor{}).ValidateRequestAndSetAction(ctx, info)
+
+	require.NotNil(t, taskErr)
+	assert.Contains(t, taskErr.Message, "does not support parameter overrides")
+}
+
+func TestTaskAdaptorDoResponseRestoresMappedAlias(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	raw := []byte(`{"id":"upstream-task-id","status":"queued","model":"doubao-seedance-2-0-260128","watermark":false}`)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader(raw)),
+	}
+	info := &relaycommon.RelayInfo{
+		OriginModelName: "public-seedance",
+		ChannelMeta: &relaycommon.ChannelMeta{
+			IsModelMapped:     true,
+			UpstreamModelName: "doubao-seedance-2-0-260128",
+		},
+		TaskRelayInfo: &relaycommon.TaskRelayInfo{PublicTaskID: "task_public_id"},
+	}
+
+	upstreamID, storedBody, taskErr := (&TaskAdaptor{}).DoResponse(ctx, resp, info)
+
+	require.Nil(t, taskErr)
+	assert.Equal(t, "upstream-task-id", upstreamID)
+	assert.Equal(t, raw, storedBody)
+	assert.Contains(t, recorder.Body.String(), `"model":"public-seedance"`)
+	assert.NotContains(t, recorder.Body.String(), "doubao-seedance-2-0-260128")
+}
+
 func TestVolcNativeRejectsInvalidContentAndExcessiveDuration(t *testing.T) {
 	for _, raw := range []string{`{"model":"seedance"}`, `{"model":"seedance","content":null}`, `{"model":"seedance","content":[]}`, `{"model":"seedance","content":[{"type":"text","text":"hello"}],"duration":18446744073709551615}`} {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())

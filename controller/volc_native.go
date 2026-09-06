@@ -29,10 +29,11 @@ const volcNativeCancelReason = "cancelled"
 
 var volcNativeTaskPlatform = constant.TaskPlatform(strconv.Itoa(constant.ChannelTypeVolcNative))
 
-// RelayVolcNativeImage forwards Fire Ark native image requests without parsing
-// or rebuilding their JSON body. The only accepted channel type is Volc Native;
-// the existing VolcEngine channel remains responsible for OpenAI-compatible
-// image requests.
+// RelayVolcNativeImage forwards Fire Ark native image requests without
+// rebuilding their JSON body. A configured model mapping changes only the
+// top-level model field. The only accepted channel type is Volc Native; the
+// existing VolcEngine channel remains responsible for OpenAI-compatible image
+// requests.
 func RelayVolcNativeImage(c *gin.Context) {
 	info, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
@@ -62,8 +63,9 @@ func RelayVolcNativeImage(c *gin.Context) {
 		respondVolcNativeError(c, http.StatusBadRequest, "model_mapping_failed", err.Error())
 		return
 	}
-	if info.IsModelMapped {
-		respondVolcNativeError(c, http.StatusBadRequest, "model_mapping_not_supported", "Volc Native channels require the upstream model id directly")
+	body, err = helper.ApplyModelMappingToJSONBody(info, body)
+	if err != nil {
+		respondVolcNativeError(c, http.StatusBadRequest, "model_mapping_failed", err.Error())
 		return
 	}
 	if len(info.ParamOverride) != 0 {
@@ -129,6 +131,13 @@ func RelayVolcNativeImage(c *gin.Context) {
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		c.Data(resp.StatusCode, contentType, responseBody)
 		return
+	}
+	if info.IsModelMapped {
+		responseBody, err = helper.RestoreOriginalModelInJSONBody(responseBody, info.OriginModelName)
+		if err != nil {
+			respondVolcNativeError(c, http.StatusBadGateway, "response_model_restore_failed", "failed to restore the requested model name")
+			return
+		}
 	}
 
 	if err := service.SettleBilling(c, info, priceData.Quota); err != nil {
@@ -333,7 +342,12 @@ func buildVolcNativeTaskResponse(task *model.Task) []byte {
 	if status := gjson.GetBytes(task.Data, "status"); status.Exists() {
 		if body, err := sjson.SetBytes(task.Data, "id", task.TaskID); err == nil {
 			if body, err = sjson.SetBytes(body, "status", volcNativeTaskStatus(task)); err == nil {
-				return body
+				if task.Properties.OriginModelName == "" || task.Properties.UpstreamModelName == "" || task.Properties.OriginModelName == task.Properties.UpstreamModelName {
+					return body
+				}
+				if body, err = helper.RestoreOriginalModelInJSONBody(body, task.Properties.OriginModelName); err == nil {
+					return body
+				}
 			}
 		}
 	}

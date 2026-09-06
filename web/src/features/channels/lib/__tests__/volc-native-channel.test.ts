@@ -18,7 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { describe, expect, test } from 'vitest'
 
-import { CHANNEL_TYPE_OPTIONS, CHANNEL_TYPE_VOLC_NATIVE } from '../../constants'
+import {
+  CHANNEL_TYPE_OPTIONS,
+  CHANNEL_TYPE_VOLC_NATIVE,
+  CHANNEL_TYPE_WARNINGS,
+} from '../../constants'
 import { getChannelTypeConfig, getDefaultBaseUrl } from '../channel-type-config'
 import { getChannelTypeIcon, getKeyPromptForType } from '../channel-utils'
 
@@ -38,6 +42,12 @@ describe('Volc Native channel', () => {
     )
     expect(getDefaultBaseUrl(CHANNEL_TYPE_VOLC_NATIVE)).toBe(
       'https://ark.cn-beijing.volces.com'
+    )
+    expect(getChannelTypeConfig(CHANNEL_TYPE_VOLC_NATIVE).hints?.models).toBe(
+      'Use an upstream model ID or a mapped alias'
+    )
+    expect(CHANNEL_TYPE_WARNINGS[CHANNEL_TYPE_VOLC_NATIVE]).toBe(
+      'Use native /api/v3 endpoints. Model mapping rewrites only the top-level model field; parameter overrides are not supported.'
     )
   })
 })
