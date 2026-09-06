@@ -16,12 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { AnimateInView } from '@/components/animate-in-view'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface CTAProps {
   className?: string
@@ -36,47 +38,49 @@ export function CTA(props: CTAProps) {
   }
 
   return (
-    <section className='relative z-10 overflow-hidden px-6 py-24 md:py-32'>
-      {/* Gradient mesh background */}
-      <div
-        aria-hidden
-        className='absolute inset-0 -z-10 opacity-20 dark:opacity-[0.08]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 50% 50% at 30% 50%, oklch(0.7 0.15 250 / 70%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 40% at 70% 40%, oklch(0.65 0.12 200 / 50%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
-      />
-
-      <AnimateInView
-        className='mx-auto max-w-2xl text-center'
-        animation='scale-in'
-      >
-        <h2 className='text-2xl leading-tight font-bold tracking-tight md:text-4xl'>
-          {t('Ready to simplify')}
-          <br />
-          <span className='maas-gradient-text'>
-            {t('your AI integration?')}
-          </span>
-        </h2>
-        <p className='text-muted-foreground/80 mx-auto mt-5 max-w-md text-sm leading-relaxed md:text-base'>
-          {t(
-            'Explore available models, connect your first application and manage its usage from one workspace.'
-          )}
-        </p>
-        <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
-          <Button className='group rounded-lg' render={<Link to='/sign-up' />}>
-            {t('Get Started')}
-            <ArrowRight className='ml-1 size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
-          </Button>
-          <Button
-            variant='outline'
-            className='border-border/50 hover:border-border hover:bg-muted/50 rounded-lg'
-            render={<Link to='/pricing' />}
-          >
-            {t('Model Square')}
-          </Button>
+    <section
+      className={cn(
+        'maas-deferred-section relative overflow-hidden px-5 py-24 sm:px-6 md:py-32',
+        props.className
+      )}
+      aria-labelledby='home-cta-title'
+    >
+      <div aria-hidden className='maas-cta-orb absolute -z-10 rounded-full' />
+      <AnimateInView animation='scale-in' className='mx-auto max-w-7xl'>
+        <div className='maas-cta-panel relative overflow-hidden rounded-[2rem] px-6 py-16 text-center sm:px-10 md:py-24'>
+          <div aria-hidden className='maas-cta-grid absolute inset-0' />
+          <div className='relative mx-auto max-w-3xl'>
+            <p className='maas-section-kicker'>{t('Build the market')}</p>
+            <h2
+              id='home-cta-title'
+              className='mt-4 text-3xl leading-tight font-semibold tracking-[-0.04em] text-balance md:text-6xl'
+            >
+              {t('Build the operating system for AI supply.')}
+            </h2>
+            <p className='text-muted-foreground mx-auto mt-6 max-w-2xl text-base leading-7 text-pretty md:text-lg'>
+              {t(
+                'Start with token aggregation and distribution today, then expand into the compute market as your business grows.'
+              )}
+            </p>
+            <div className='mt-9 flex flex-wrap items-center justify-center gap-3'>
+              <Button
+                size='lg'
+                className='maas-primary-action h-11 rounded-full px-5'
+                render={<Link to='/sign-up' />}
+              >
+                {t('Start building')}
+                <HugeiconsIcon icon={ArrowRight01Icon} data-icon='inline-end' />
+              </Button>
+              <Button
+                variant='outline'
+                size='lg'
+                className='maas-secondary-action h-11 rounded-full px-5'
+                render={<Link to='/pricing' />}
+              >
+                {t('Explore model supply')}
+              </Button>
+            </div>
+          </div>
         </div>
       </AnimateInView>
     </section>

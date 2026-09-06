@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -5,7 +23,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -66,19 +84,28 @@ async function renderHome(content: string) {
   )
 }
 
-test('empty administrator content shows the MaaS home and configured documentation link', async () => {
+test('empty administrator content presents the AI supply value chain and configured documentation link', async () => {
   await renderHome('')
-  expect(
-    await screen.findByRole('heading', {
-      level: 1,
-      name: /Unified model services/,
-    })
-  ).toBeVisible()
+  const heroTitle = await screen.findByRole('heading', {
+    level: 1,
+    name: /Turn fragmented AI supply into one programmable market/,
+  })
+  const main = screen.getByRole('main')
+  expect(heroTitle).toBeVisible()
   expect(screen.getByRole('button', { name: 'Docs' })).toHaveAttribute(
     'href',
     'https://docs.example.com'
   )
-  expect(screen.getByText('One model service catalog')).toBeVisible()
+  expect(
+    within(main).getByRole('heading', {
+      level: 2,
+      name: 'One platform. Three layers of value.',
+    })
+  ).toBeVisible()
+  expect(
+    within(main).getByRole('group', { name: 'AI supply network' })
+  ).toBeVisible()
+  expect(within(main).getAllByText('Roadmap')).not.toHaveLength(0)
 })
 
 test('authenticated visitors keep dashboard access from the homepage', async () => {
@@ -88,7 +115,7 @@ test('authenticated visitors keep dashboard access from the homepage', async () 
     await screen.findByRole('button', { name: 'Go to Dashboard' })
   ).toHaveAttribute('href', '/dashboard')
   expect(
-    screen.queryByRole('button', { name: 'Get Started' })
+    screen.queryByRole('button', { name: 'Start building' })
   ).not.toBeInTheDocument()
 })
 
@@ -101,7 +128,7 @@ test('administrator URL takes precedence over the default home while keeping its
   )
   expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin')
   expect(
-    screen.queryByRole('heading', { name: /Unified model services/ })
+    screen.queryByRole('heading', { name: /Turn fragmented AI supply/ })
   ).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Sign in' })).toBeVisible()
 })
@@ -112,6 +139,25 @@ test('administrator Markdown remains visible instead of the default presentation
     await screen.findByRole('heading', { name: 'Company welcome' })
   ).toBeVisible()
   expect(
-    screen.queryByRole('heading', { name: /Unified model services/ })
+    screen.queryByRole('heading', { name: /Turn fragmented AI supply/ })
+  ).not.toBeInTheDocument()
+})
+
+test('administrator HTML remains isolated and takes precedence over the default presentation', async () => {
+  const view = await renderHome(
+    '<section><h1>Custom company</h1><script>window.compromised = true</script></section>'
+  )
+
+  const shadowRoot = await waitFor(() => {
+    const root = view.container.querySelector<HTMLElement>(
+      '.custom-home-content'
+    )?.shadowRoot
+    if (!root) throw new Error('Custom home shadow root is not ready')
+    return root
+  })
+  expect(shadowRoot.textContent).toContain('Custom company')
+  expect(shadowRoot.querySelector('script')).toBeNull()
+  expect(
+    screen.queryByRole('heading', { name: /Turn fragmented AI supply/ })
   ).not.toBeInTheDocument()
 })
