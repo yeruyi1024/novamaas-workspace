@@ -1,37 +1,138 @@
-# NovaMaaS Workspace
+<div align="center">
+
+<img src="./web/public/logo.png" alt="NovaMaaS logo" width="88" />
+
+# 星枢 MaaS 平台
+
+**NovaMaaS — 面向 AI Token 供应聚合、商业分销与算力资源运营的统一基础设施**
 
 [![Build, package and publish](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml/badge.svg)](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3157d5.svg)](LICENSE)
+[![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
-本项目是基于 **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** 的独立维护开源分支，初始源码严格来自 **[v1.0.0-rc.26](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.26)**，对应提交 **`8f6961c675932f406260ff0c218bc2aa0603e9b2`**，并保留上游 Git 历史。
+[平台定位](#平台定位) · [能力版图](#能力版图) · [产品路线图](#产品路线图) · [版本与上游维护](#版本与上游维护) · [快速开始](#快速开始) · [项目文档](#项目文档)
 
-结合我们的实际使用场景，上游变更幅度较大，仍有较多未关闭的 issue，现有版本难以直接满足本土化适配需求。因此，我们选择固定该版本进行 fork 和本土化改造，以便更好地使用和维护项目。我们会不定期评估并同步上游中有益、兼容且适合本项目的友好改动。感谢上游作者和所有贡献者。
+</div>
 
-**NovaMaaS Workspace is an independently maintained fork of QuantumNous/new-api, based on exactly `v1.0.0-rc.26`.** We maintain this fork for our localization and operational needs, given the scale of upstream changes and outstanding issues relevant to our usage. Useful and compatible upstream improvements will be reviewed and integrated periodically.
+> [!IMPORTANT]
+> **项目来源与致谢**
+>
+> 星枢 MaaS 平台（NovaMaaS）基于 **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** 建设，初始基线严格对应上游 **[v1.0.0-rc.26](https://github.com/QuantumNous/new-api/releases/tag/v1.0.0-rc.26)** 和提交 **`8f6961c675932f406260ff0c218bc2aa0603e9b2`**，并完整保留上游 Git 历史。
+>
+> 感谢 **QuantumNous、new-api 项目作者及所有贡献者**提供的开源基础与持续投入。NovaMaaS 将遵循上游 AGPL-3.0 许可及附加声明，持续保留原作者署名、项目来源和许可证信息。
 
-本项目沿用上游 [AGPL-3.0 许可证](LICENSE)，保留 [NOTICE](NOTICE)、[第三方许可](THIRD-PARTY-LICENSES.md) 和原作者署名。初始化改动限于分支说明、版本标识及构建发布配置；应用业务源码保持指定上游版本。详细来源及同步策略见 [UPSTREAM.md](UPSTREAM.md)。
+**NovaMaaS Workspace is an independently maintained fork of [QuantumNous/new-api](https://github.com/QuantumNous/new-api), initially based on exactly `v1.0.0-rc.26`. The repository retains its upstream Git history, license notices, attribution, and provenance records.**
 
-## 本仓库构建与使用
+## 平台定位
 
-- [GitHub Actions](https://github.com/yeruyi1024/novamaas-workspace/actions/workflows/build.yml)：普通 PR 和手动运行只执行检查；仅在 PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。直接推送 `main` 不触发该工作流。
-- [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)：合并提交使用 `sha-<完整提交 SHA>` 标签，GHCR 镜像支持 amd64/arm64。self-hosted runner 另行构建 Linux amd64 镜像并直接推送至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
-- [Releases](https://github.com/yeruyi1024/novamaas-workspace/releases)：发布 Release 或推送 Git Tag 不会触发镜像构建；镜像发布以合并到 `main` 的 PR 为准。
-- [构建、下载、部署及 CCR 凭据配置说明](docs/BUILD.zh_CN.md)。GHCR 使用自动提供的 `GITHUB_TOKEN`，腾讯云凭据保存在 GitHub Actions Secrets 中。
-- [火山方舟原生 API 渠道说明](docs/VOLC_NATIVE.zh_CN.md)：记录从上游 PR #6653 选择性同步的 Volc Native 渠道、调用路径和兼容性边界。
+星枢 MaaS 平台面向需要长期运营 AI 服务的组织，为异构模型供应、Token 资源、客户访问与商业结算提供统一的管理基础。平台以 new-api 成熟的多模型网关能力为技术起点，在兼容现有生态的基础上，逐步构建从 **Token 聚合与分销** 到 **算力纳管与租赁** 的完整供应网络。
+
+NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、租户和结算连接为可运营的业务闭环：
+
+- 对供应侧，统一接入和管理不同模型供应商、Token 库存及未来的算力资源。
+- 对运营侧，提供路由、权限、定价、额度、用量与结算能力。
+- 对分销侧，支持直客、渠道合作伙伴、企业团队等多种商业交付模式。
+- 对使用侧，以统一接口屏蔽上游差异，降低 AI 应用与团队的接入成本。
+
+## 能力版图
+
+| 能力层 | 建设内容 | 当前阶段 |
+| --- | --- | --- |
+| 统一 AI 网关 | 多供应商接入、协议转换、模型路由、失败重试与访问控制 | 已具备基础能力 |
+| Token 聚合 | 统一管理多来源 Token、渠道、模型能力、额度和使用策略 | 持续增强 |
+| Token 分销 | 面向客户、团队和合作渠道封装访问能力，并支持计量与费用管理 | 持续增强 |
+| 多租户商业化 | 租户隔离、组织权限、产品定价、渠道策略、账单与经营分析 | 产品路线图 |
+| 算力纳管 | 统一登记、分组、监控和调度异构算力资源 | 产品路线图 |
+| 算力租赁 | 将可调度算力封装为可分配、可计量、可结算的供应产品 | 产品路线图 |
+
+> [!NOTE]
+> “持续增强”与“产品路线图”用于区分已经交付的基础能力和后续建设方向，不代表尚未发布的功能已经可用于生产环境。正式能力范围以对应版本说明和实际界面为准。
+
+## 产品路线图
+
+NovaMaaS 将围绕供应聚合、商业运营和算力资源三个方向持续演进。路线图不绑定未经验证的交付日期，每项能力会在完成实现、测试与版本记录后正式发布。
+
+| 阶段 | 建设目标 | 重点能力 |
+| --- | --- | --- |
+| 第一阶段：平台基础 | 建立可独立维护、可追溯、可发布的 NovaMaaS 基线 | 上游来源治理、本土化适配、统一构建、版本标识、前端产品化呈现 |
+| 第二阶段：Token 供应网络 | 将分散的模型和 Token 供应转化为统一资源池 | 供应接入、库存管理、智能路由、额度策略、用量观测与分销能力 |
+| 第三阶段：多租户商业化 | 支撑企业客户、内部团队和渠道合作伙伴的规模化运营 | 租户隔离、组织权限、产品目录、差异化定价、渠道分润与账单结算 |
+| 第四阶段：算力资源平台 | 将 GPU 等算力资源纳入统一供应与交易体系 | 算力纳管、资源监控、任务调度、容量编排、算力租赁与统一计费 |
+
+## 版本与上游维护
+
+NovaMaaS 采用“固定基线、定期评估、选择性合并、完整记录”的长期维护方式：
+
+1. 定期检查 QuantumNous/new-api 的新版本、重要修复和兼容性改进。
+2. 对候选改动进行代码审查、依赖分析和数据库兼容性评估，不自动全量追随上游主分支。
+3. 通过独立分支和 Pull Request 合并上游改动，并完成 Go、前端、数据库与容器构建验证。
+4. 每次上游同步都在 [UPSTREAM.md](UPSTREAM.md) 中记录来源提交、合并原因、适配内容和验证结果。
+5. 正式能力随 NovaMaaS 版本统一发布，在版本说明中建立“上游提交—NovaMaaS 版本—构建产物”的对应关系。
+
+当前 CI 使用 `sha-<完整提交 SHA>` 作为不可变构建标识。产品版本由 [VERSION](VERSION) 管理；发布时应确保源码版本、发布说明、安装包和容器镜像之间可以相互追溯。
+
+## 快速开始
+
+### 使用容器镜像
+
+下面以已经发布的初始化构建为例。生产部署前，请从 [Packages](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace) 选择经过验证的固定标签或镜像 digest。
+
+```bash
+NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:sha-65be9f0f7456bf86e61dbbb43835df40731a311b
+docker pull "$NOVAMAAS_IMAGE"
+docker run -d --name novamaas --restart unless-stopped \
+  -p 3000:3000 \
+  -e TZ=Asia/Shanghai \
+  -v novamaas-data:/data \
+  "$NOVAMAAS_IMAGE"
+```
+
+部署完成后访问 `http://localhost:3000`，按照初始化页面完成管理员和数据库配置。SQLite 数据保存在挂载的数据卷中；升级或迁移前必须先备份数据库。
+
+### 从源码构建
 
 ```bash
 git clone https://github.com/yeruyi1024/novamaas-workspace.git
 cd novamaas-workspace
-# 已发布的初始化构建；新版本请从 Packages 选择对应固定标签。
-NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:sha-65be9f0f7456bf86e61dbbb43835df40731a311b
-docker pull "$NOVAMAAS_IMAGE"
-docker run -d --name novamaas --restart unless-stopped \
-  -p 3000:3000 -e TZ=Asia/Shanghai -v novamaas-data:/data \
-  "$NOVAMAAS_IMAGE"
+docker build -t novamaas:local .
+docker run --rm -p 3000:3000 -v novamaas-data:/data novamaas:local
 ```
+
+完整的构建、安装包、双架构镜像和腾讯云 CCR 配置说明见 [NovaMaaS 构建文档](docs/BUILD.zh_CN.md)。
+
+## 项目文档
+
+| 文档 | 用途 |
+| --- | --- |
+| [UPSTREAM.md](UPSTREAM.md) | 上游基线、同步记录、来源提交与维护策略 |
+| [docs/BUILD.zh_CN.md](docs/BUILD.zh_CN.md) | 本地构建、CI、安装包、GHCR 与腾讯云 CCR 发布说明 |
+| [docs/VOLC_NATIVE.zh_CN.md](docs/VOLC_NATIVE.zh_CN.md) | 火山方舟原生 API 渠道、任务接口和兼容性边界 |
+| [LICENSE](LICENSE) | AGPL-3.0 许可证与适用条款 |
+| [NOTICE](NOTICE) | 上游声明、署名和附加许可说明 |
+| [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) | 第三方依赖许可证信息 |
+
+## 构建与发布
+
+- 普通 PR 和手动工作流只执行源码检查，不发布镜像。
+- PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。
+- GitHub-hosted runner 将 amd64/arm64 多架构镜像发布至 [GitHub Container Registry](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)；self-hosted runner 将 Linux amd64 镜像发布至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
+- 合并构建统一使用 `sha-<完整提交 SHA>` 标签；发布 Release 或推送 Git Tag 不触发镜像构建。
+- GHCR 使用 GitHub 自动提供的 `GITHUB_TOKEN`；腾讯云凭据仅保存在 GitHub Actions Secrets 中，不得写入源码、文档或普通 Variables。
+
+## 许可与合规
+
+本项目沿用上游 [AGPL-3.0 许可证](LICENSE)，保留 [NOTICE](NOTICE)、[第三方许可](THIRD-PARTY-LICENSES.md) 和原作者署名。任何部署和商业化使用都必须遵守许可证、上游服务条款及所在地区适用的法律法规。
+
+使用第三方模型、Token、支付、算力或其他上游资源时，运营方必须自行取得合法授权，并承担备案、内容安全、实名、日志留存、税务和数据合规等责任。
 
 ## 上游项目原始说明 / Original upstream documentation
 
 以下保留上游说明及署名，其中的仓库、发布页和镜像地址指向上游。使用本分支请以上面的地址和构建说明为准。
+
+<details>
+<summary><strong>展开查看 QuantumNous/new-api 原始 README</strong></summary>
+
+<br />
 
 <div align="center">
 
@@ -544,3 +645,5 @@ If this project is helpful to you, welcome to give us a ⭐️ Star！
 <sub>Built with ❤️ by QuantumNous</sub>
 
 </div>
+
+</details>
