@@ -20,8 +20,29 @@ env:
   GOWORK: 'off'
 
 jobs:
+  governance:
+    name: README downstream ledger
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify ledger structure
+        run: bash .github/scripts/check-readme-pr-ledger.sh
+      - name: Verify current PR entry
+        if: github.event_name == 'pull_request'
+        env:
+          README_LEDGER_PR_NUMBER: ${{ github.event.pull_request.number }}
+          README_LEDGER_REPOSITORY: ${{ github.repository }}
+          README_LEDGER_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          README_LEDGER_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/check-readme-pr-ledger.sh
+
   backend:
     name: Go checks
+    needs: governance
     if: github.event_name != 'pull_request_target' || github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -63,6 +84,7 @@ jobs:
 
   frontend:
     name: Frontend checks
+    needs: governance
     if: github.event_name != 'pull_request_target' || github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
     timeout-minutes: 20

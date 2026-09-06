@@ -140,6 +140,14 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 
 ### Project Governance
 
+**Downstream PR ledger:** Every pull request targeting `main` MUST update the `NovaMaaS 与上游差异` ledger between `<!-- novamaas-pr-ledger:start -->` and `<!-- novamaas-pr-ledger:end -->` in `README.md`.
+
+- Add exactly one row for the current PR with its real `#number` link, date, change type, affected area, concise user-visible or operational impact, upstream relationship, and status.
+- Replace provisional work-item text with the real PR link after the PR is opened. `TBD`, `待定`, `待提交`, and similar placeholders are not valid PR ledger entries.
+- Classify the upstream relationship explicitly: synchronized from an upstream Issue/PR/commit, downstream extension of an upstream change, downstream-only behavior, or removal of a former difference.
+- When the PR synchronizes or cherry-picks upstream work, update `UPSTREAM.md` in the same PR with the source reference and verification result.
+- Before declaring a PR ready, run `.github/scripts/check-readme-pr-ledger.sh`. CI supplies the PR context and additionally verifies that the current PR row was added by the branch.
+
 **Protected project information:** The following project-related information is strictly protected and MUST NOT be modified, deleted, replaced, or removed under any circumstances:
 
 - Any references, mentions, branding, metadata, or attributions related to **nеw-аρi** (the project name/identity)

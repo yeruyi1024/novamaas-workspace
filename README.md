@@ -10,7 +10,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3157d5.svg)](LICENSE)
 [![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
-[平台定位](#平台定位) · [能力版图](#能力版图) · [产品路线图](#产品路线图) · [版本与上游维护](#版本与上游维护) · [快速开始](#快速开始) · [项目文档](#项目文档)
+[平台定位](#平台定位) · [能力版图](#能力版图) · [产品路线图](#产品路线图) · [与上游差异](#novamaas-与上游差异) · [版本与上游维护](#版本与上游维护) · [快速开始](#快速开始) · [项目文档](#项目文档)
 
 </div>
 
@@ -58,6 +58,35 @@ NovaMaaS 将围绕供应聚合、商业运营和算力资源三个方向持续�
 | 第二阶段：Token 供应网络 | 将分散的模型和 Token 供应转化为统一资源池 | 供应接入、库存管理、智能路由、额度策略、用量观测与分销能力 |
 | 第三阶段：多租户商业化 | 支撑企业客户、内部团队和渠道合作伙伴的规模化运营 | 租户隔离、组织权限、产品目录、差异化定价、渠道分润与账单结算 |
 | 第四阶段：算力资源平台 | 将 GPU 等算力资源纳入统一供应与交易体系 | 算力纳管、资源监控、任务调度、容量编排、算力租赁与统一计费 |
+
+## NovaMaaS 与上游差异
+
+此处是 NovaMaaS 相对 `QuantumNous/new-api` 的首页差异账本，用于回答“为什么保留这项改动、来源在哪里、上游是否已有等价实现”。当前关键方向包括：
+
+- **供应接入：**选择性引入尚未进入上游主线的火山方舟原生渠道，并补充模型映射、凭据隔离和任务持久化保护。
+- **产品化：**维护 NovaMaaS 独立首页、供应网络定位和商业化路线图，同时完整保留上游来源、文档和署名。
+- **交付基础设施：**形成 PR 合并后才发布的 GHCR 多架构与腾讯云 CCR 构建链路，并提供可追溯的时间戳镜像标签。
+- **供应商兼容：**持续跟踪上游接口格式变化；当前正在修复百炼 Wan3 任务轮询对小数时长字段的兼容问题。
+
+<!-- novamaas-pr-ledger:start -->
+
+| PR / 工作项 | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 待提交：Wan3 轮询兼容 | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | 开发中；创建 PR 后必须替换为真实 PR 链接 |
+| [#10](https://github.com/yeruyi1024/novamaas-workspace/pull/10) | 2026-09-06 | `fix(ci)` | 构建兼容 | 调整 self-hosted Runner 的 Buildx 校验方式，兼容不支持 `inspect --format` 的 CLI。 | 下游运行环境专属修复。 | 已合并 |
+| [#9](https://github.com/yeruyi1024/novamaas-workspace/pull/9) | 2026-09-06 | `ci/refactor` | 镜像发布 | 使用合并时间生成稳定的架构与多架构标签，并将 self-hosted 构建改为本机 Shell、Git 和 Docker 链路。 | 下游交付策略，未计划提交上游。 | 已合并 |
+| [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 | 已合并 |
+| [#7](https://github.com/yeruyi1024/novamaas-workspace/pull/7) | 2026-09-06 | `ci/refactor` | 镜像发布 | 拆分 GitHub-hosted GHCR 多架构发布与 self-hosted 腾讯云 CCR amd64 发布，隔离凭据和本机缓存。 | 下游部署基础设施专属。 | 已合并 |
+| [#6](https://github.com/yeruyi1024/novamaas-workspace/pull/6) | 2026-09-06 | `feat` | 首页与文档 | 重构 NovaMaaS 首页，明确 Token 供应网络、多租户商业化和算力资源路线图，并完成七种语言适配。 | 下游产品化差异；上游原始 README、许可、署名和来源继续保留。 | 已合并 |
+| [#5](https://github.com/yeruyi1024/novamaas-workspace/pull/5) | 2026-09-06 | `fix(ci)` | 腾讯云 CCR | 使用仓库作用域认证规避 CCR 的 `no scope specify` 错误，并将凭据限制在任务临时 Docker 配置中。 | 下游镜像仓库兼容修复。 | 已合并 |
+| [#4](https://github.com/yeruyi1024/novamaas-workspace/pull/4) | 2026-09-06 | `ci/refactor` | 发布治理 | 普通 PR 只做源码检查，仅在 PR 合并到 `main` 后发布镜像；缓存导出异常不再阻断产物发布。 | 下游发布治理专属。 | 已合并 |
+| [#3](https://github.com/yeruyi1024/novamaas-workspace/pull/3) | 2026-09-05 | `ci` | 腾讯云 CCR | 建立合并后向 GHCR 和腾讯云 CCR 发布镜像的基础链路，并保持 PR 阶段只运行检查。 | 下游部署基础设施专属。 | 已合并 |
+| [#2](https://github.com/yeruyi1024/novamaas-workspace/pull/2) | 2026-09-05 | `ci` | 腾讯云 CCR | 探索从 GHCR 镜像复制到 CCR 的发布方案。 | 下游方案探索，没有进入主线。 | 已关闭，由 #3 替代 |
+| [#1](https://github.com/yeruyi1024/novamaas-workspace/pull/1) | 2026-09-05 | `feat/fix` | 火山方舟 | 选择性引入 Volc Native 渠道，并补齐任务凭据延续、取消状态、响应关闭、路由隔离、权限约束和多语言支持。 | 来源为仍未合并的上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) / [#4705](https://github.com/QuantumNous/new-api/issues/4705)，NovaMaaS 追加安全与兼容加固。 | 已合并 |
+
+<!-- novamaas-pr-ledger:end -->
+
+维护约束：每个面向 `main` 的 PR 都必须在上述标记区域新增一行，使用真实 PR 编号和链接，说明类型、影响领域、关键变化、与上游的关系及当前状态。上游同步类 PR 还必须同步更新 [UPSTREAM.md](UPSTREAM.md)。`.github/workflows/build.yml` 会校验当前 PR 是否新增了对应账本行；未登记的 PR 不能通过检查。
 
 ## 版本与上游维护
 
