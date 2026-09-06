@@ -171,9 +171,9 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
     defaultBaseUrl: 'https://ark.cn-beijing.volces.com',
     hints: {
       key: 'Volcengine Ark API Key',
-      models: 'Use the upstream model ID',
+      models: 'Use an upstream model ID or a mapped alias',
       other:
-        'Use native /api/v3 endpoints with upstream model IDs. Model mapping and parameter overrides are not supported.',
+        'Use native /api/v3 endpoints. Model mapping rewrites only the top-level model field; parameter overrides are not supported.',
     },
   },
 }

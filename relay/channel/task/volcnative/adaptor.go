@@ -1,6 +1,7 @@
 // Package volcnative handles Fire Ark's native asynchronous content-generation
-// API. It forwards the submitted JSON bytes unchanged, so provider-specific
-// fields are not discarded by the OpenAI task conversion path.
+// API. It preserves the submitted JSON bytes except for an optional top-level
+// model mapping, so provider-specific fields are not discarded by the OpenAI
+// task conversion path.
 package volcnative
 
 import (
@@ -62,11 +63,8 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 		}
 	}
 	info.OriginModelName = model.String()
-	if err := helper.ModelMappedHelper(c, info, nil); err != nil {
-		return taskError(err, "model_mapping_failed", http.StatusBadRequest)
-	}
-	if info.IsModelMapped || len(info.ParamOverride) != 0 {
-		return taskError(fmt.Errorf("Volc Native requires the upstream model id and does not support parameter overrides"), "invalid_request", http.StatusBadRequest)
+	if info.ChannelMeta != nil && len(info.ParamOverride) != 0 {
+		return taskError(fmt.Errorf("Volc Native does not support parameter overrides"), "invalid_request", http.StatusBadRequest)
 	}
 	var metadata map[string]interface{}
 	if err := common.Unmarshal(body, &metadata); err != nil {
@@ -78,26 +76,27 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	return nil
 }
 
-// BuildRequestBody guarantees opaque pass-through. Model mapping and parameter
-// overrides are intentionally rejected: changing either would make an API
-// advertised as native no longer preserve the caller's request semantics.
+// BuildRequestBody preserves the native JSON body and applies the channel model
+// mapping only to its top-level model field.
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
-	if info.IsModelMapped {
-		return nil, fmt.Errorf("volc native channels do not support model mapping; use the upstream model id directly")
-	}
-	if len(info.ParamOverride) != 0 {
+	if info != nil && info.ChannelMeta != nil && len(info.ParamOverride) != 0 {
 		return nil, fmt.Errorf("volc native channels do not support parameter overrides")
 	}
 	body, err := rawRequestBody(c)
 	if err != nil {
 		return nil, err
 	}
+	body, err = helper.ApplyModelMappingToJSONBody(info, body)
+	if err != nil {
+		return nil, err
+	}
 	return bytes.NewReader(body), nil
 }
 
-// DoResponse replaces only the upstream task id with NewAPI's public id. The
-// upstream id remains private in Task.PrivateData and is never returned to the
-// caller; all remaining response fields are forwarded as received.
+// DoResponse replaces the upstream task id with NewAPI's public id and restores
+// the public model alias after a mapping. The upstream id remains private in
+// Task.PrivateData and is never returned to the caller; all other response
+// fields are forwarded as received.
 func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (string, []byte, *dto.TaskError) {
 	if resp == nil || resp.Body == nil {
 		return "", nil, taskError(fmt.Errorf("upstream response is empty"), "invalid_response", http.StatusBadGateway)
@@ -115,6 +114,12 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	clientBody, err := sjson.SetBytes(body, "id", info.PublicTaskID)
 	if err != nil {
 		return "", nil, taskError(err, "patch_response_failed", http.StatusInternalServerError)
+	}
+	if info.ChannelMeta != nil && info.IsModelMapped {
+		clientBody, err = helper.RestoreOriginalModelInJSONBody(clientBody, info.OriginModelName)
+		if err != nil {
+			return "", nil, taskError(err, "response_model_restore_failed", http.StatusInternalServerError)
+		}
 	}
 	c.Data(resp.StatusCode, responseContentType(resp), clientBody)
 	return upstreamID.String(), body, nil
