@@ -34,6 +34,12 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 
+import {
+  PolicyRoutingVisual,
+  SettlementLedgerVisual,
+  SupplyConvergenceVisual,
+} from '../control-plane-visuals'
+
 export function ControlPlane() {
   const { t } = useTranslation()
 
@@ -81,28 +87,7 @@ export function ControlPlane() {
                 </CardDescription>
               </CardHeader>
               <CardContent className='mt-auto px-6 pb-4 md:px-7'>
-                <div className='maas-provider-matrix grid grid-cols-2 gap-2 rounded-2xl p-3 sm:grid-cols-3'>
-                  {[
-                    'OpenAI',
-                    'Claude',
-                    'Gemini',
-                    'DeepSeek',
-                    'Qwen',
-                    'More',
-                  ].map((provider, index) => (
-                    <div
-                      key={provider}
-                      className='maas-provider-cell flex items-center gap-2 rounded-xl px-3 py-3 text-xs font-medium'
-                    >
-                      <span
-                        aria-hidden
-                        className='maas-provider-signal size-1.5 rounded-full'
-                        style={{ animationDelay: `${index * 180}ms` }}
-                      />
-                      {provider === 'More' ? t('More supply') : provider}
-                    </div>
-                  ))}
-                </div>
+                <SupplyConvergenceVisual />
               </CardContent>
             </Card>
           </AnimateInView>
@@ -179,22 +164,7 @@ export function ControlPlane() {
                 </CardDescription>
               </CardHeader>
               <CardContent className='px-6 pb-4 md:px-7'>
-                <div className='maas-policy-orbit relative mt-4 flex h-28 items-center justify-center'>
-                  <span className='maas-policy-core flex size-14 items-center justify-center rounded-full font-mono text-[10px] font-semibold'>
-                    {t('Policy')}
-                  </span>
-                  {[t('Cost'), t('Latency'), t('Availability')].map(
-                    (policy, index) => (
-                      <span
-                        key={policy}
-                        className='maas-policy-node absolute rounded-full px-2.5 py-1 text-[10px]'
-                        data-position={index}
-                      >
-                        {policy}
-                      </span>
-                    )
-                  )}
-                </div>
+                <PolicyRoutingVisual />
               </CardContent>
             </Card>
           </AnimateInView>
@@ -224,28 +194,7 @@ export function ControlPlane() {
                 </CardDescription>
               </CardHeader>
               <CardContent className='mt-auto px-6 pb-4 md:px-7'>
-                <div className='maas-ledger grid grid-cols-3 gap-px overflow-hidden rounded-2xl'>
-                  {[t('Usage'), t('Cost'), t('Channel health')].map(
-                    (metric, index) => (
-                      <div key={metric} className='p-3 sm:p-4'>
-                        <div className='maas-ledger-chart flex h-10 items-end gap-1'>
-                          {[35, 55, 45, 78, 62].map((height) => (
-                            <span
-                              key={`${metric}-${height}`}
-                              className='maas-ledger-bar flex-1 rounded-sm'
-                              style={{
-                                height: `${Math.max(18, height - index * 8)}%`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <p className='text-muted-foreground mt-3 text-[10px] sm:text-xs'>
-                          {metric}
-                        </p>
-                      </div>
-                    )
-                  )}
-                </div>
+                <SettlementLedgerVisual />
               </CardContent>
             </Card>
           </AnimateInView>

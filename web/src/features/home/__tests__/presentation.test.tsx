@@ -133,6 +133,32 @@ test('default homepage stacks the value statement above the centered supply netw
   )
 })
 
+test('control plane diagrams explain supply convergence, policy routing and itemized settlement', async () => {
+  await renderHome('')
+  const controlPlane = await screen.findByRole('region', {
+    name: 'Operate the economics, not just the API',
+  })
+
+  const supplyDiagram = within(controlPlane).getByRole('img', {
+    name: 'Unify heterogeneous supply',
+  })
+  const routingDiagram = within(controlPlane).getByRole('img', {
+    name: 'Route by policy',
+  })
+  const settlementDiagram = within(controlPlane).getByRole('img', {
+    name: 'Settle with confidence',
+  })
+
+  expect(supplyDiagram).toHaveTextContent('Unified token pool')
+  expect(supplyDiagram).toHaveTextContent('POST /v1')
+  expect(routingDiagram).toHaveTextContent('Request')
+  expect(
+    routingDiagram.querySelector('[data-selected="true"]')
+  ).toHaveTextContent('Claude')
+  expect(settlementDiagram).toHaveTextContent('req_84C2')
+  expect(settlementDiagram).toHaveTextContent('Metered settlement')
+})
+
 test('default homepage omits the project source code entry', async () => {
   await renderHome('')
   const footer = await screen.findByRole('contentinfo')
