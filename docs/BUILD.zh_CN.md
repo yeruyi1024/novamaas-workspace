@@ -6,11 +6,11 @@
 
 | 触发方式 | 检查与打包 | 容器镜像 |
 | --- | --- | --- |
-| 推送 `main` | Go vet/build/test、前端类型检查和测试；不打包 | 不构建、不发布 |
 | 向 `main` 新建或更新 PR | 相同检查；不打包 | 不构建、不发布 |
-| PR 合并到 `main` | 相同检查；Linux amd64/arm64 打包与启动验证 | 同时发布到 GHCR 和腾讯云 CCR，标签为 `sha-<合并提交 SHA>` |
+| PR 合并到 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 打包与启动验证 | 同时发布到 GHCR 和腾讯云 CCR，标签为 `sha-<合并提交 SHA>` |
 | 关闭但未合并 PR | 跳过 | 不构建、不发布 |
-| 发布 Release 或 Actions 页面手动运行 | 只执行源码检查；不打包 | 不构建、不发布 |
+| Actions 页面手动运行 | 只执行源码检查；不打包 | 不构建、不发布 |
+| 直接推送 `main`、发布 Release 或推送 Git Tag | 不触发此工作流 | 不构建、不发布 |
 
 构建使用上游 Dockerfile 中固定的 Bun `1.4.0` 和 Go `1.26.1`，执行 `bun install --frozen-lockfile`，保留 `go.mod`、`go.sum` 与 `web/bun.lock`。两种架构分别使用 GitHub 的原生 Linux runner。
 
@@ -67,11 +67,11 @@ CI 通过仓库自动提供的 `GITHUB_TOKEN` 和 `packages: write` 权限发布
 - `TENCENT_CCR_USERNAME`：腾讯云账号 ID，即执行 `docker login ccr.ccs.tencentyun.com` 时使用的用户名。
 - `TENCENT_CCR_PASSWORD`：腾讯云容器镜像服务个人版初始化或重置得到的固定登录密码。
 
-不要把真实账号或密码写进工作流、提交记录或普通 GitHub Variables。工作流仅在 PR 已合并到 `main` 的 `closed` 事件中读取这两个 Secret，因此普通 PR 校验和直接推送不会接触 CCR 凭据。
+不要把真实账号或密码写进工作流、提交记录或普通 GitHub Variables。工作流仅在 PR 已合并到 `main` 的 `closed` 事件中读取这两个 Secret，因此普通 PR 校验不会接触 CCR 凭据。
 
 ## 发布新版本
 
-镜像版本以合并提交的 `sha-<完整提交 SHA>` 为准。发布 GitHub Release、推送 Git Tag 或手动执行工作流都不会构建或发布容器镜像；需要发布代码变更时，应通过 PR 合并到 `main`。CI 不会替你创建 Release、改写 Release 正文或自动合入上游新版本。
+镜像版本以合并提交的 `sha-<完整提交 SHA>` 为准。直接推送 `main`、发布 GitHub Release、推送 Git Tag 或手动执行工作流都不会构建或发布容器镜像；需要发布代码变更时，应通过 PR 合并到 `main`。CI 不会替你创建 Release、改写 Release 正文或自动合入上游新版本。
 
 ## 本地从源码构建
 

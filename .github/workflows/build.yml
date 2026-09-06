@@ -1,10 +1,6 @@
 name: Build, package and publish
 
 on:
-  push:
-    branches: [main]
-  release:
-    types: [published]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
@@ -127,7 +123,7 @@ jobs:
             org.opencontainers.image.version=${{ env.BUILD_VERSION }}
             org.opencontainers.image.licenses=AGPL-3.0
           cache-from: type=gha,scope=linux-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
+          cache-to: type=gha,mode=min,scope=linux-${{ matrix.arch }},ignore-error=true
       - name: Verify version and HTTP startup
         run: bash .github/scripts/verify-image.sh novamaas-ci:local "$BUILD_VERSION"
       - name: Package the tested binary and notices
