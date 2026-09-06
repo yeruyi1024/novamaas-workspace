@@ -7,14 +7,14 @@
 | 触发方式 | 检查与打包 | 容器镜像 |
 | --- | --- | --- |
 | 向 `main` 新建或更新 PR | 相同检查；不打包 | 不构建、不发布 |
-| PR 合并到 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 打包与启动验证 | GitHub 托管 runner 发布 GHCR amd64/arm64 多架构镜像；self-hosted runner 独立构建并发布腾讯云 CCR amd64 镜像；标签均为 `sha-<合并提交 SHA>` |
+| PR 合并到 `main` | Go vet/build/test、前端类型检查和测试；Linux amd64/arm64 打包与启动验证 | GitHub 托管 runner 发布 GHCR amd64/arm64 与多架构镜像；self-hosted runner 独立构建并发布腾讯云 CCR amd64 镜像；标签使用 `build_<UTC 合并时间>_<架构>` |
 | 关闭但未合并 PR | 跳过 | 不构建、不发布 |
 | Actions 页面手动运行 | 只执行源码检查；不打包 | 不构建、不发布 |
 | 直接推送 `main`、发布 Release 或推送 Git Tag | 不触发此工作流 | 不构建、不发布 |
 
 构建使用上游 Dockerfile 中固定的 Bun `1.4.0` 和 Go `1.26.1`，执行 `bun install --frozen-lockfile`，保留 `go.mod`、`go.sum` 与 `web/bun.lock`。GHCR 的两种架构分别使用 GitHub 的原生 Linux runner；腾讯云 CCR 的 amd64 镜像使用带有 `self-hosted`、`Linux`、`X64`、`novamaas-image` 标签的自托管 runner。
 
-self-hosted 任务使用 Docker driver 复用主机的基础镜像与构建缓存，并为 Go 依赖下载传入 `GOPROXY=https://goproxy.cn,direct`；GitHub 托管构建继续使用 Dockerfile 的默认 `https://proxy.golang.org,direct`。
+self-hosted 任务使用 Runner 本机的 Git、Docker 和 Buildx，通过 Shell 拉取准确的合并提交并执行构建，不下载外部 Action 仓库。Git 拉取固定使用 HTTP/1.1、单次 120 秒超时和最多三次退避重试。Docker driver 继续复用主机的基础镜像与构建缓存，并为 Go 依赖下载传入 `GOPROXY=https://goproxy.cn,direct`；GitHub 托管构建继续使用 Dockerfile 的默认 `https://proxy.golang.org,direct`。
 
 前端编译进 Go 可执行文件。只有 PR 成功合并到 `main` 后，CI 才会运行容器，验证版本号、`/api/status` 及首页响应。GitHub 托管 runner 从已验证的 amd64/arm64 镜像提取二进制文件打包，并将两种架构发布为一个 GHCR 多架构镜像；self-hosted runner 单独构建、验证 amd64 镜像并直接推送腾讯云 CCR。安装包包含 `new-api`、许可证、署名、来源记录、版本及 `BUILD-INFO.txt`；镜像中的许可和来源文件位于 `/licenses`。
 
@@ -38,14 +38,14 @@ cd <解压后的安装包目录>
 
 ## 使用容器镜像
 
-GHCR 多架构镜像地址为 `ghcr.io/yeruyi1024/novamaas-workspace`。腾讯云的 Linux amd64 镜像地址为 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`，它由 self-hosted runner 独立构建，并非从 GHCR 复制。PR 合并构建使用 `sha-<完整合并提交 SHA>`；工作流不写入 `latest` 或 `main`。
+GHCR 多架构镜像地址为 `ghcr.io/yeruyi1024/novamaas-workspace`。腾讯云的 Linux amd64 镜像地址为 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`，它由 self-hosted runner 独立构建，并非从 GHCR 复制。PR 合并时间会格式化为 UTC `YYYYMMDDTHHMMSSZ`；GHCR 单架构标签分别为 `build_<时间戳>_amd64` 和 `build_<时间戳>_arm64`，多架构标签为 `build_<时间戳>_multiarch`，腾讯云 CCR 标签为 `build_<时间戳>_amd64`。同一次合并的所有镜像共享时间戳，重跑不会产生新标签。工作流不写入 `latest` 或 `main`。
 
 在仓库首页右侧点击 **Packages → novamaas-workspace**，或直接打开 [镜像列表](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)。选择一个版本即可查看标签、digest、架构和拉取命令。CI 运行详情中 **Publish multi-arch image** 的 Summary 也会输出固定引用。
 
-下面以已经发布的初始化构建为例；使用新构建时，将 `NOVAMAAS_IMAGE` 换成 Packages 中的对应标签：
+下面展示标签格式；先将 `YYYYMMDDTHHMMSSZ` 替换为 CI Summary 或 Packages 中的实际 UTC 合并时间戳：
 
 ```bash
-NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:sha-65be9f0f7456bf86e61dbbb43835df40731a311b
+NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:build_YYYYMMDDTHHMMSSZ_multiarch
 docker buildx imagetools inspect "$NOVAMAAS_IMAGE"
 docker pull "$NOVAMAAS_IMAGE"
 docker run --rm "$NOVAMAAS_IMAGE" --version
@@ -75,7 +75,7 @@ CI 通过仓库自动提供的 `GITHUB_TOKEN` 和 `packages: write` 权限发布
 
 ## 发布新版本
 
-镜像版本以合并提交的 `sha-<完整提交 SHA>` 为准。直接推送 `main`、发布 GitHub Release、推送 Git Tag 或手动执行工作流都不会构建或发布容器镜像；需要发布代码变更时，应通过 PR 合并到 `main`。CI 不会替你创建 Release、改写 Release 正文或自动合入上游新版本。
+PR 合并镜像使用 `build_<UTC 合并时间>_<架构>` 标签，并继续在 OCI revision 标签、应用版本和 `BUILD-INFO.txt` 中记录完整提交 SHA。直接推送 `main`、发布 GitHub Release、推送 Git Tag 或手动执行工作流都不会构建或发布容器镜像；正式 Release 应使用独立的版本标签方案，不复用 `build_*`。需要发布代码变更时，应通过 PR 合并到 `main`。CI 不会替你创建 Release、改写 Release 正文或自动合入上游新版本。
 
 ## 本地从源码构建
 

@@ -69,16 +69,16 @@ NovaMaaS 采用“固定基线、定期评估、选择性合并、完整记录�
 4. 每次上游同步都在 [UPSTREAM.md](UPSTREAM.md) 中记录来源提交、合并原因、适配内容和验证结果。
 5. 正式能力随 NovaMaaS 版本统一发布，在版本说明中建立“上游提交—NovaMaaS 版本—构建产物”的对应关系。
 
-当前 CI 使用 `sha-<完整提交 SHA>` 作为不可变构建标识。产品版本由 [VERSION](VERSION) 管理；发布时应确保源码版本、发布说明、安装包和容器镜像之间可以相互追溯。
+当前 PR 合并 CI 使用 `build_<UTC 合并时间>_<架构>` 标识单架构镜像，并使用 `build_<UTC 合并时间>_multiarch` 标识 GHCR 多架构镜像。产品版本由 [VERSION](VERSION) 管理；发布时应确保源码版本、发布说明、安装包和容器镜像之间可以相互追溯。
 
 ## 快速开始
 
 ### 使用容器镜像
 
-下面以已经发布的初始化构建为例。生产部署前，请从 [Packages](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace) 选择经过验证的固定标签或镜像 digest。
+下面展示 PR 合并构建的标签格式。请将 `YYYYMMDDTHHMMSSZ` 替换为 CI Summary 或 [Packages](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace) 中的实际 UTC 合并时间戳；生产部署应选择经过验证的固定标签或镜像 digest。
 
 ```bash
-NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:sha-65be9f0f7456bf86e61dbbb43835df40731a311b
+NOVAMAAS_IMAGE=ghcr.io/yeruyi1024/novamaas-workspace:build_YYYYMMDDTHHMMSSZ_multiarch
 docker pull "$NOVAMAAS_IMAGE"
 docker run -d --name novamaas --restart unless-stopped \
   -p 3000:3000 \
@@ -116,7 +116,7 @@ docker run --rm -p 3000:3000 -v novamaas-data:/data novamaas:local
 - 普通 PR 和手动工作流只执行源码检查，不发布镜像。
 - PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。
 - GitHub-hosted runner 将 amd64/arm64 多架构镜像发布至 [GitHub Container Registry](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)；self-hosted runner 将 Linux amd64 镜像发布至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
-- 合并构建统一使用 `sha-<完整提交 SHA>` 标签；发布 Release 或推送 Git Tag 不触发镜像构建。
+- PR 合并构建使用 `build_<UTC 合并时间>_<架构>` 标签；发布 Release 或推送 Git Tag 不触发此工作流，正式 Release 应使用独立的版本标签方案。
 - GHCR 使用 GitHub 自动提供的 `GITHUB_TOKEN`；腾讯云凭据仅保存在 GitHub Actions Secrets 中，不得写入源码、文档或普通 Variables。
 
 ## 许可与合规
