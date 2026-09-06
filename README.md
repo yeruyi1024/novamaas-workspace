@@ -10,7 +10,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3157d5.svg)](LICENSE)
 [![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
-[平台定位](#平台定位) · [能力版图](#能力版图) · [产品路线图](#产品路线图) · [版本与上游维护](#版本与上游维护) · [快速开始](#快速开始) · [项目文档](#项目文档)
+[平台定位](#平台定位) · [能力版图](#能力版图) · [产品路线图](#产品路线图) · [与上游差异](#novamaas-与上游差异) · [版本与上游维护](#版本与上游维护) · [快速开始](#快速开始) · [项目文档](#项目文档)
 
 </div>
 
@@ -58,6 +58,28 @@ NovaMaaS 将围绕供应聚合、商业运营和算力资源三个方向持续�
 | 第二阶段：Token 供应网络 | 将分散的模型和 Token 供应转化为统一资源池 | 供应接入、库存管理、智能路由、额度策略、用量观测与分销能力 |
 | 第三阶段：多租户商业化 | 支撑企业客户、内部团队和渠道合作伙伴的规模化运营 | 租户隔离、组织权限、产品目录、差异化定价、渠道分润与账单结算 |
 | 第四阶段：算力资源平台 | 将 GPU 等算力资源纳入统一供应与交易体系 | 算力纳管、资源监控、任务调度、容量编排、算力租赁与统一计费 |
+
+## NovaMaaS 与上游差异
+
+此处不是完整 Changelog，而是 NovaMaaS 相对 `QuantumNous/new-api` 的**关键、长期运行时差异**清单，用于上游同步时判断哪些能力必须保留、重做或移除。PR 只有同时满足以下条件才收录：
+
+1. 改变核心产品运行时能力，例如供应商接入、请求/响应协议、模型路由、计费、权限、数据兼容或租户能力。
+2. 上游主线尚无等价实现，或 NovaMaaS 在上游实现之外保留了有意义的行为与安全边界。
+3. 差异具有长期维护价值；未来同步上游时忽略它，可能导致功能回退、兼容性故障或业务语义变化。
+
+CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充、内部重构、依赖升级、临时排障，以及未合并或已被替代的方案不进入本表，除非它们同时改变上述核心运行时边界。
+
+<!-- novamaas-pr-ledger:start -->
+
+| 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | PR 审核中 |
+| [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 | 已合并 |
+| [#1](https://github.com/yeruyi1024/novamaas-workspace/pull/1) | 2026-09-05 | `feat/fix` | 火山方舟 | 选择性引入 Volc Native 渠道，并补齐任务凭据延续、取消状态、响应关闭、路由隔离、权限约束和多语言支持。 | 来源为仍未合并的上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) / [#4705](https://github.com/QuantumNous/new-api/issues/4705)，NovaMaaS 追加安全与兼容加固。 | 已合并 |
+
+<!-- novamaas-pr-ledger:end -->
+
+维护约束：每个面向 `main` 的 PR 都必须在 PR 描述中二选一标记“关键差异”或“常规变更”，并说明判断理由。只有符合上述三个条件的“关键差异”PR 才在标记区域新增一行，使用真实 PR 编号和链接，说明类型、影响领域、关键变化、与上游的关系及当前状态；“常规变更”不得为自身新增账本行。上游同步类 PR 还必须同步更新 [UPSTREAM.md](UPSTREAM.md)。`.github/workflows/build.yml` 会校验分类是否唯一，并对“关键差异”验证当前 PR 的账本行。
 
 ## 版本与上游维护
 

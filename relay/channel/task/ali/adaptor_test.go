@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -169,4 +171,31 @@ func TestConvertToAliRequestWan25I2VKeepsLegacyImgURL(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(body), `"img_url"`)
 	require.NotContains(t, string(body), `"media"`)
+}
+
+func TestTaskAdaptorParseTaskResultAcceptsWan3FractionalUsage(t *testing.T) {
+	adaptor := &TaskAdaptor{}
+	responseBody := []byte(`{
+		"request_id": "request-id",
+		"output": {
+			"task_id": "upstream-task-id",
+			"task_status": "SUCCEEDED",
+			"video_url": "https://example.com/video.mp4"
+		},
+		"usage": {
+			"video_count": 1,
+			"duration": 5.0,
+			"SR": 720,
+			"output_video_duration": 5.0,
+			"input_video_duration": 0.0,
+			"fps": 30,
+			"ratio": "16:9"
+		}
+	}`)
+
+	result, err := adaptor.ParseTaskResult(responseBody)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.TaskStatusSuccess, result.Status)
+	assert.Equal(t, "https://example.com/video.mp4", result.Url)
 }

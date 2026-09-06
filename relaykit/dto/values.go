@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 )
 
@@ -29,21 +30,48 @@ func (s StringValue) MarshalJSON() ([]byte, error) {
 
 type IntValue int
 
-func (i *IntValue) UnmarshalJSON(b []byte) error {
+func parseIntValue(value string) (IntValue, error) {
+	if integer, err := strconv.Atoi(value); err == nil {
+		return IntValue(integer), nil
+	}
+
+	number, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, err
+	}
+	intLimit := math.Ldexp(1, strconv.IntSize-1)
+	if math.IsNaN(number) || math.IsInf(number, 0) || number < -intLimit || number >= intLimit {
+		return 0, &strconv.NumError{Func: "ParseIntValue", Num: value, Err: strconv.ErrRange}
+	}
+	return IntValue(number), nil
+}
+
+func (i *IntValue) UnmarshalJSON(data []byte) error {
 	var n int
-	if err := json.Unmarshal(b, &n); err == nil {
+	if err := json.Unmarshal(data, &n); err == nil {
 		*i = IntValue(n)
 		return nil
 	}
+
+	var number json.Number
+	if err := json.Unmarshal(data, &number); err == nil {
+		value, err := parseIntValue(number.String())
+		if err != nil {
+			return err
+		}
+		*i = value
+		return nil
+	}
+
 	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
+	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	v, err := strconv.Atoi(s)
+	value, err := parseIntValue(s)
 	if err != nil {
 		return err
 	}
-	*i = IntValue(v)
+	*i = value
 	return nil
 }
 
