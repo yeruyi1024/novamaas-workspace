@@ -157,12 +157,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Log in to Tencent CCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ccr.ccs.tencentyun.com
-          username: ${{ secrets.TENCENT_CCR_USERNAME }}
-          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Configure Tencent CCR credentials
+        env:
+          REGISTRY: ccr.ccs.tencentyun.com
+          REGISTRY_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
+        run: bash .github/scripts/configure-docker-registry-auth.sh
       - name: Push tested images
         run: |
           ghcr_ref="${IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${ARCH}"
@@ -195,8 +195,12 @@ jobs:
       digest: ${{ steps.manifest.outputs.digest }}
       ccr_digest: ${{ steps.manifest.outputs.ccr_digest }}
     permissions:
+      contents: read
       packages: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: digest-*
@@ -212,12 +216,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Log in to Tencent CCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ccr.ccs.tencentyun.com
-          username: ${{ secrets.TENCENT_CCR_USERNAME }}
-          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Configure Tencent CCR credentials
+        env:
+          REGISTRY: ccr.ccs.tencentyun.com
+          REGISTRY_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
+        run: bash .github/scripts/configure-docker-registry-auth.sh
       - name: Create and verify manifests
         id: manifest
         env:
@@ -272,12 +276,12 @@ jobs:
           revision=$(docker image inspect "$ref" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
           test "$revision" = "$GITHUB_SHA"
           bash .github/scripts/verify-image.sh "$ref" "$EXPECTED_VERSION"
-      - name: Log in to Tencent CCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ccr.ccs.tencentyun.com
-          username: ${{ secrets.TENCENT_CCR_USERNAME }}
-          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+      - name: Configure Tencent CCR credentials
+        env:
+          REGISTRY: ccr.ccs.tencentyun.com
+          REGISTRY_USERNAME: ${{ secrets.TENCENT_CCR_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.TENCENT_CCR_PASSWORD }}
+        run: bash .github/scripts/configure-docker-registry-auth.sh
       - name: Pull and verify Tencent CCR image
         run: |
           ref="ccr.ccs.tencentyun.com/nova-proj/nova-maas@${CCR_IMAGE_DIGEST}"

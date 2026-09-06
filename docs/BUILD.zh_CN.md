@@ -69,6 +69,8 @@ CI 通过仓库自动提供的 `GITHUB_TOKEN` 和 `packages: write` 权限发布
 
 不要把真实账号或密码写进工作流、提交记录或普通 GitHub Variables。工作流仅在 PR 已合并到 `main` 的 `closed` 事件中读取这两个 Secret，因此普通 PR 校验不会接触 CCR 凭据。
 
+腾讯云 CCR 的认证服务要求仓库 scope，而通用 `docker login` 会先发送不带 scope 的探测请求并收到 `no scope specify`。工作流因此直接将 Secret 写入临时 Docker 凭据配置，由后续 `docker push`、`docker pull` 或 Buildx 命令按目标仓库申请 scoped token。若这些实际操作返回 `insufficient scope` 或 `unauthorized`，请重新核对账号 ID、个人版固定登录密码，以及 `nova-proj/nova-maas` 的读写权限。
+
 ## 发布新版本
 
 镜像版本以合并提交的 `sha-<完整提交 SHA>` 为准。直接推送 `main`、发布 GitHub Release、推送 Git Tag 或手动执行工作流都不会构建或发布容器镜像；需要发布代码变更时，应通过 PR 合并到 `main`。CI 不会替你创建 Release、改写 Release 正文或自动合入上游新版本。
