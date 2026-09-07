@@ -79,9 +79,17 @@ func (t *Task) GetData(v any) error {
 }
 
 type Properties struct {
-	Input             string `json:"input"`
-	UpstreamModelName string `json:"upstream_model_name,omitempty"`
-	OriginModelName   string `json:"origin_model_name,omitempty"`
+	Input             string          `json:"input"`
+	UpstreamModelName string          `json:"upstream_model_name,omitempty"`
+	OriginModelName   string          `json:"origin_model_name,omitempty"`
+	RequestBody       json.RawMessage `json:"-"`
+}
+
+type propertiesStorage struct {
+	Input             string          `json:"input"`
+	UpstreamModelName string          `json:"upstream_model_name,omitempty"`
+	OriginModelName   string          `json:"origin_model_name,omitempty"`
+	RequestBody       json.RawMessage `json:"request_body,omitempty"`
 }
 
 func (m *Properties) Scan(val interface{}) error {
@@ -90,14 +98,29 @@ func (m *Properties) Scan(val interface{}) error {
 		*m = Properties{}
 		return nil
 	}
-	return common.Unmarshal(bytesValue, m)
+	var stored propertiesStorage
+	if err := common.Unmarshal(bytesValue, &stored); err != nil {
+		return err
+	}
+	*m = Properties{
+		Input:             stored.Input,
+		UpstreamModelName: stored.UpstreamModelName,
+		OriginModelName:   stored.OriginModelName,
+		RequestBody:       stored.RequestBody,
+	}
+	return nil
 }
 
 func (m Properties) Value() (driver.Value, error) {
-	if m == (Properties{}) {
+	if m.Input == "" && m.UpstreamModelName == "" && m.OriginModelName == "" && len(m.RequestBody) == 0 {
 		return nil, nil
 	}
-	return common.Marshal(m)
+	return common.Marshal(propertiesStorage{
+		Input:             m.Input,
+		UpstreamModelName: m.UpstreamModelName,
+		OriginModelName:   m.OriginModelName,
+		RequestBody:       m.RequestBody,
+	})
 }
 
 type TaskPrivateData struct {
@@ -348,6 +371,19 @@ func GetByTaskId(userId int, taskId string) (*Task, bool, error) {
 		return nil, false, err
 	}
 	return task, exist, err
+}
+
+func GetByTaskIdForAdmin(taskId string) (*Task, bool, error) {
+	if taskId == "" {
+		return nil, false, nil
+	}
+	var task *Task
+	err := DB.Where("task_id = ?", taskId).First(&task).Error
+	exist, err := RecordExist(err)
+	if err != nil {
+		return nil, false, err
+	}
+	return task, exist, nil
 }
 
 func GetByTaskIds(userId int, taskIds []any) ([]*Task, error) {

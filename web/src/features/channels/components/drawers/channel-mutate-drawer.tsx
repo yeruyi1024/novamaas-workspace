@@ -140,6 +140,7 @@ import {
   ADD_MODE_OPTIONS,
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_STATUS_LABELS,
+  CHANNEL_TYPE_DOUBAO_VIDEO,
   CHANNEL_TYPE_OPTIONS,
   CHANNEL_TYPE_VOLC_NATIVE,
   CHANNEL_TYPE_WARNINGS,
@@ -186,6 +187,7 @@ import {
 import { ParamOverrideEditorDialog } from '../dialogs/param-override-editor-dialog'
 import { StatusCodeRiskDialog } from '../dialogs/status-code-risk-dialog'
 import { ModelMappingEditor } from '../model-mapping-editor'
+import { DoubaoVideoContentModeField } from './doubao-video-content-mode-field'
 import {
   ChannelAdvancedSection,
   ChannelApiAccessSection,
@@ -753,6 +755,9 @@ export function ChannelMutateDrawer({
   const currentDisableTaskPollingSleep = form.watch(
     'disable_task_polling_sleep'
   )
+  const currentVideoContentDeliveryMode = form.watch(
+    'video_content_delivery_mode'
+  )
   const currentProxy = form.watch('proxy')
   const currentHttpProtocol = form.watch('http_protocol')
   const currentHttp2ConnectionShards = form.watch('http2_connection_shards')
@@ -1023,6 +1028,8 @@ export function ChannelMutateDrawer({
     currentThinkingToContent ||
     currentPassThroughBodyEnabled ||
     currentDisableTaskPollingSleep ||
+    (currentType === CHANNEL_TYPE_DOUBAO_VIDEO &&
+      currentVideoContentDeliveryMode === 'redirect') ||
     currentProxy?.trim() ||
     currentSystemPrompt?.trim() ||
     currentSystemPromptOverride ||
@@ -4175,6 +4182,12 @@ export function ChannelMutateDrawer({
                                   </FormItem>
                                 )}
                               />
+
+                              {currentType === CHANNEL_TYPE_DOUBAO_VIDEO && (
+                                <DoubaoVideoContentModeField
+                                  control={form.control}
+                                />
+                              )}
                             </div>
 
                             <FormField

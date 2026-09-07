@@ -33,6 +33,33 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Keep persisted request JSON below MySQL 5.7's common 4 MiB packet default,
+// leaving room for the task row and protocol overhead. Larger media inputs
+// should use URLs instead of embedding base64 data in the request body.
+const maxStoredVideoTaskRequestBodyBytes = 2 * 1024 * 1024
+
+var errVideoTaskRequestBodyTooLarge = errors.New("video task request body exceeds the 2 MiB persistence limit")
+
+func captureVideoTaskRequestBody(channelType int, storage common.BodyStorage) ([]byte, error) {
+	switch channelType {
+	case constant.ChannelTypeAli, constant.ChannelTypeDoubaoVideo, constant.ChannelTypeVolcNative:
+	default:
+		return nil, nil
+	}
+	if storage.Size() > maxStoredVideoTaskRequestBodyBytes {
+		return nil, errVideoTaskRequestBodyTooLarge
+	}
+	body, err := storage.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var requestBody any
+	if err = common.Unmarshal(body, &requestBody); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), body...), nil
+}
+
 func relayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
 	var err *types.NewAPIError
 	switch info.RelayMode {
@@ -507,6 +534,7 @@ func RelayTask(c *gin.Context) {
 
 	var result *relay.TaskSubmitResult
 	var taskErr *taskdto.TaskError
+	var requestBodyToStore []byte
 	defer func() {
 		if taskErr != nil && relayInfo.Billing != nil {
 			relayInfo.Billing.Refund(c)
@@ -550,6 +578,15 @@ func RelayTask(c *gin.Context) {
 			} else {
 				taskErr = service.TaskErrorWrapperLocal(bodyErr, "read_request_body_failed", http.StatusBadRequest)
 			}
+			break
+		}
+		requestBodyToStore, bodyErr = captureVideoTaskRequestBody(channel.Type, bodyStorage)
+		if bodyErr != nil {
+			statusCode := http.StatusBadRequest
+			if errors.Is(bodyErr, errVideoTaskRequestBodyTooLarge) {
+				statusCode = http.StatusRequestEntityTooLarge
+			}
+			taskErr = service.TaskErrorWrapperLocal(bodyErr, "persist_request_body_failed", statusCode)
 			break
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
@@ -601,6 +638,7 @@ func RelayTask(c *gin.Context) {
 		task.Quota = result.Quota
 		task.Data = result.TaskData
 		task.Action = relayInfo.Action
+		task.Properties.RequestBody = requestBodyToStore
 		if insertErr := task.Insert(); insertErr != nil {
 			common.SysError("insert task error: " + insertErr.Error())
 		}

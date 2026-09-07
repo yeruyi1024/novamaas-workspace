@@ -41,6 +41,18 @@ func TestChannelValidateSettingsRejectsInvalidHTTPTransport(t *testing.T) {
 	}
 }
 
+func TestChannelValidateSettingsRejectsInvalidVideoContentDeliveryMode(t *testing.T) {
+	channel := &Channel{Type: constant.ChannelTypeDoubaoVideo}
+	channel.SetOtherSettings(dto.ChannelOtherSettings{
+		VideoContentDeliveryMode: "download",
+	})
+
+	err := channel.ValidateSettings()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "video_content_delivery_mode")
+}
+
 func TestAdvancedCustomChannelRequiresModelListRouteOnlyWhenUpdateChecksEnabled(t *testing.T) {
 	inferenceRoute := dto.AdvancedCustomRoute{
 		IncomingPath: "/v1/chat/completions",
