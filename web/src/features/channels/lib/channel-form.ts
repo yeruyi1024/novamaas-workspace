@@ -20,6 +20,7 @@ import { z } from 'zod'
 
 import {
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
+  CHANNEL_TYPE_DOUBAO_VIDEO,
   CHANNEL_TYPE_NEW_API,
   CHANNEL_STATUS,
   ERROR_MESSAGES,
@@ -278,6 +279,7 @@ export const channelFormSchema = z
     allow_speed: z.boolean().optional(), // Anthropic: speed mode control
     claude_beta_query: z.boolean().optional(), // Anthropic: beta query passthrough
     disable_task_polling_sleep: z.boolean().optional(),
+    video_content_delivery_mode: z.enum(['proxy', 'redirect']).optional(),
     // Upstream model update settings (stored in settings JSON)
     upstream_model_update_check_enabled: z.boolean().optional(),
     upstream_model_update_auto_sync_enabled: z.boolean().optional(),
@@ -450,6 +452,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   allow_speed: false,
   claude_beta_query: false,
   disable_task_polling_sleep: false,
+  video_content_delivery_mode: 'proxy',
   upstream_model_update_check_enabled: false,
   upstream_model_update_auto_sync_enabled: false,
   upstream_model_update_ignored_models: '',
@@ -514,6 +517,7 @@ export function transformChannelToFormDefaults(
   let allowSpeed = false
   let claudeBetaQuery = false
   let disableTaskPollingSleep = false
+  let videoContentDeliveryMode: 'proxy' | 'redirect' = 'proxy'
   let upstreamModelUpdateCheckEnabled = false
   let upstreamModelUpdateAutoSyncEnabled = false
   let upstreamModelUpdateIgnoredModels = ''
@@ -534,6 +538,8 @@ export function transformChannelToFormDefaults(
       allowSpeed = parsed.allow_speed === true
       claudeBetaQuery = parsed.claude_beta_query === true
       disableTaskPollingSleep = parsed.disable_task_polling_sleep === true
+      videoContentDeliveryMode =
+        parsed.video_content_delivery_mode === 'redirect' ? 'redirect' : 'proxy'
       upstreamModelUpdateCheckEnabled =
         parsed.upstream_model_update_check_enabled === true
       upstreamModelUpdateAutoSyncEnabled =
@@ -592,6 +598,7 @@ export function transformChannelToFormDefaults(
     allow_speed: allowSpeed,
     claude_beta_query: claudeBetaQuery,
     disable_task_polling_sleep: disableTaskPollingSleep,
+    video_content_delivery_mode: videoContentDeliveryMode,
     allow_safety_identifier: allowSafetyIdentifier,
     upstream_model_update_check_enabled: upstreamModelUpdateCheckEnabled,
     upstream_model_update_auto_sync_enabled: upstreamModelUpdateAutoSyncEnabled,
@@ -725,6 +732,13 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
 
   settingsObj.disable_task_polling_sleep =
     formData.disable_task_polling_sleep === true
+
+  if (formData.type === CHANNEL_TYPE_DOUBAO_VIDEO) {
+    settingsObj.video_content_delivery_mode =
+      formData.video_content_delivery_mode === 'redirect' ? 'redirect' : 'proxy'
+  } else if ('video_content_delivery_mode' in settingsObj) {
+    delete settingsObj.video_content_delivery_mode
+  }
 
   // Upstream model update settings (for model-fetchable channel types)
   if (MODEL_FETCHABLE_TYPES.has(formData.type)) {

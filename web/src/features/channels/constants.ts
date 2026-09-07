@@ -23,6 +23,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 export const CHANNEL_TYPE_NEW_API = 60
 export const CHANNEL_TYPE_VOLC_NATIVE = 61
+export const CHANNEL_TYPE_DOUBAO_VIDEO = 54
 
 export const CHANNEL_TYPES = {
   0: 'Unknown',
@@ -75,7 +76,7 @@ export const CHANNEL_TYPES = {
   51: 'Jimeng',
   52: 'Vidu',
   53: 'Submodel',
-  54: 'DoubaoVideo',
+  [CHANNEL_TYPE_DOUBAO_VIDEO]: 'DoubaoVideo',
   55: 'Sora',
   56: 'Replicate',
   57: 'ChatGPT Subscription (Codex)',

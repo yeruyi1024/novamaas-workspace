@@ -990,6 +990,11 @@ func (channel *Channel) ValidateSettings() error {
 			return fmt.Errorf("advanced custom channels require a %s route when upstream model update checks are enabled", dto.AdvancedCustomModelListPath)
 		}
 	}
+	switch channelOtherSettings.VideoContentDeliveryMode {
+	case "", dto.VideoContentDeliveryModeProxy, dto.VideoContentDeliveryModeRedirect:
+	default:
+		return fmt.Errorf("invalid video_content_delivery_mode: %s", channelOtherSettings.VideoContentDeliveryMode)
+	}
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/QuantumNous/new-api/common"
@@ -58,6 +59,28 @@ func GetUserTask(c *gin.Context) {
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(tasksToDto(items, false))
 	common.ApiSuccess(c, pageInfo)
+}
+
+func GetTaskRequestBody(c *gin.Context) {
+	task, exists, err := model.GetByTaskIdForAdmin(c.Param("task_id"))
+	respondTaskRequestBody(c, task, exists, err)
+}
+
+func GetUserTaskRequestBody(c *gin.Context) {
+	task, exists, err := model.GetByTaskId(c.GetInt("id"), c.Param("task_id"))
+	respondTaskRequestBody(c, task, exists, err)
+}
+
+func respondTaskRequestBody(c *gin.Context, task *model.Task, exists bool, err error) {
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to query task request body"})
+		return
+	}
+	if !exists || task == nil || len(task.Properties.RequestBody) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Task request body not found"})
+		return
+	}
+	common.ApiSuccess(c, task.Properties.RequestBody)
 }
 
 func tasksToDto(tasks []*model.Task, fillUser bool) []*dto.TaskDto {
