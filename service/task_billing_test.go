@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/types"
+	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -230,6 +233,64 @@ func TestTaskBillingOtherFiltersHistoricalOtherRatios(t *testing.T) {
 	assert.NotContains(t, other, "negative")
 	assert.NotContains(t, other, "nan")
 	assert.NotContains(t, other, "inf")
+}
+
+func TestLogTaskConsumptionLinksStoredVideoRequestBody(t *testing.T) {
+	tests := []struct {
+		name        string
+		channelType int
+		available   bool
+	}{
+		{name: "Ali Bailian", channelType: constant.ChannelTypeAli, available: true},
+		{name: "Doubao video", channelType: constant.ChannelTypeDoubaoVideo, available: true},
+		{name: "Volc native", channelType: constant.ChannelTypeVolcNative, available: true},
+		{name: "unrelated channel", channelType: constant.ChannelTypeOpenAI, available: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			truncate(t)
+			seedUser(t, 41, 1_000)
+			seedChannel(t, 8)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", nil)
+			ctx.Set("username", "test_user")
+			ctx.Set("token_name", "test_token")
+			info := &relaycommon.RelayInfo{
+				UserId:          41,
+				UsingGroup:      "default",
+				OriginModelName: "video-model",
+				PriceData: types.PriceData{
+					Quota: 100,
+					GroupRatioInfo: types.GroupRatioInfo{
+						GroupRatio: 1,
+					},
+				},
+				ChannelMeta: &relaycommon.ChannelMeta{
+					ChannelId:   8,
+					ChannelType: tt.channelType,
+				},
+				TaskRelayInfo: &relaycommon.TaskRelayInfo{
+					Action:       constant.TaskActionGenerate,
+					PublicTaskID: "task_video",
+				},
+			}
+
+			LogTaskConsumption(ctx, info)
+
+			var log model.Log
+			require.NoError(t, model.DB.Order("id desc").First(&log).Error)
+			var other map[string]any
+			require.NoError(t, common.Unmarshal([]byte(log.Other), &other))
+			assert.Equal(t, "task_video", other["task_id"])
+			if tt.available {
+				assert.Equal(t, true, other["request_body_available"])
+			} else {
+				assert.NotContains(t, other, "request_body_available")
+			}
+		})
+	}
 }
 
 func TestTaskBillingContextPriceDataFiltersMultiplier(t *testing.T) {

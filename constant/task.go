@@ -22,3 +22,12 @@ var SunoModel2Action = map[string]string{
 	"suno_music":  SunoActionMusic,
 	"suno_lyrics": SunoActionLyrics,
 }
+
+func ShouldStoreVideoTaskRequestBody(channelType int) bool {
+	switch channelType {
+	case ChannelTypeAli, ChannelTypeDoubaoVideo, ChannelTypeVolcNative:
+		return true
+	default:
+		return false
+	}
+}

@@ -231,9 +231,11 @@ export interface LogOtherData {
   fee_quota?: number
   // Reject / intercept reason (admin)
   reject_reason?: string
-  // Task-related fields (for refund logs, type=6)
+  // Async task linkage for consumption logs and refund metadata (type=6).
   is_task?: boolean
   task_id?: string
+  request_body_available?: boolean
+  request_body?: unknown
   reason?: string
   // Subscription billing fields
   subscription_plan_id?: string

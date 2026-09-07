@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -70,6 +72,51 @@ func TestCaptureVideoTaskRequestBodyRequiresJSON(t *testing.T) {
 
 	assert.Nil(t, got)
 	assert.Error(t, err)
+}
+
+func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}))
+	previousDB, previousLogDB := model.DB, model.LOG_DB
+	previousErrorLogEnabled := constant.ErrorLogEnabled
+	previousRedisEnabled := common.RedisEnabled
+	model.DB, model.LOG_DB = db, db
+	constant.ErrorLogEnabled = true
+	common.RedisEnabled = false
+	t.Cleanup(func() {
+		model.DB, model.LOG_DB = previousDB, previousLogDB
+		constant.ErrorLogEnabled = previousErrorLogEnabled
+		common.RedisEnabled = previousRedisEnabled
+	})
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", nil)
+	c.Set("id", 41)
+	c.Set("username", "video-user")
+	c.Set("token_name", "video-token")
+	c.Set("original_model", "video-model")
+	c.Set("channel_id", 8)
+	c.Set("channel_name", "video-channel")
+	c.Set("channel_type", constant.ChannelTypeVolcNative)
+	c.Set("group", "default")
+	c.Set(string(constant.ContextKeyRequestStartTime), time.Now())
+	c.Set(videoTaskRequestBodyLogKey, `{"prompt":"failed request"}`)
+
+	processChannelError(
+		c,
+		types.ChannelError{ChannelId: 8, ChannelType: constant.ChannelTypeVolcNative},
+		types.NewErrorWithStatusCode(errors.New("upstream failed"), types.ErrorCodeBadResponseStatusCode, http.StatusBadGateway),
+	)
+
+	var log model.Log
+	require.NoError(t, db.First(&log).Error)
+	var other map[string]any
+	require.NoError(t, common.Unmarshal([]byte(log.Other), &other))
+	assert.Equal(t, true, other["is_task"])
+	requestBody, ok := other["request_body"].(string)
+	require.True(t, ok)
+	assert.JSONEq(t, `{"prompt":"failed request"}`, requestBody)
 }
 
 func TestGetUserTaskRequestBodyEnforcesOwnership(t *testing.T) {
