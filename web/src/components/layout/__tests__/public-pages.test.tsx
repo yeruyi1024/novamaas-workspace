@@ -58,6 +58,7 @@ async function renderPage(
 
 beforeEach(() => {
   localStorage.clear()
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 })
   useAuthStore.getState().auth.reset()
   useSystemConfigStore.setState(initialConfig)
   useSystemConfigStore.getState().setConfig({
@@ -105,6 +106,27 @@ describe('Public footer', () => {
 })
 
 describe('Public account navigation', () => {
+  test('homepage navigation exposes its translucent glass surface', async () => {
+    await renderPage(<PublicLayout appearance='maas'>Content</PublicLayout>)
+    const header = screen.getByRole('banner')
+    const navigation = within(header).getByRole('navigation')
+    const logo = within(header).getByRole('img', { name: 'logo' })
+
+    expect(navigation).toHaveAttribute('data-surface', 'glass')
+    expect(logo).toHaveAttribute('src', '/logo.svg?v=4')
+    expect(logo.parentElement).toHaveClass('size-9')
+  })
+
+  test('scrolled navigation preserves a prominent compact logo', async () => {
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 40 })
+    await renderPage(<PublicLayout appearance='maas'>Content</PublicLayout>)
+    const logo = within(screen.getByRole('banner')).getByRole('img', {
+      name: 'logo',
+    })
+
+    expect(logo.parentElement).toHaveClass('size-8')
+  })
+
   test('anonymous visitors have sign-in access and no account menu', async () => {
     await renderPage(<PublicLayout appearance='maas'>Content</PublicLayout>)
     expect(

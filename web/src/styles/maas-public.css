@@ -52,10 +52,16 @@ For commercial licensing, please contact support@quantumnous.com
     --maas-grid: #9bb0ef14;
   }
 
-  .maas-public .maas-navigation {
+  .maas-public .maas-navigation[data-surface='glass'] {
     border-bottom-color: var(--maas-line);
-    background-color: color-mix(in srgb, var(--maas-surface) 86%, transparent);
-    backdrop-filter: blur(24px) saturate(140%);
+    background-color: color-mix(
+      in srgb,
+      var(--maas-panel-solid) 48%,
+      transparent
+    );
+    box-shadow: inset 0 -1px 0 var(--maas-line);
+    backdrop-filter: blur(24px) saturate(135%);
+    -webkit-backdrop-filter: blur(24px) saturate(135%);
   }
 
   .maas-public .maas-hero-grid,

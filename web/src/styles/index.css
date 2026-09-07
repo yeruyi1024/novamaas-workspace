@@ -31,6 +31,49 @@ For commercial licensing, please contact support@quantumnous.com
 @import './theme-presets.css';
 @import './maas-public.css';
 
+/* Authenticated product surface aligned with the public MaaS presentation. */
+.maas-app-shell {
+  --maas-app-grid: color-mix(in srgb, var(--primary) 7%, transparent);
+  --maas-app-glow: color-mix(in srgb, var(--primary) 18%, transparent);
+
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 78% 0%, var(--maas-app-glow), transparent 30rem),
+    var(--sidebar);
+}
+
+.dark .maas-app-shell {
+  --maas-app-grid: color-mix(in srgb, var(--primary) 10%, transparent);
+  --maas-app-glow: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.maas-app-shell > [data-slot='app-header'][data-surface='glass'] {
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--background) 72%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--primary) 6%, transparent);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+}
+
+.maas-app-shell [data-slot='sidebar-inset'] {
+  background:
+    radial-gradient(circle at 82% -8%, var(--maas-app-glow), transparent 30rem),
+    linear-gradient(var(--maas-app-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--maas-app-grid) 1px, transparent 1px),
+    var(--background);
+  background-size:
+    auto,
+    52px 52px,
+    52px 52px,
+    auto;
+}
+
+.maas-app-shell [data-slot='sidebar-inner'] {
+  background-color: color-mix(in srgb, var(--sidebar) 92%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+
 /* Shiki dual themes: token colors follow dark theme (pre background stays `bg-background` on the block) */
 @layer components {
   .shiki span {
