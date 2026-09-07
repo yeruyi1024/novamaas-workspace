@@ -183,6 +183,7 @@ export function PublicHeader(props: PublicHeaderProps) {
           )}
         >
           <nav
+            data-surface='glass'
             className={cn(
               'maas-navigation flex items-center justify-between gap-3 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
               scrolled
@@ -193,9 +194,14 @@ export function PublicHeader(props: PublicHeaderProps) {
             {/* Logo */}
             <Link
               to={homeUrl}
-              className='group flex shrink-0 items-center gap-2.5'
+              className='group flex shrink-0 items-center gap-3'
             >
-              <div className='flex size-7 shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105'>
+              <div
+                className={cn(
+                  'flex shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105',
+                  scrolled ? 'size-8' : 'size-9'
+                )}
+              >
                 {loading && <Skeleton className='size-full rounded-lg' />}
                 {!loading && customLogo}
                 {!loading && !customLogo && (
@@ -207,7 +213,12 @@ export function PublicHeader(props: PublicHeaderProps) {
                   />
                 )}
               </div>
-              <span className='max-w-[9rem] truncate text-sm font-semibold tracking-tight lg:max-w-[13rem]'>
+              <span
+                className={cn(
+                  'max-w-[9rem] truncate font-semibold tracking-tight transition-[font-size] duration-300 lg:max-w-[13rem]',
+                  scrolled ? 'text-[15px]' : 'text-base'
+                )}
+              >
                 {loading ? <Skeleton className='h-4 w-16' /> : displaySiteName}
               </span>
             </Link>

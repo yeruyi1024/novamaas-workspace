@@ -37,7 +37,10 @@ export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
   return (
     <LayoutProvider>
       <SearchProvider>
-        <SidebarProvider defaultOpen={defaultOpen} className='flex-col'>
+        <SidebarProvider
+          defaultOpen={defaultOpen}
+          className='maas-app-shell flex-col'
+        >
           <SkipToMain />
           <AppHeader />
           <div className='flex min-h-0 w-full flex-1'>
