@@ -83,6 +83,7 @@ import {
   isTimingLogType,
 } from '../../lib/utils'
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
+import { UsageLogRequestBodySection } from './usage-log-request-body-section'
 
 // Maps a channel-update changed-field token (as recorded by the backend audit)
 // to its i18n label key for display in the audit details.
@@ -608,6 +609,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const reasoningEffortVariant = getReasoningEffortVariant(
     other?.reasoning_effort
   )
+  const hasEmbeddedRequestBody = other?.request_body !== undefined
+  const showRequestBody =
+    hasEmbeddedRequestBody ||
+    (other?.is_task === true &&
+      other.request_body_available === true &&
+      Boolean(other.task_id))
 
   return (
     <Dialog
@@ -628,7 +635,9 @@ export function DetailsDialog(props: DetailsDialogProps) {
       contentClassName={cn(
         'min-w-0 overflow-hidden',
         'max-sm:max-h-[calc(100dvh-1.5rem)] max-sm:w-[calc(100vw-1.5rem)] max-sm:max-w-[calc(100vw-1.5rem)] max-sm:p-4',
-        isTieredBilling ? 'sm:max-w-4xl lg:max-w-5xl' : 'sm:max-w-lg'
+        isTieredBilling || showRequestBody
+          ? 'sm:max-w-4xl lg:max-w-5xl'
+          : 'sm:max-w-lg'
       )}
       headerClassName='max-sm:gap-1'
       titleClassName='flex items-center gap-2 text-base'
@@ -1249,6 +1258,15 @@ export function DetailsDialog(props: DetailsDialogProps) {
               </p>
             </div>
           </div>
+        )}
+
+        {showRequestBody && (
+          <UsageLogRequestBodySection
+            isAdmin={props.isAdmin}
+            open={props.open}
+            requestBody={other?.request_body}
+            taskId={other.task_id}
+          />
         )}
       </div>
     </Dialog>

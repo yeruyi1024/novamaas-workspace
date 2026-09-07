@@ -38,12 +38,12 @@ import (
 // should use URLs instead of embedding base64 data in the request body.
 const maxStoredVideoTaskRequestBodyBytes = 2 * 1024 * 1024
 
+const videoTaskRequestBodyLogKey = "video_task_request_body_log"
+
 var errVideoTaskRequestBodyTooLarge = errors.New("video task request body exceeds the 2 MiB persistence limit")
 
 func captureVideoTaskRequestBody(channelType int, storage common.BodyStorage) ([]byte, error) {
-	switch channelType {
-	case constant.ChannelTypeAli, constant.ChannelTypeDoubaoVideo, constant.ChannelTypeVolcNative:
-	default:
+	if !constant.ShouldStoreVideoTaskRequestBody(channelType) {
 		return nil, nil
 	}
 	if storage.Size() > maxStoredVideoTaskRequestBodyBytes {
@@ -415,6 +415,10 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		other["channel_id"] = channelId
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
+		if requestBody := c.GetString(videoTaskRequestBodyLogKey); requestBody != "" {
+			other["is_task"] = true
+			other["request_body"] = requestBody
+		}
 		adminInfo := make(map[string]interface{})
 		adminInfo["use_channel"] = c.GetStringSlice("use_channel")
 		isMultiKey := common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
@@ -589,6 +593,7 @@ func RelayTask(c *gin.Context) {
 			taskErr = service.TaskErrorWrapperLocal(bodyErr, "persist_request_body_failed", statusCode)
 			break
 		}
+		c.Set(videoTaskRequestBodyLogKey, string(requestBodyToStore))
 		c.Request.Body = io.NopCloser(bodyStorage)
 
 		result, taskErr = relay.RelayTaskSubmit(c, relayInfo)

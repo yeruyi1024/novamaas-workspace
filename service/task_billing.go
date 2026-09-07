@@ -38,6 +38,12 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	}
 	other := make(map[string]interface{})
 	other["is_task"] = true
+	if info.TaskRelayInfo != nil && info.PublicTaskID != "" {
+		other["task_id"] = info.PublicTaskID
+		if info.ChannelMeta != nil && constant.ShouldStoreVideoTaskRequestBody(info.ChannelType) {
+			other["request_body_available"] = true
+		}
+	}
 	other["request_path"] = c.Request.URL.Path
 	other["model_price"] = info.PriceData.ModelPrice
 	if info.PriceData.ModelRatio > 0 {
