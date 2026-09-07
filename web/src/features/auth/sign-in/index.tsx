@@ -23,42 +23,50 @@ import { useStatus } from '@/hooks/use-status'
 
 import { AuthLayout } from '../auth-layout'
 import { TermsFooter } from '../components/terms-footer'
+import { SignInShowcase } from './components/sign-in-showcase'
 import { UserAuthForm } from './components/user-auth-form'
 
 export function SignIn() {
   const { t } = useTranslation()
   const { redirect } = useSearch({ from: '/(auth)/sign-in' })
   const { status } = useStatus()
+  const hasLegalFooter = Boolean(
+    status?.user_agreement_enabled || status?.privacy_policy_enabled
+  )
 
   return (
-    <AuthLayout>
-      <div className='w-full space-y-8'>
-        <div className='space-y-2'>
-          <h2 className='text-center text-2xl font-semibold tracking-tight sm:text-left'>
-            {t('Sign in')}
-          </h2>
+    <AuthLayout showcase={<SignInShowcase />}>
+      <div className='flex flex-col'>
+        <header className='flex flex-col gap-2.5'>
+          <h1 className='text-2xl leading-tight font-semibold tracking-[-0.025em] sm:text-3xl'>
+            {t('Welcome back!')}
+          </h1>
           {!status?.self_use_mode_enabled &&
-            status?.register_enabled !== false && (
-              <p className='text-muted-foreground text-left text-sm sm:text-base'>
-                {t("Don't have an account?")}{' '}
-                <Link
-                  to='/sign-up'
-                  className='hover:text-primary font-medium underline underline-offset-4'
-                >
-                  {t('Sign up')}
-                </Link>
-                .
-              </p>
-            )}
-        </div>
+          status?.register_enabled !== false ? (
+            <p className='text-muted-foreground text-sm leading-6'>
+              {t("Don't have an account?")}{' '}
+              <Link
+                to='/sign-up'
+                className='text-foreground decoration-border hover:text-primary font-medium underline underline-offset-4 transition-colors'
+              >
+                {t('Sign up')}
+              </Link>
+              .
+            </p>
+          ) : null}
+        </header>
 
-        <UserAuthForm redirectTo={redirect} />
+        <UserAuthForm redirectTo={redirect} className='mt-7' />
 
-        <TermsFooter
-          variant='sign-in'
-          status={status}
-          className='text-center'
-        />
+        {hasLegalFooter ? (
+          <div className='border-border/70 mt-7 border-t pt-5'>
+            <TermsFooter
+              variant='sign-in'
+              status={status}
+              className='text-center leading-5'
+            />
+          </div>
+        ) : null}
       </div>
     </AuthLayout>
   )

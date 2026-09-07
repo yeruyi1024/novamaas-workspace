@@ -17,9 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowRight01Icon, Key01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from '@tanstack/react-router'
 import axios from 'axios'
-import { Loader2, LogIn, KeyRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -30,6 +31,7 @@ import { Dialog } from '@/components/dialog'
 import { PasswordInput } from '@/components/password-input'
 import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
+import { FieldGroup, FieldSeparator } from '@/components/ui/field'
 import {
   Form,
   FormControl,
@@ -40,6 +42,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Spinner } from '@/components/ui/spinner'
 import { login, wechatLoginByCode } from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
@@ -312,20 +315,24 @@ export function UserAuthForm({
   }
 
   const alternativeLoginMethods = (
-    <>
+    <div className='flex flex-col gap-3'>
+      {passwordLoginEnabled ? (
+        <FieldSeparator>{t('Or continue with')}</FieldSeparator>
+      ) : null}
+
       {passkeyLoginEnabled && (
-        <div className='mt-2 space-y-1'>
+        <div className='flex flex-col gap-1.5'>
           <Button
             type='button'
             variant='outline'
             disabled={passkeyButtonDisabled}
             onClick={handlePasskeyLogin}
-            className='h-11 w-full justify-center gap-2 rounded-lg'
+            className='h-11 w-full'
           >
             {isPasskeyLoading ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
+              <Spinner data-icon='inline-start' />
             ) : (
-              <KeyRound className='h-4 w-4' />
+              <HugeiconsIcon icon={Key01Icon} data-icon='inline-start' />
             )}
             {t('Sign in with Passkey')}
           </Button>
@@ -344,21 +351,20 @@ export function UserAuthForm({
         disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
         onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
         isWeChatLoading={isWeChatSubmitting}
+        showSeparator={false}
       />
-    </>
+    </div>
   )
 
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
+        className={cn('flex flex-col gap-5', className)}
         {...props}
       >
-        {hasAlternativeLogin && alternativeLoginMethods}
-
         {passwordLoginEnabled && (
-          <>
+          <FieldGroup className='gap-4'>
             {/* Username Field */}
             <FormField
               control={form.control}
@@ -369,6 +375,8 @@ export function UserAuthForm({
                   <FormControl>
                     <Input
                       placeholder={t('Enter your username or email')}
+                      className='h-11 px-3'
+                      autoComplete='username'
                       {...field}
                     />
                   </FormControl>
@@ -387,33 +395,48 @@ export function UserAuthForm({
                   <FormControl>
                     <PasswordInput
                       placeholder={t('Enter password')}
+                      className='[&_input]:h-11 [&_input]:px-3'
+                      autoComplete='current-password'
                       {...field}
                     />
                   </FormControl>
                   <FormMessage />
                   <Link
                     to='/forgot-password'
-                    className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
+                    className='text-muted-foreground hover:text-foreground absolute end-0 -top-0.5 text-sm font-medium transition-colors'
                   >
                     {t('Forgot password?')}
                   </Link>
                 </FormItem>
               )}
             />
+          </FieldGroup>
+        )}
 
+        <LegalConsent
+          status={status}
+          checked={agreedToLegal}
+          onCheckedChange={setAgreedToLegal}
+        />
+
+        {passwordLoginEnabled ? (
+          <>
             {/* Submit Button */}
             <Button
               type='submit'
-              className='mt-2 w-full justify-center gap-2'
+              className='h-11 w-full'
               disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
             >
-              {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
+              {isLoading ? <Spinner data-icon='inline-start' /> : null}
               {t('Sign in')}
+              {!isLoading ? (
+                <HugeiconsIcon icon={ArrowRight01Icon} data-icon='inline-end' />
+              ) : null}
             </Button>
 
             {/* Turnstile */}
             {isTurnstileEnabled && (
-              <div className='mt-2'>
+              <div className='min-w-0 overflow-x-auto'>
                 <Turnstile
                   key={turnstileWidgetKey}
                   siteKey={turnstileSiteKey}
@@ -423,16 +446,9 @@ export function UserAuthForm({
               </div>
             )}
           </>
-        )}
+        ) : null}
 
-        <LegalConsent
-          status={status}
-          checked={agreedToLegal}
-          onCheckedChange={setAgreedToLegal}
-          className='mt-1'
-        />
-
-        {!hasAlternativeLogin && alternativeLoginMethods}
+        {hasAlternativeLogin ? alternativeLoginMethods : null}
       </form>
 
       {hasWeChatLogin && (
@@ -468,7 +484,7 @@ export function UserAuthForm({
                 className='gap-2'
               >
                 {isWeChatSubmitting ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
+                  <Spinner data-icon='inline-start' />
                 ) : null}
                 {t('Confirm')}
               </Button>

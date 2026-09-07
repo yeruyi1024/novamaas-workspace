@@ -34,7 +34,7 @@ export function TermsFooter({
   status,
 }: TermsFooterProps) {
   const { t } = useTranslation()
-  const text =
+  const textKey =
     variant === 'sign-in'
       ? 'By clicking sign in, you agree to our'
       : 'By creating an account, you agree to our'
@@ -47,11 +47,11 @@ export function TermsFooter({
   }
 
   const agreementLink = {
-    label: 'User Agreement',
+    label: t('User Agreement'),
     href: '/user-agreement',
   }
   const privacyLink = {
-    label: 'Privacy Policy',
+    label: t('Privacy Policy'),
     href: '/privacy-policy',
   }
 
@@ -67,7 +67,7 @@ export function TermsFooter({
 
   return (
     <p className={cn('text-muted-foreground text-center text-xs', className)}>
-      {text}{' '}
+      {t(textKey)}{' '}
       {firstLink && (
         <a
           href={firstLink.href}
