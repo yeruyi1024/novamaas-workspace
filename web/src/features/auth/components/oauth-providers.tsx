@@ -27,6 +27,7 @@ import {
   IconWeChat,
 } from '@/assets/brand-icons'
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
 import { useOAuthLogin } from '../hooks/use-oauth-login'
@@ -40,6 +41,7 @@ type OAuthProvidersProps = {
   onWeChatLogin?: () => void
   isWeChatLoading?: boolean
   redirectTo?: string
+  showSeparator?: boolean
 }
 
 type ProviderButton = {
@@ -57,6 +59,7 @@ export function OAuthProviders({
   onWeChatLogin,
   isWeChatLoading = false,
   redirectTo,
+  showSeparator = true,
 }: OAuthProvidersProps) {
   const { t } = useTranslation()
   const {
@@ -82,7 +85,7 @@ export function OAuthProviders({
       key: 'wechat',
       label: t('Continue with WeChat'),
       onClick: onWeChatLogin,
-      icon: <IconWeChat className='h-4 w-4' />,
+      icon: <IconWeChat className='h-4 w-4' aria-hidden='true' />,
       disabled: isWeChatLoading,
     })
   }
@@ -92,7 +95,7 @@ export function OAuthProviders({
       key: 'github',
       label: githubButtonText || t('Continue with GitHub'),
       onClick: handleGitHubLogin,
-      icon: <IconGithub className='h-4 w-4' />,
+      icon: <IconGithub className='h-4 w-4' aria-hidden='true' />,
       disabled: githubButtonDisabled,
     })
   }
@@ -102,7 +105,7 @@ export function OAuthProviders({
       key: 'discord',
       label: t('Continue with Discord'),
       onClick: handleDiscordLogin,
-      icon: <IconDiscord className='h-4 w-4' />,
+      icon: <IconDiscord className='h-4 w-4' aria-hidden='true' />,
     })
   }
 
@@ -122,7 +125,7 @@ export function OAuthProviders({
       key: 'linuxdo',
       label: t('Continue with LinuxDO'),
       onClick: handleLinuxDOLogin,
-      icon: <IconLinuxDo className='h-4 w-4' />,
+      icon: <IconLinuxDo className='h-4 w-4' aria-hidden='true' />,
     })
   }
 
@@ -131,7 +134,7 @@ export function OAuthProviders({
       key: 'telegram',
       label: t('Continue with Telegram'),
       onClick: handleTelegramLogin,
-      icon: <IconTelegram data-icon='inline-start' />,
+      icon: <IconTelegram data-icon='inline-start' aria-hidden='true' />,
     })
   }
 
@@ -151,17 +154,15 @@ export function OAuthProviders({
 
   return (
     <>
-      <div className={cn('space-y-3', className)}>
-        <div className='relative'>
-          <div className='absolute inset-0 flex items-center'>
-            <span className='w-full border-t' />
-          </div>
-          <div className='relative flex justify-center text-xs uppercase'>
-            <span className='bg-background text-muted-foreground px-2'>
+      <div className={cn('flex flex-col gap-3', className)}>
+        {showSeparator ? (
+          <div className='relative flex h-5 items-center justify-center'>
+            <Separator className='absolute inset-x-0' />
+            <span className='bg-background text-muted-foreground relative px-2 text-xs uppercase'>
               {t('Or continue with')}
             </span>
           </div>
-        </div>
+        ) : null}
 
         <div className='flex flex-col gap-2'>
           {providerButtons.map(

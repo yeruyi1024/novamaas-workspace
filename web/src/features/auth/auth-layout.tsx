@@ -19,45 +19,91 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { Skeleton } from '@/components/ui/skeleton'
+import { LanguageSwitcher } from '@/components/language-switcher'
+import { ThemeSwitch } from '@/components/theme-switch'
 import { useSystemConfig } from '@/hooks/use-system-config'
 
 type AuthLayoutProps = {
   children: React.ReactNode
+  showcase?: React.ReactNode
 }
 
-export function AuthLayout({ children }: AuthLayoutProps) {
+export function AuthLayout(props: AuthLayoutProps) {
   const { t } = useTranslation()
-  const { systemName, logo, loading } = useSystemConfig()
+  const { systemName, logo } = useSystemConfig()
+  const hasShowcase = Boolean(props.showcase)
 
   return (
-    <div className='relative grid h-svh max-w-none'>
-      <Link
-        to='/'
-        className='absolute top-4 left-4 z-10 flex items-center gap-2 transition-opacity hover:opacity-80 sm:top-8 sm:left-8'
-      >
-        <div className='relative h-8 w-8'>
-          {loading ? (
-            <Skeleton className='absolute inset-0 rounded-full' />
-          ) : (
+    <div className='maas-public relative min-h-svh overflow-x-hidden'>
+      <div aria-hidden className='maas-hero-grid absolute inset-0 opacity-60' />
+      <div
+        aria-hidden
+        className='maas-hero-orb maas-hero-orb-primary absolute'
+      />
+      <div
+        aria-hidden
+        className='maas-hero-orb maas-hero-orb-secondary absolute'
+      />
+
+      <header className='absolute inset-x-0 top-0 z-10 flex h-20 items-center justify-between gap-4 px-5 sm:px-8 lg:px-10'>
+        <Link
+          to='/'
+          className='focus-visible:ring-ring/50 flex min-w-0 items-center gap-2.5 rounded-xl transition-opacity outline-none hover:opacity-80 focus-visible:ring-3'
+        >
+          <span className='relative size-9 shrink-0'>
             <img
               src={logo}
               alt={t('Logo')}
-              className='h-8 w-8 rounded-full object-cover'
+              className='ring-foreground/10 size-9 rounded-xl object-cover shadow-sm ring-1'
             />
-          )}
+          </span>
+          <span className='truncate text-lg font-semibold tracking-tight'>
+            {systemName}
+          </span>
+        </Link>
+
+        <div className='border-border/70 bg-background/65 flex shrink-0 items-center gap-0.5 rounded-xl border p-1 shadow-sm backdrop-blur-xl'>
+          <LanguageSwitcher />
+          <ThemeSwitch />
         </div>
-        {loading ? (
-          <Skeleton className='h-6 w-24' />
+      </header>
+
+      <main
+        data-testid='auth-layout'
+        className='relative mx-auto flex min-h-svh max-w-[90rem] items-center justify-center px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-[clamp(6rem,10vh,9rem)]'
+      >
+        {hasShowcase ? (
+          <div
+            data-testid='auth-shell'
+            className='grid w-full max-w-[30rem] gap-10 lg:min-h-[clamp(30rem,65svh,42rem)] lg:max-w-[76rem] lg:grid-cols-[minmax(0,1.08fr)_minmax(25rem,0.92fr)] lg:gap-[clamp(3rem,6vw,6rem)]'
+          >
+            <aside
+              className='hidden min-w-0 flex-col justify-center lg:flex'
+              aria-label={t('AI supply infrastructure')}
+            >
+              {props.showcase}
+            </aside>
+
+            <section className='relative flex min-w-0 items-center justify-center px-2 py-4 sm:px-4 lg:p-0'>
+              <div
+                data-testid='auth-content'
+                className='mx-auto flex w-full max-w-[26rem] flex-col justify-center'
+              >
+                {props.children}
+              </div>
+            </section>
+          </div>
         ) : (
-          <h1 className='text-xl font-medium'>{systemName}</h1>
+          <section className='relative flex w-full min-w-0 items-center justify-center py-8'>
+            <div
+              data-testid='auth-content'
+              className='mx-auto flex w-full max-w-[30rem] flex-col justify-center'
+            >
+              {props.children}
+            </div>
+          </section>
         )}
-      </Link>
-      <div className='container flex items-center pt-16 sm:pt-0'>
-        <div className='mx-auto flex w-full flex-col justify-center space-y-2 px-4 py-8 sm:w-[480px] sm:p-8'>
-          {children}
-        </div>
-      </div>
+      </main>
     </div>
   )
 }

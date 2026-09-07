@@ -709,6 +709,8 @@
     "Built-in: phone fingerprint/face, or Windows Hello; External: USB security key": "Встроенное: отпечаток пальца/лицо телефона или Windows Hello; Внешнее: USB-ключ безопасности",
     "by": "от",
     "By category": "По категориям",
+    "By clicking sign in, you agree to our": "Выполняя вход, вы подтверждаете согласие со следующими документами:",
+    "By creating an account, you agree to our": "Создавая учётную запись, вы подтверждаете согласие со следующими документами:",
     "By model author": "По автору модели",
     "By quota": "По квоте",
     "By requests": "По запросам",

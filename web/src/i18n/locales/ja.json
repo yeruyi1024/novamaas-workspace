@@ -709,6 +709,8 @@
     "Built-in: phone fingerprint/face, or Windows Hello; External: USB security key": "内蔵: 電話の指紋/顔認証、またはWindows Hello。外部: USBセキュリティキー",
     "by": "によって",
     "By category": "カテゴリ別",
+    "By clicking sign in, you agree to our": "ログインすると、以下に同意したものとみなされます：",
+    "By creating an account, you agree to our": "アカウントを作成すると、以下に同意したものとみなされます：",
     "By model author": "モデル提供者別",
     "By quota": "クォータ別",
     "By requests": "リクエスト数別",
