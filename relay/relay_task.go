@@ -216,7 +216,12 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	// 8. 构建请求体
 	requestBody, err := adaptor.BuildRequestBody(c, info)
 	if err != nil {
-		return nil, service.TaskErrorWrapper(err, "build_request_failed", http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		var statusError interface{ HTTPStatusCode() int }
+		if errors.As(err, &statusError) {
+			statusCode = statusError.HTTPStatusCode()
+		}
+		return nil, service.TaskErrorWrapperLocal(err, "build_request_failed", statusCode)
 	}
 
 	// 9. 发送请求
@@ -378,7 +383,14 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 	}
 	userId := c.GetInt("id")
 
-	originTask, exist, err := model.GetByTaskId(userId, taskId)
+	var originTask *model.Task
+	var exist bool
+	var err error
+	if c.GetInt("role") >= common.RoleAdminUser {
+		originTask, exist, err = model.GetByTaskIdForAdmin(taskId)
+	} else {
+		originTask, exist, err = model.GetByTaskId(userId, taskId)
+	}
 	if err != nil {
 		taskResp = service.TaskErrorWrapper(err, "get_task_failed", http.StatusInternalServerError)
 		return

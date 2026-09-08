@@ -66,11 +66,6 @@ func GetTaskRequestBody(c *gin.Context) {
 	respondTaskRequestBody(c, task, exists, err)
 }
 
-func GetUserTaskRequestBody(c *gin.Context) {
-	task, exists, err := model.GetByTaskId(c.GetInt("id"), c.Param("task_id"))
-	respondTaskRequestBody(c, task, exists, err)
-}
-
 func respondTaskRequestBody(c *gin.Context, task *model.Task, exists bool, err error) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to query task request body"})

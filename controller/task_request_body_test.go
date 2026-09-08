@@ -101,7 +101,9 @@ func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 	c.Set("channel_type", constant.ChannelTypeVolcNative)
 	c.Set("group", "default")
 	c.Set(string(constant.ContextKeyRequestStartTime), time.Now())
-	c.Set(videoTaskRequestBodyLogKey, `{"prompt":"failed request"}`)
+	common.SetContextKey(c, constant.ContextKeyVideoTaskOriginalRequestBody, `{"prompt":"failed request"}`)
+	common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, true)
+	common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, 1)
 
 	processChannelError(
 		c,
@@ -117,30 +119,8 @@ func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 	requestBody, ok := other["request_body"].(string)
 	require.True(t, ok)
 	assert.JSONEq(t, `{"prompt":"failed request"}`, requestBody)
-}
-
-func TestGetUserTaskRequestBodyEnforcesOwnership(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}))
-	previousDB := model.DB
-	model.DB = db
-	t.Cleanup(func() { model.DB = previousDB })
-
-	require.NoError(t, db.Create(&model.Task{
-		TaskID: "task_owned",
-		UserId: 41,
-		Properties: model.Properties{
-			RequestBody: json.RawMessage(`{"prompt":"owned"}`),
-		},
-	}).Error)
-
-	allowed := runTaskRequestBodyHandler(41, "task_owned", GetUserTaskRequestBody)
-	assert.Equal(t, http.StatusOK, allowed.Code)
-	assert.JSONEq(t, `{"success":true,"message":"","data":{"prompt":"owned"}}`, allowed.Body.String())
-
-	denied := runTaskRequestBodyHandler(42, "task_owned", GetUserTaskRequestBody)
-	assert.Equal(t, http.StatusNotFound, denied.Code)
+	assert.Equal(t, true, other["temporary_media_converted"])
+	assert.Equal(t, float64(1), other["temporary_media_converted_count"])
 }
 
 func TestGetTaskRequestBodyAllowsAdminLookup(t *testing.T) {

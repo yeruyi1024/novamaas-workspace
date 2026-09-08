@@ -121,6 +121,10 @@ func formatUserLogs(logs []*Log, startIdx int) {
 		if otherMap != nil {
 			// Remove admin-only debug fields.
 			delete(otherMap, "admin_info")
+			// Raw request bodies are retained for administrator auditing only.
+			// Keep non-sensitive transformation markers visible to the owner.
+			delete(otherMap, "request_body")
+			delete(otherMap, "request_body_available")
 			// Remove operation-audit details (operator/route info), admin-only.
 			delete(otherMap, "audit_info")
 			// delete(otherMap, "reject_reason")

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertCircleIcon, BracesIcon } from '@hugeicons/core-free-icons'
+import { AlertCircleIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense, useMemo } from 'react'
@@ -61,13 +61,17 @@ export function UsageLogRequestBodySection(
     ],
     queryFn: async () => {
       if (!props.taskId) throw new Error('task id unavailable')
-      const response = await getTaskRequestBody(props.taskId, props.isAdmin)
+      const response = await getTaskRequestBody(props.taskId)
       if (!response.success || response.data === undefined) {
         throw new Error(response.message || 'request body unavailable')
       }
       return response.data
     },
-    enabled: props.open && !hasEmbeddedRequestBody && Boolean(props.taskId),
+    enabled:
+      props.isAdmin &&
+      props.open &&
+      !hasEmbeddedRequestBody &&
+      Boolean(props.taskId),
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   })
@@ -83,12 +87,6 @@ export function UsageLogRequestBodySection(
   return (
     <section className='flex min-w-0 flex-col gap-1.5'>
       <Label className='flex items-center gap-1.5 text-xs font-semibold'>
-        <HugeiconsIcon
-          icon={BracesIcon}
-          strokeWidth={2}
-          className='size-3.5'
-          aria-hidden='true'
-        />
         {t('Request Body')}
       </Label>
       {!hasEmbeddedRequestBody && requestBodyQuery.isFetching ? (

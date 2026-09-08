@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
   AlertCircle,
@@ -303,6 +304,8 @@ const SENSITIVE_FORM_FIELDS = [
   'allow_speed',
   'claude_beta_query',
   'disable_task_polling_sleep',
+  'base64_staging_enabled',
+  'base64_staging_models',
   'upstream_model_update_check_enabled',
   'upstream_model_update_auto_sync_enabled',
   'upstream_model_update_ignored_models',
@@ -755,6 +758,7 @@ export function ChannelMutateDrawer({
   const currentDisableTaskPollingSleep = form.watch(
     'disable_task_polling_sleep'
   )
+  const currentBase64StagingEnabled = form.watch('base64_staging_enabled')
   const currentVideoContentDeliveryMode = form.watch(
     'video_content_delivery_mode'
   )
@@ -929,6 +933,11 @@ export function ChannelMutateDrawer({
     [currentModels]
   )
 
+  const base64StagingModelOptions = useMemo(
+    () => currentModelsArray.map((model) => ({ label: model, value: model })),
+    [currentModelsArray]
+  )
+
   const currentTypeLabel = useMemo(
     () =>
       CHANNEL_TYPE_OPTIONS.find((option) => option.value === currentType)
@@ -1028,6 +1037,7 @@ export function ChannelMutateDrawer({
     currentThinkingToContent ||
     currentPassThroughBodyEnabled ||
     currentDisableTaskPollingSleep ||
+    currentBase64StagingEnabled ||
     (currentType === CHANNEL_TYPE_DOUBAO_VIDEO &&
       currentVideoContentDeliveryMode === 'redirect') ||
     currentProxy?.trim() ||
@@ -4182,6 +4192,84 @@ export function ChannelMutateDrawer({
                                   </FormItem>
                                 )}
                               />
+
+                              {currentType === CHANNEL_TYPE_VOLC_NATIVE && (
+                                <>
+                                  <FormField
+                                    control={form.control}
+                                    name='base64_staging_enabled'
+                                    render={({ field }) => (
+                                      <FormItem className='flex items-center justify-between gap-4 px-4 py-3'>
+                                        <div className='space-y-0.5'>
+                                          <FormLabel>
+                                            {t('Base64 media staging')}
+                                          </FormLabel>
+                                          <FormDescription>
+                                            {t(
+                                              'Upload Base64 images to the configured private object storage and send signed URLs to Volc Native.'
+                                            )}
+                                          </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                          <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                          />
+                                        </FormControl>
+                                      </FormItem>
+                                    )}
+                                  />
+                                  {currentBase64StagingEnabled && (
+                                    <FormField
+                                      control={form.control}
+                                      name='base64_staging_models'
+                                      render={({ field }) => (
+                                        <FormItem className='px-4 py-3'>
+                                          <FormLabel>
+                                            {t('Staging models')}
+                                          </FormLabel>
+                                          <FormControl>
+                                            <MultiSelect
+                                              options={
+                                                base64StagingModelOptions
+                                              }
+                                              selected={parseModelsString(
+                                                field.value || ''
+                                              )}
+                                              onChange={(models) =>
+                                                field.onChange(
+                                                  formatModelsArray(models)
+                                                )
+                                              }
+                                              placeholder={t(
+                                                'Select or enter models; leave empty to apply to all models'
+                                              )}
+                                              allowCreate
+                                              createLabel='Add custom model "{{value}}"'
+                                              maxVisibleChips={8}
+                                            />
+                                          </FormControl>
+                                          <FormDescription>
+                                            {t(
+                                              'Task logs show the converted upstream request, while usage logs retain the original Base64 request for administrators.'
+                                            )}{' '}
+                                            <Link
+                                              className='text-foreground underline underline-offset-4'
+                                              to='/system-settings/storage/$section'
+                                              params={{
+                                                section: 'object-storage',
+                                              }}
+                                            >
+                                              {t('Configure object storage')}
+                                            </Link>
+                                          </FormDescription>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                  )}
+                                </>
+                              )}
 
                               {currentType === CHANNEL_TYPE_DOUBAO_VIDEO && (
                                 <DoubaoVideoContentModeField

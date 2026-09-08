@@ -18,6 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 
+import { TASK_PLATFORMS } from './constants'
+
 export interface TaskRequestBodyResponse {
   success: boolean
   message?: string
@@ -25,14 +27,35 @@ export interface TaskRequestBodyResponse {
 }
 
 export async function getTaskRequestBody(
-  taskId: string,
-  isAdmin: boolean
+  taskId: string
 ): Promise<TaskRequestBodyResponse> {
-  const prefix = isAdmin ? '/api/task' : '/api/task/self'
   const res = await api.get<TaskRequestBodyResponse>(
-    `${prefix}/${encodeURIComponent(taskId)}/request-body`,
+    `/api/task/${encodeURIComponent(taskId)}/request-body`,
     { disableDuplicate: true }
   )
+  return res.data
+}
+
+const TASK_INFO_PATHS: Record<string, (taskId: string) => string> = {
+  [TASK_PLATFORMS.DOUBAO_VIDEO]: (taskId) => `/v1/video/generations/${taskId}`,
+  [TASK_PLATFORMS.VOLC_NATIVE]: (taskId) =>
+    `/api/v3/contents/generations/tasks/${taskId}`,
+}
+
+export function canGetTaskInformation(platform: string): boolean {
+  return platform in TASK_INFO_PATHS
+}
+
+export async function getTaskInformation(
+  taskId: string,
+  platform: string
+): Promise<unknown> {
+  const pathBuilder = TASK_INFO_PATHS[platform]
+  if (!pathBuilder) throw new Error('task information unsupported')
+  const res = await api.get<unknown>(pathBuilder(encodeURIComponent(taskId)), {
+    disableDuplicate: true,
+    skipErrorHandler: true,
+  })
   return res.data
 }
 

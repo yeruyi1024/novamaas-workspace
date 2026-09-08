@@ -131,6 +131,16 @@ func TestVolcNativeFetchAndListRespectOwnershipAndTokenModels(t *testing.T) {
 			assert.NotContains(t, recorder.Body.String(), "upstream-secret-id")
 		})
 	}
+	adminRecorder := httptest.NewRecorder()
+	adminContext, _ := gin.CreateTestContext(adminRecorder)
+	adminContext.Request = httptest.NewRequest(http.MethodGet, "/api/v3/contents/generations/tasks/task_other_user", nil)
+	adminContext.Params = gin.Params{{Key: "task_id", Value: "task_other_user"}}
+	adminContext.Set("id", 99)
+	adminContext.Set("role", common.RoleAdminUser)
+	RelayVolcNativeTaskFetch(adminContext)
+	assert.Equal(t, http.StatusOK, adminRecorder.Code)
+	assert.Equal(t, "task_other_user", gjson.Get(adminRecorder.Body.String(), "id").String())
+
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v3/contents/generations/tasks?page_size=1", nil)

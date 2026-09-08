@@ -72,6 +72,12 @@ const (
 	VideoContentDeliveryModeRedirect VideoContentDeliveryMode = "redirect"
 )
 
+type Base64StagingSettings struct {
+	Enabled       bool     `json:"enabled,omitempty"`
+	StoragePolicy string   `json:"storage_policy,omitempty"`
+	Models        []string `json:"models,omitempty"`
+}
+
 type ChannelOtherSettings struct {
 	AzureResponsesVersion                 string                   `json:"azure_responses_version,omitempty"`
 	VertexKeyType                         VertexKeyType            `json:"vertex_key_type,omitempty"` // "json" or "api_key"
@@ -93,6 +99,7 @@ type ChannelOtherSettings struct {
 	UpstreamModelUpdateLastRemovedModels  []string                 `json:"upstream_model_update_last_removed_models,omitempty"`  // 上次检测到的可删除模型
 	UpstreamModelUpdateIgnoredModels      []string                 `json:"upstream_model_update_ignored_models,omitempty"`       // 手动忽略的模型
 	AdvancedCustom                        *AdvancedCustomConfig    `json:"advanced_custom,omitempty"`
+	Base64Staging                         *Base64StagingSettings   `json:"base64_staging,omitempty"`
 }
 
 func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {
@@ -100,6 +107,22 @@ func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {
 		return false
 	}
 	return *s.OpenRouterEnterprise
+}
+
+func (s *ChannelOtherSettings) IsBase64StagingEnabled(model string) bool {
+	if s == nil || s.Base64Staging == nil || !s.Base64Staging.Enabled {
+		return false
+	}
+	if len(s.Base64Staging.Models) == 0 {
+		return true
+	}
+	model = strings.TrimSpace(model)
+	for _, allowedModel := range s.Base64Staging.Models {
+		if strings.TrimSpace(allowedModel) == model {
+			return true
+		}
+	}
+	return false
 }
 
 const (

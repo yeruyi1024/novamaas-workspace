@@ -33,3 +33,21 @@ func TestFormatUserLogsStripsQuotaSaturation(t *testing.T) {
 	// Non-admin billing fields remain visible.
 	require.Contains(t, parsed, "model_price")
 }
+
+func TestFormatUserLogsStripsRequestBodyButKeepsConversionMarker(t *testing.T) {
+	logs := []*Log{{Other: common.MapToJsonStr(map[string]interface{}{
+		"request_body":                    `{"content":"data:image/webp;base64,secret"}`,
+		"request_body_available":          true,
+		"temporary_media_converted":       true,
+		"temporary_media_converted_count": 1,
+	})}}
+
+	formatUserLogs(logs, 0)
+
+	parsed, err := common.StrToMap(logs[0].Other)
+	require.NoError(t, err)
+	require.NotContains(t, parsed, "request_body")
+	require.NotContains(t, parsed, "request_body_available")
+	require.Equal(t, true, parsed["temporary_media_converted"])
+	require.Equal(t, float64(1), parsed["temporary_media_converted_count"])
+}

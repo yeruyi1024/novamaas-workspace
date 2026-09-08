@@ -85,31 +85,32 @@ describe('DetailsDialog request body', () => {
     vi.mocked(getTaskRequestBody).mockReset()
   })
 
-  test.each([
-    { isAdmin: false, role: 'user' },
-    { isAdmin: true, role: 'admin' },
-  ])(
-    'shows formatted video request JSON for $role logs',
-    async ({ isAdmin }) => {
-      vi.mocked(getTaskRequestBody).mockResolvedValue({
-        success: true,
-        data: { prompt: 'hello', parameters: { duration: 5 } },
-      })
+  test('shows formatted video request JSON for administrators', async () => {
+    vi.mocked(getTaskRequestBody).mockResolvedValue({
+      success: true,
+      data: { prompt: 'hello', parameters: { duration: 5 } },
+    })
 
-      renderDialog(isAdmin)
+    renderDialog(true)
 
-      await waitFor(() =>
-        expect(getTaskRequestBody).toHaveBeenCalledWith('task_video', isAdmin)
-      )
-      expect(await screen.findByText('Request Body')).toBeInTheDocument()
-      expect((await screen.findByTestId('request-json')).textContent).toBe(`{
+    await waitFor(() =>
+      expect(getTaskRequestBody).toHaveBeenCalledWith('task_video')
+    )
+    expect(await screen.findByText('Request Body')).toBeInTheDocument()
+    expect((await screen.findByTestId('request-json')).textContent).toBe(`{
   "prompt": "hello",
   "parameters": {
     "duration": 5
   }
 }`)
-    }
-  )
+  })
+
+  test('does not request or show the request body for non-administrators', () => {
+    renderDialog(false)
+
+    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+  })
 
   test('does not request or show a body for unrelated usage logs', () => {
     renderDialog(false, {
@@ -121,8 +122,8 @@ describe('DetailsDialog request body', () => {
     expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
   })
 
-  test('shows an embedded request body when task submission fails', async () => {
-    renderDialog(false, {
+  test('shows an embedded request body to administrators when task submission fails', async () => {
+    renderDialog(true, {
       ...videoUsageLog,
       type: 5,
       content: 'upstream failed',
@@ -138,13 +139,40 @@ describe('DetailsDialog request body', () => {
 }`)
   })
 
+  test('hides an embedded request body from non-administrators', () => {
+    renderDialog(false, {
+      ...videoUsageLog,
+      type: 5,
+      content: 'upstream failed',
+      other: JSON.stringify({
+        is_task: true,
+        request_body: JSON.stringify({ prompt: 'failed request' }),
+      }),
+    })
+
+    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+  })
+
+  test('shows the temporary media conversion marker without exposing the body', () => {
+    renderDialog(false, {
+      ...videoUsageLog,
+      other: JSON.stringify({ temporary_media_converted: true }),
+    })
+
+    expect(
+      screen.getByText('Temporarily stored and converted')
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+  })
+
   test('shows the unavailable state when the request body lookup fails', async () => {
     vi.mocked(getTaskRequestBody).mockResolvedValue({
       success: false,
       message: 'not found',
     })
 
-    renderDialog(false)
+    renderDialog(true)
 
     expect(
       await screen.findByText('Request body unavailable')

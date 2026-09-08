@@ -985,6 +985,20 @@ func (channel *Channel) ValidateSettings() error {
 			return err
 		}
 	}
+	if channelOtherSettings.Base64Staging != nil {
+		if channel.Type != constant.ChannelTypeVolcNative {
+			return fmt.Errorf("base64_staging is only supported by Volc Native channels")
+		}
+		policy := strings.TrimSpace(channelOtherSettings.Base64Staging.StoragePolicy)
+		if policy != "" && policy != StoragePolicyRelayMediaTemp {
+			return fmt.Errorf("invalid base64_staging.storage_policy: %s", policy)
+		}
+		for i, modelName := range channelOtherSettings.Base64Staging.Models {
+			if strings.TrimSpace(modelName) == "" {
+				return fmt.Errorf("base64_staging.models[%d] must not be empty", i)
+			}
+		}
+	}
 	if channel.Type == constant.ChannelTypeAdvancedCustom && channelOtherSettings.UpstreamModelUpdateCheckEnabled {
 		if _, ok := channelOtherSettings.AdvancedCustom.ModelListRoute(); !ok {
 			return fmt.Errorf("advanced custom channels require a %s route when upstream model update checks are enabled", dto.AdvancedCustomModelListPath)

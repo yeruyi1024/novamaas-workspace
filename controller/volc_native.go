@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
+	storageService "github.com/QuantumNous/new-api/service/storage"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -298,6 +299,9 @@ func RelayVolcNativeTaskDelete(c *gin.Context) {
 		}
 		task = refreshed
 	}
+	if isVolcNativeTaskTerminal(task.Status) {
+		storageService.ScheduleTaskCleanup(task.TaskID, common.GetTimestamp())
+	}
 	c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task))
 }
 
@@ -307,7 +311,14 @@ func getVolcNativeTask(c *gin.Context) (*model.Task, bool) {
 		respondVolcNativeError(c, http.StatusBadRequest, "invalid_task_id", "invalid task id")
 		return nil, false
 	}
-	task, exists, err := model.GetByTaskId(c.GetInt("id"), taskID)
+	var task *model.Task
+	var exists bool
+	var err error
+	if c.GetInt("role") >= common.RoleAdminUser {
+		task, exists, err = model.GetByTaskIdForAdmin(taskID)
+	} else {
+		task, exists, err = model.GetByTaskId(c.GetInt("id"), taskID)
+	}
 	if err != nil {
 		respondVolcNativeError(c, http.StatusInternalServerError, "task_lookup_failed", "failed to read task")
 		return nil, false
