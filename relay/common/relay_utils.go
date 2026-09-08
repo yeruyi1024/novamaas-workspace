@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -293,6 +294,27 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 	// 为了metadata字段的兼容性，统一UnmarshalBodyReusable
 	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
 		return createTaskError(err, "invalid_request", http.StatusBadRequest, true)
+	}
+
+	// Task adaptors consume the parsed TaskSubmitReq for both billing and
+	// upstream conversion. Apply the channel override to that canonical request
+	// before either step so they cannot observe different parameter values.
+	if info != nil && info.ChannelMeta != nil && len(info.ParamOverride) > 0 {
+		requestJSON, err := common.Marshal(req)
+		if err != nil {
+			return createTaskError(err, string(types.ErrorCodeChannelParamOverrideInvalid), http.StatusBadRequest, true)
+		}
+		overriddenJSON, err := ApplyParamOverrideWithRelayInfo(requestJSON, info)
+		if err != nil {
+			if overrideErr, ok := AsParamOverrideReturnError(err); ok {
+				apiErr := NewAPIErrorFromParamOverride(overrideErr)
+				return createTaskError(apiErr.Err, string(apiErr.GetErrorCode()), apiErr.StatusCode, true)
+			}
+			return createTaskError(err, string(types.ErrorCodeChannelParamOverrideInvalid), http.StatusBadRequest, true)
+		}
+		if err := common.Unmarshal(overriddenJSON, &req); err != nil {
+			return createTaskError(err, string(types.ErrorCodeChannelParamOverrideInvalid), http.StatusBadRequest, true)
+		}
 	}
 
 	if taskErr := validatePrompt(req.Prompt); taskErr != nil {

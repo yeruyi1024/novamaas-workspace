@@ -47,6 +47,7 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 			}
 		}
 	}
+	appendParamOverrideInfo(info, other)
 	if common.GetContextKeyBool(c, constant.ContextKeyTemporaryMediaConverted) {
 		other["temporary_media_converted"] = true
 		if count := common.GetContextKeyInt(c, constant.ContextKeyTemporaryMediaConvertedCount); count > 0 {
