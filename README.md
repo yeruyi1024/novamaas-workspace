@@ -87,6 +87,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#19](https://github.com/yeruyi1024/novamaas-workspace/pull/19) | 2026-09-08 | `feat` | 视频任务 / 计费 | 为 Doubao Seedance 2.0 增加稳定公开模型名，使其可映射到不同上游模型 ID，同时复用 720p、1080p、4K 与视频输入计费倍率。 | NovaMaaS 下游专属；上游当前没有该稳定公开别名及其参数计费映射。 | PR 审核中 |
 | [#18](https://github.com/yeruyi1024/novamaas-workspace/pull/18) | 2026-09-08 | `fix` | 对象存储 / 数据兼容 | 使用 GORM 方言感知条件引用存储策略 `key` 列，修复 MySQL 1064 错误，并增加 SQLite、MySQL、PostgreSQL 查询回归测试。 | NovaMaaS 下游专属；属于 #17 对象存储能力的兼容性修复，上游当前没有等价的存储策略实现。 | PR 审核中 |
 | [#17](https://github.com/yeruyi1024/novamaas-workspace/pull/17) | 2026-09-08 | `feat` | 对象存储 / 火山方舟 | 新增系统级存储 Profile 与用途 Policy，以私有阿里云 OSS 签名地址兼容火山原生 Base64 媒体请求，并实现任务终态清理、请求审计分流及管理员访问控制。 | NovaMaaS 下游专属；上游当前没有等价的火山 Base64 暂存、通用对象存储策略与审计分流组合实现。 | PR 审核中 |
 | [#14](https://github.com/yeruyi1024/novamaas-workspace/pull/14) | 2026-09-07 | `feat` | 视频任务 / 使用日志 | 为 DoubaoVideo 增加 302 重定向与 600 秒服务端代理模式，记录 DoubaoVideo、原生 Ark、阿里百炼视频任务请求体，并在鉴权日志详情中按数据可用性提供视频下载和格式化 JSON 查看入口。 | NovaMaaS 下游专属；上游当前没有等价的视频交付模式与任务请求审计组合实现。 | PR 审核中 |
