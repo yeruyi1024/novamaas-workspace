@@ -86,12 +86,39 @@ export type LogCleanupTaskState = {
 
 export type LogCleanupTaskResult = {
   deleted_count: number
+  request_bodies_deleted_count?: number
 }
 
 export type LogCleanupTask = SystemTask<
   LogCleanupTaskPayload,
   LogCleanupTaskState,
   LogCleanupTaskResult
+>
+
+export type RequestBodyArchiveTaskState = {
+  initialized: boolean
+  phase: 'tasks' | 'logs' | 'complete'
+  total: number
+  processed: number
+  progress: number
+  archived_count: number
+  task_rows_cleaned: number
+  log_rows_cleaned: number
+  invalid_rows_skipped: number
+}
+
+export type RequestBodyArchiveTaskResult = {
+  scanned_rows: number
+  archived_count: number
+  task_rows_cleaned: number
+  log_rows_cleaned: number
+  invalid_rows_skipped: number
+}
+
+export type RequestBodyArchiveTask = SystemTask<
+  { batch_size: number },
+  RequestBodyArchiveTaskState,
+  RequestBodyArchiveTaskResult
 >
 
 export type SystemTaskResponse<TTask = SystemTask | null> = {

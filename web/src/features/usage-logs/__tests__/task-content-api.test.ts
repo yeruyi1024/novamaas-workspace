@@ -20,7 +20,11 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { api } from '@/lib/api'
 
-import { canGetTaskInformation, getTaskInformation } from '../task-content-api'
+import {
+  canGetTaskInformation,
+  getLogRequestBody,
+  getTaskInformation,
+} from '../task-content-api'
 
 vi.mock('@/lib/api', () => ({
   api: { get: vi.fn() },
@@ -53,5 +57,14 @@ describe('task information API', () => {
       'task information unsupported'
     )
     expect(api.get).not.toHaveBeenCalled()
+  })
+
+  test('looks up archived log request bodies by task and request identifiers', async () => {
+    await getLogRequestBody('task/1', 'request-1')
+
+    expect(api.get).toHaveBeenCalledWith('/api/log/request-body', {
+      params: { task_id: 'task/1', request_id: 'request-1' },
+      disableDuplicate: true,
+    })
   })
 })

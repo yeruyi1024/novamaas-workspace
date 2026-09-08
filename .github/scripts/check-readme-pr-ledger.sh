@@ -47,6 +47,9 @@ if sed -n "${start_line},${end_line}p" "$readme" | grep -Eq '^\| (TBD|#TBD|待�
 fi
 
 pr_body=${README_LEDGER_PR_BODY:?README_LEDGER_PR_BODY is required for PR validation}
+# Browser-submitted pull request bodies can use CRLF line endings. Normalize them
+# before exact-line classification checks so the web UI and API behave equally.
+pr_body=${pr_body//$'\r'/}
 key_classification='- [x] **关键差异：**已在 README 关键差异表新增当前 PR 的真实编号和链接。'
 routine_classification='- [x] **常规变更：**不进入 README 关键差异表；原因：'
 key_count=$(grep -Fxc -- "$key_classification" <<<"$pr_body" || true)

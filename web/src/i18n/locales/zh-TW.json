@@ -5539,6 +5539,19 @@
     "Zero retention": "零數據保留",
     "Zhipu": "智譜",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放"
+    "Zoom": "縮放",
+    "{{count}} request bodies archived and hot rows cleaned.": "已封存 {{count}} 個請求內容並清理高頻存取資料列。",
+    "Failed to archive request bodies": "請求內容封存失敗",
+    "Request body archive task started.": "請求內容封存工作已啟動。",
+    "Archive request bodies": "封存請求內容",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "掃描歷史任務和使用記錄，將請求內容保留在稽核封存中，並從高頻存取資料列移除重複內容。",
+    "Archiving...": "正在封存...",
+    "Scan and archive history": "掃描並封存歷史資料",
+    "Archive historical request bodies?": "封存歷史請求內容？",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "掃描會分批執行並可安全恢復。管理員仍可查看請求內容，同時任務和使用記錄資料列中的重複副本會被移除。",
+    "Start archive": "開始封存",
+    "Request body archive progress": "請求內容封存進度",
+    "{{processed}} of {{total}} rows scanned.": "已掃描 {{processed}} / {{total}} 列。",
+    "Request body archive": "請求內容封存"
   }
 }

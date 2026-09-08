@@ -21,11 +21,11 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { UsageLog } from '../../../data/schema'
-import { getTaskRequestBody } from '../../../task-content-api'
+import { getLogRequestBody } from '../../../task-content-api'
 import { DetailsDialog } from '../details-dialog'
 
 vi.mock('../../../task-content-api', () => ({
-  getTaskRequestBody: vi.fn(),
+  getLogRequestBody: vi.fn(),
 }))
 
 vi.mock('@/components/ai-elements/code-block', () => ({
@@ -82,11 +82,11 @@ function renderDialog(isAdmin: boolean, log: UsageLog = videoUsageLog) {
 
 describe('DetailsDialog request body', () => {
   beforeEach(() => {
-    vi.mocked(getTaskRequestBody).mockReset()
+    vi.mocked(getLogRequestBody).mockReset()
   })
 
   test('shows formatted video request JSON for administrators', async () => {
-    vi.mocked(getTaskRequestBody).mockResolvedValue({
+    vi.mocked(getLogRequestBody).mockResolvedValue({
       success: true,
       data: { prompt: 'hello', parameters: { duration: 5 } },
     })
@@ -94,7 +94,10 @@ describe('DetailsDialog request body', () => {
     renderDialog(true)
 
     await waitFor(() =>
-      expect(getTaskRequestBody).toHaveBeenCalledWith('task_video')
+      expect(getLogRequestBody).toHaveBeenCalledWith(
+        'task_video',
+        'request_video'
+      )
     )
     expect(await screen.findByText('Request Body')).toBeInTheDocument()
     expect((await screen.findByTestId('request-json')).textContent).toBe(`{
@@ -108,7 +111,7 @@ describe('DetailsDialog request body', () => {
   test('does not request or show the request body for non-administrators', () => {
     renderDialog(false)
 
-    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(getLogRequestBody).not.toHaveBeenCalled()
     expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
   })
 
@@ -118,7 +121,7 @@ describe('DetailsDialog request body', () => {
       other: JSON.stringify({ request_path: '/v1/chat/completions' }),
     })
 
-    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(getLogRequestBody).not.toHaveBeenCalled()
     expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
   })
 
@@ -133,10 +136,36 @@ describe('DetailsDialog request body', () => {
       }),
     })
 
-    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(getLogRequestBody).not.toHaveBeenCalled()
     expect((await screen.findByTestId('request-json')).textContent).toBe(`{
   "prompt": "failed request"
 }`)
+  })
+
+  test('loads an archived legacy error body by request ID when no task ID exists', async () => {
+    vi.mocked(getLogRequestBody).mockResolvedValue({
+      success: true,
+      data: { prompt: 'archived failure' },
+    })
+    renderDialog(true, {
+      ...videoUsageLog,
+      type: 5,
+      request_id: 'request_orphan',
+      other: JSON.stringify({
+        is_task: true,
+        request_body_available: true,
+      }),
+    })
+
+    await waitFor(() =>
+      expect(getLogRequestBody).toHaveBeenCalledWith(
+        undefined,
+        'request_orphan'
+      )
+    )
+    expect((await screen.findByTestId('request-json')).textContent).toContain(
+      'archived failure'
+    )
   })
 
   test('hides an embedded request body from non-administrators', () => {
@@ -150,7 +179,7 @@ describe('DetailsDialog request body', () => {
       }),
     })
 
-    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(getLogRequestBody).not.toHaveBeenCalled()
     expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
   })
 
@@ -167,7 +196,7 @@ describe('DetailsDialog request body', () => {
   })
 
   test('shows the unavailable state when the request body lookup fails', async () => {
-    vi.mocked(getTaskRequestBody).mockResolvedValue({
+    vi.mocked(getLogRequestBody).mockResolvedValue({
       success: false,
       message: 'not found',
     })

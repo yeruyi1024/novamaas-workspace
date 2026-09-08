@@ -615,7 +615,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
     (hasEmbeddedRequestBody ||
       (other?.is_task === true &&
         other.request_body_available === true &&
-        Boolean(other.task_id)))
+        Boolean(other.task_id || props.log.request_id)))
 
   return (
     <Dialog
@@ -1281,6 +1281,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
             open={props.open}
             requestBody={other?.request_body}
             taskId={other.task_id}
+            requestId={props.log.request_id}
           />
         )}
       </div>

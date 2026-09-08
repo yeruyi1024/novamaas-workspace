@@ -5539,6 +5539,19 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "{{count}} request bodies archived and hot rows cleaned.": "Đã lưu trữ {{count}} nội dung yêu cầu và dọn dẹp các hàng truy cập thường xuyên.",
+    "Failed to archive request bodies": "Không thể lưu trữ nội dung yêu cầu",
+    "Request body archive task started.": "Đã bắt đầu tác vụ lưu trữ nội dung yêu cầu.",
+    "Archive request bodies": "Lưu trữ nội dung yêu cầu",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "Quét lịch sử tác vụ và nhật ký sử dụng, giữ nội dung yêu cầu trong kho kiểm toán và xóa dữ liệu trùng lặp khỏi các hàng truy cập thường xuyên.",
+    "Archiving...": "Đang lưu trữ...",
+    "Scan and archive history": "Quét và lưu trữ lịch sử",
+    "Archive historical request bodies?": "Lưu trữ nội dung yêu cầu trong lịch sử?",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "Quá trình quét chạy theo lô và có thể tiếp tục an toàn. Quản trị viên vẫn xem được nội dung yêu cầu, còn các bản sao được xóa khỏi hàng tác vụ và nhật ký sử dụng.",
+    "Start archive": "Bắt đầu lưu trữ",
+    "Request body archive progress": "Tiến độ lưu trữ nội dung yêu cầu",
+    "{{processed}} of {{total}} rows scanned.": "Đã quét {{processed}} / {{total}} hàng.",
+    "Request body archive": "Lưu trữ nội dung yêu cầu"
   }
 }

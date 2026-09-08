@@ -5539,6 +5539,19 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "{{count}} request bodies archived and hot rows cleaned.": "已归档 {{count}} 个请求体并清理高频访问数据行。",
+    "Failed to archive request bodies": "请求体归档失败",
+    "Request body archive task started.": "请求体归档任务已启动。",
+    "Archive request bodies": "归档请求体",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "扫描历史任务和使用日志，将请求体保留在审计归档中，并从高频访问数据行中移除重复载荷。",
+    "Archiving...": "正在归档...",
+    "Scan and archive history": "扫描并归档历史数据",
+    "Archive historical request bodies?": "归档历史请求体？",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "扫描会分批执行并可安全恢复。管理员仍可查看请求体，同时任务和使用日志数据行中的重复副本会被移除。",
+    "Start archive": "开始归档",
+    "Request body archive progress": "请求体归档进度",
+    "{{processed}} of {{total}} rows scanned.": "已扫描 {{processed}} / {{total}} 行。",
+    "Request body archive": "请求体归档"
   }
 }

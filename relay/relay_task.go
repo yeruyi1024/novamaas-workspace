@@ -584,7 +584,7 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		FinishTime:           task.FinishTime,
 		Progress:             task.Progress,
 		Properties:           properties,
-		RequestBodyAvailable: len(task.Properties.RequestBody) > 0,
+		RequestBodyAvailable: task.RequestBodyAvailable || len(task.Properties.RequestBody) > 0,
 		Username:             task.Username,
 		Data:                 task.Data,
 	}

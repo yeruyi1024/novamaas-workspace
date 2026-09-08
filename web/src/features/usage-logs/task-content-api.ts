@@ -36,6 +36,17 @@ export async function getTaskRequestBody(
   return res.data
 }
 
+export async function getLogRequestBody(
+  taskId: string | undefined,
+  requestId: string | undefined
+): Promise<TaskRequestBodyResponse> {
+  const res = await api.get<TaskRequestBodyResponse>('/api/log/request-body', {
+    params: { task_id: taskId, request_id: requestId },
+    disableDuplicate: true,
+  })
+  return res.data
+}
+
 const TASK_INFO_PATHS: Record<string, (taskId: string) => string> = {
   [TASK_PLATFORMS.DOUBAO_VIDEO]: (taskId) => `/v1/video/generations/${taskId}`,
   [TASK_PLATFORMS.VOLC_NATIVE]: (taskId) =>

@@ -38,6 +38,7 @@ func TestFormatUserLogsStripsRequestBodyButKeepsConversionMarker(t *testing.T) {
 	logs := []*Log{{Other: common.MapToJsonStr(map[string]interface{}{
 		"request_body":                    `{"content":"data:image/webp;base64,secret"}`,
 		"request_body_available":          true,
+		"request_body_ref":                "request:req_secret",
 		"temporary_media_converted":       true,
 		"temporary_media_converted_count": 1,
 	})}}
@@ -48,6 +49,7 @@ func TestFormatUserLogsStripsRequestBodyButKeepsConversionMarker(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, parsed, "request_body")
 	require.NotContains(t, parsed, "request_body_available")
+	require.NotContains(t, parsed, "request_body_ref")
 	require.Equal(t, true, parsed["temporary_media_converted"])
 	require.Equal(t, float64(1), parsed["temporary_media_converted_count"])
 }

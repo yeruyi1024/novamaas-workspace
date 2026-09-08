@@ -5539,6 +5539,19 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "{{count}} request bodies archived and hot rows cleaned.": "{{count}} corps de requête archivés et lignes actives nettoyées.",
+    "Failed to archive request bodies": "Échec de l’archivage des corps de requête",
+    "Request body archive task started.": "La tâche d’archivage des corps de requête a démarré.",
+    "Archive request bodies": "Archiver les corps de requête",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "Analyser l’historique des tâches et des journaux d’utilisation, conserver les corps de requête dans l’archive d’audit et supprimer les charges dupliquées des lignes actives.",
+    "Archiving...": "Archivage...",
+    "Scan and archive history": "Analyser et archiver l’historique",
+    "Archive historical request bodies?": "Archiver les corps de requête historiques ?",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "L’analyse s’exécute par lots et peut reprendre sans risque. Les corps de requête restent accessibles aux administrateurs, tandis que les copies sont retirées des lignes de tâches et de journaux.",
+    "Start archive": "Démarrer l’archivage",
+    "Request body archive progress": "Progression de l’archivage des corps de requête",
+    "{{processed}} of {{total}} rows scanned.": "{{processed}} lignes analysées sur {{total}}.",
+    "Request body archive": "Archivage des corps de requête"
   }
 }

@@ -77,6 +77,7 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import type { LogCleanupTask } from '../types'
+import { RequestBodyArchiveControl } from './request-body-archive-control'
 
 const logSettingsSchema = z.object({
   LogConsumeEnabled: z.boolean(),
@@ -426,6 +427,10 @@ export function LogSettingsSection({
           </SettingsControlGroup>
         </SettingsForm>
       </Form>
+
+      <Separator />
+
+      <RequestBodyArchiveControl />
 
       <Separator />
 

@@ -40,11 +40,8 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	other["is_task"] = true
 	if info.TaskRelayInfo != nil && info.PublicTaskID != "" {
 		other["task_id"] = info.PublicTaskID
-		if info.ChannelMeta != nil && constant.ShouldStoreVideoTaskRequestBody(info.ChannelType) {
+		if common.GetContextKeyBool(c, constant.ContextKeyVideoTaskRequestBodyStored) {
 			other["request_body_available"] = true
-			if requestBody := common.GetContextKeyString(c, constant.ContextKeyVideoTaskOriginalRequestBody); requestBody != "" {
-				other["request_body"] = requestBody
-			}
 		}
 	}
 	if common.GetContextKeyBool(c, constant.ContextKeyTemporaryMediaConverted) {

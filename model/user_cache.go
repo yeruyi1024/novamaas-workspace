@@ -114,6 +114,27 @@ func GetUserCache(userId int) (*UserBase, error) {
 	return user.ToBaseUser(), nil
 }
 
+// GetUsernamesByIDs hydrates task-list usernames in one query. The task list
+// only displays usernames, so loading full users or issuing one cache lookup
+// per row adds avoidable database and Redis work.
+func GetUsernamesByIDs(userIDs []int) (map[int]string, error) {
+	usernames := make(map[int]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return usernames, nil
+	}
+	var users []struct {
+		ID       int
+		Username string
+	}
+	if err := DB.Model(&User{}).Select("id, username").Where("id IN ?", userIDs).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	for _, user := range users {
+		usernames[user.ID] = user.Username
+	}
+	return usernames, nil
+}
+
 func cacheGetUserBase(userId int) (*UserBase, error) {
 	if !common.RedisEnabled {
 		return nil, fmt.Errorf("redis is not enabled")

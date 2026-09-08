@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
+	relaydto "github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -57,10 +59,10 @@ func sanitizeClickHouseLikePattern(input string) (string, error) {
 }
 
 type Log struct {
-	Id                int    `json:"id" gorm:"index:idx_created_at_id,priority:2;index:idx_user_id_id,priority:2"`
-	UserId            int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1"`
-	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:1;index:idx_created_at_type"`
-	Type              int    `json:"type" gorm:"index:idx_created_at_type"`
+	Id                int    `json:"id" gorm:"index:idx_created_at_id,priority:2;index:idx_user_id_id,priority:2;index:idx_logs_user_created_id,priority:3;index:idx_logs_type_created_id,priority:3"`
+	UserId            int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1;index:idx_logs_user_created_id,priority:1"`
+	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:1;index:idx_created_at_type;index:idx_logs_user_created_id,priority:2;index:idx_logs_type_created_id,priority:2"`
+	Type              int    `json:"type" gorm:"index:idx_created_at_type;index:idx_logs_type_created_id,priority:1"`
 	Content           string `json:"content"`
 	Username          string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
 	TokenName         string `json:"token_name" gorm:"index;default:''"`
@@ -116,8 +118,17 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 func formatUserLogs(logs []*Log, startIdx int) {
 	for i := range logs {
 		logs[i].ChannelName = ""
+		otherText := logs[i].Other
+		containsAdminOnlyData := strings.Contains(otherText, `"admin_info"`) ||
+			strings.Contains(otherText, `"request_body"`) ||
+			strings.Contains(otherText, `"request_body_available"`) ||
+			strings.Contains(otherText, `"request_body_ref"`) ||
+			strings.Contains(otherText, `"audit_info"`)
+		if !containsAdminOnlyData {
+			continue
+		}
 		var otherMap map[string]interface{}
-		otherMap, _ = common.StrToMap(logs[i].Other)
+		otherMap, _ = common.StrToMap(otherText)
 		if otherMap != nil {
 			// Remove admin-only debug fields.
 			delete(otherMap, "admin_info")
@@ -125,6 +136,7 @@ func formatUserLogs(logs []*Log, startIdx int) {
 			// Keep non-sensitive transformation markers visible to the owner.
 			delete(otherMap, "request_body")
 			delete(otherMap, "request_body_available")
+			delete(otherMap, "request_body_ref")
 			// Remove operation-audit details (operator/route info), admin-only.
 			delete(otherMap, "audit_info")
 			// delete(otherMap, "reject_reason")
@@ -348,7 +360,10 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	if !common.LogConsumeEnabled {
 		return
 	}
-	logger.LogInfo(c, fmt.Sprintf("record consume log: userId=%d, params=%s", userId, common.GetJsonString(params)))
+	logger.LogInfo(c, fmt.Sprintf(
+		"record consume log: userId=%d, channelId=%d, model=%s, quota=%d",
+		userId, params.ChannelId, params.ModelName, params.Quota,
+	))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
@@ -356,10 +371,10 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	otherStr := common.MapToJsonStr(params.Other)
 	// 判断是否需要记录 IP
 	needRecordIp := false
-	if settingMap, err := GetUserSetting(userId, false); err == nil {
-		if settingMap.RecordIpLog {
-			needRecordIp = true
-		}
+	if userSetting, ok := common.GetContextKeyType[relaydto.UserSetting](c, constant.ContextKeyUserSetting); ok {
+		needRecordIp = userSetting.RecordIpLog
+	} else if settingMap, err := GetUserSetting(userId, false); err == nil {
+		needRecordIp = settingMap.RecordIpLog
 	}
 	log := &Log{
 		UserId:           userId,
@@ -594,12 +609,13 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
 	}
-	err = tx.Model(&Log{}).Limit(logSearchCountLimit).Count(&total).Error
+	limitedCountQuery := tx.Model(&Log{}).Select("logs.id").Limit(logSearchCountLimit)
+	err = LOG_DB.Table("(?) AS limited_logs", limitedCountQuery).Count(&total).Error
 	if err != nil {
 		common.SysError("failed to count user logs: " + err.Error())
 		return nil, 0, errors.New("查询日志失败")
 	}
-	order := "logs.id desc"
+	order := "logs.created_at desc, logs.id desc"
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
 		order = clickHouseLogOrder("logs.")
 	}

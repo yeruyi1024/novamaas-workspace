@@ -44,6 +44,7 @@ func TestMain(m *testing.M) {
 
 	if err := db.AutoMigrate(
 		&model.Task{},
+		&model.TaskRequestBody{},
 		&model.User{},
 		&model.Token{},
 		&model.Log{},
@@ -68,6 +69,7 @@ func truncate(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
 		model.DB.Exec("DELETE FROM tasks")
+		model.DB.Exec("DELETE FROM task_request_bodies")
 		model.DB.Exec("DELETE FROM users")
 		model.DB.Exec("DELETE FROM tokens")
 		model.DB.Exec("DELETE FROM logs")
@@ -258,6 +260,9 @@ func TestLogTaskConsumptionLinksStoredVideoRequestBody(t *testing.T) {
 			ctx.Set("username", "test_user")
 			ctx.Set("token_name", "test_token")
 			common.SetContextKey(ctx, constant.ContextKeyVideoTaskOriginalRequestBody, `{"content":"data:image/webp;base64,AAAA"}`)
+			if tt.available {
+				common.SetContextKey(ctx, constant.ContextKeyVideoTaskRequestBodyStored, true)
+			}
 			if tt.channelType == constant.ChannelTypeVolcNative {
 				common.SetContextKey(ctx, constant.ContextKeyTemporaryMediaConverted, true)
 				common.SetContextKey(ctx, constant.ContextKeyTemporaryMediaConvertedCount, 1)
@@ -291,11 +296,10 @@ func TestLogTaskConsumptionLinksStoredVideoRequestBody(t *testing.T) {
 			assert.Equal(t, "task_video", other["task_id"])
 			if tt.available {
 				assert.Equal(t, true, other["request_body_available"])
-				assert.JSONEq(t, `{"content":"data:image/webp;base64,AAAA"}`, other["request_body"].(string))
 			} else {
 				assert.NotContains(t, other, "request_body_available")
-				assert.NotContains(t, other, "request_body")
 			}
+			assert.NotContains(t, other, "request_body")
 			if tt.channelType == constant.ChannelTypeVolcNative {
 				assert.Equal(t, true, other["temporary_media_converted"])
 				assert.Equal(t, float64(1), other["temporary_media_converted_count"])

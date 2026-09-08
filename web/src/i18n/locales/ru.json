@@ -5539,6 +5539,19 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "{{count}} request bodies archived and hot rows cleaned.": "Архивировано тел запросов: {{count}}; рабочие строки очищены.",
+    "Failed to archive request bodies": "Не удалось архивировать тела запросов",
+    "Request body archive task started.": "Задача архивации тел запросов запущена.",
+    "Archive request bodies": "Архивировать тела запросов",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "Просканировать историю задач и журналов использования, сохранить тела запросов в архиве аудита и удалить дубликаты из рабочих строк.",
+    "Archiving...": "Архивация...",
+    "Scan and archive history": "Сканировать и архивировать историю",
+    "Archive historical request bodies?": "Архивировать исторические тела запросов?",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "Сканирование выполняется пакетами и безопасно возобновляется. Тела запросов остаются доступны администраторам, а дубликаты удаляются из строк задач и журналов.",
+    "Start archive": "Начать архивацию",
+    "Request body archive progress": "Ход архивации тел запросов",
+    "{{processed}} of {{total}} rows scanned.": "Просканировано строк: {{processed}} из {{total}}.",
+    "Request body archive": "Архив тел запросов"
   }
 }
