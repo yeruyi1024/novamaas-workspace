@@ -414,9 +414,12 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		other["channel_id"] = channelId
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
-		if requestBody := common.GetContextKeyString(c, constant.ContextKeyVideoTaskOriginalRequestBody); requestBody != "" {
+		if common.GetContextKeyBool(c, constant.ContextKeyVideoTaskRequestBodyStored) {
 			other["is_task"] = true
-			other["request_body"] = requestBody
+			other["request_body_available"] = true
+			if taskID := common.GetContextKeyString(c, constant.ContextKeyVideoTaskPublicID); taskID != "" {
+				other["task_id"] = taskID
+			}
 		}
 		if common.GetContextKeyBool(c, constant.ContextKeyTemporaryMediaConverted) {
 			other["temporary_media_converted"] = true
@@ -544,6 +547,7 @@ func RelayTask(c *gin.Context) {
 	var result *relay.TaskSubmitResult
 	var taskErr *taskdto.TaskError
 	var requestBodyToStore []byte
+	requestBodyStored := false
 	defer func() {
 		if taskErr != nil && relayInfo.Billing != nil {
 			relayInfo.Billing.Refund(c)
@@ -605,6 +609,17 @@ func RelayTask(c *gin.Context) {
 		c.Request.Body = io.NopCloser(bodyStorage)
 
 		result, taskErr = relay.RelayTaskSubmit(c, relayInfo)
+		if relayInfo.PublicTaskID != "" {
+			common.SetContextKey(c, constant.ContextKeyVideoTaskPublicID, relayInfo.PublicTaskID)
+		}
+		if !requestBodyStored && relayInfo.PublicTaskID != "" && len(requestBodyToStore) > 0 {
+			if storeErr := model.SaveTaskRequestBody(relayInfo.PublicTaskID, c.GetString(common.RequestIdKey), requestBodyToStore); storeErr != nil {
+				logger.LogError(c, "failed to store task request body: "+storeErr.Error())
+			} else {
+				requestBodyStored = true
+				common.SetContextKey(c, constant.ContextKeyVideoTaskRequestBodyStored, true)
+			}
+		}
 		if taskErr == nil {
 			break
 		}
@@ -651,11 +666,7 @@ func RelayTask(c *gin.Context) {
 		task.Quota = result.Quota
 		task.Data = result.TaskData
 		task.Action = relayInfo.Action
-		if upstreamBody := common.GetContextKeyString(c, constant.ContextKeyVideoTaskUpstreamRequestBody); upstreamBody != "" {
-			task.Properties.RequestBody = []byte(upstreamBody)
-		} else {
-			task.Properties.RequestBody = requestBodyToStore
-		}
+		task.RequestBodyAvailable = requestBodyStored
 		if insertErr := task.Insert(); insertErr != nil {
 			common.SysError("insert task error: " + insertErr.Error())
 		}

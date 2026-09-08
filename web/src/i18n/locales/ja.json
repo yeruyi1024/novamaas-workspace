@@ -5539,6 +5539,19 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "{{count}} request bodies archived and hot rows cleaned.": "{{count}} 件のリクエスト本文をアーカイブし、ホット行を整理しました。",
+    "Failed to archive request bodies": "リクエスト本文のアーカイブに失敗しました",
+    "Request body archive task started.": "リクエスト本文のアーカイブタスクを開始しました。",
+    "Archive request bodies": "リクエスト本文をアーカイブ",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "過去のタスクと使用ログをスキャンし、リクエスト本文を監査アーカイブに保存して、ホット行から重複データを削除します。",
+    "Archiving...": "アーカイブ中...",
+    "Scan and archive history": "履歴をスキャンしてアーカイブ",
+    "Archive historical request bodies?": "過去のリクエスト本文をアーカイブしますか？",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "スキャンはバッチ単位で実行され、安全に再開できます。管理者は引き続きリクエスト本文を確認でき、タスクと使用ログの行から重複コピーが削除されます。",
+    "Start archive": "アーカイブを開始",
+    "Request body archive progress": "リクエスト本文のアーカイブ進捗",
+    "{{processed}} of {{total}} rows scanned.": "{{total}} 行中 {{processed}} 行をスキャンしました。",
+    "Request body archive": "リクエスト本文アーカイブ"
   }
 }

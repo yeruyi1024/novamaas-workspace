@@ -5539,6 +5539,19 @@
     "Zero retention": "Zero retention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "{{count}} request bodies archived and hot rows cleaned.": "{{count}} request bodies archived and hot rows cleaned.",
+    "Failed to archive request bodies": "Failed to archive request bodies",
+    "Request body archive task started.": "Request body archive task started.",
+    "Archive request bodies": "Archive request bodies",
+    "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.": "Scan historical task and usage logs, preserve request bodies in the audit archive, and remove duplicate payloads from hot rows.",
+    "Archiving...": "Archiving...",
+    "Scan and archive history": "Scan and archive history",
+    "Archive historical request bodies?": "Archive historical request bodies?",
+    "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.": "The scan runs in batches and can be resumed safely. Request bodies remain available to administrators, while duplicate copies are removed from task and usage log rows.",
+    "Start archive": "Start archive",
+    "Request body archive progress": "Request body archive progress",
+    "{{processed}} of {{total}} rows scanned.": "{{processed}} of {{total}} rows scanned.",
+    "Request body archive": "Request body archive"
   }
 }

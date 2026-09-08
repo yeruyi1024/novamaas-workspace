@@ -26,7 +26,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
 
-import { getTaskRequestBody } from '../../task-content-api'
+import { getLogRequestBody } from '../../task-content-api'
 
 const RequestJsonViewer = lazy(() => import('./request-json-viewer'))
 
@@ -35,6 +35,7 @@ interface UsageLogRequestBodySectionProps {
   open: boolean
   requestBody?: unknown
   taskId?: string
+  requestId?: string
 }
 
 function formatRequestBody(body: unknown): string {
@@ -58,10 +59,13 @@ export function UsageLogRequestBodySection(
       'usage-log-task-request-body',
       props.isAdmin ? 'admin' : 'self',
       props.taskId,
+      props.requestId,
     ],
     queryFn: async () => {
-      if (!props.taskId) throw new Error('task id unavailable')
-      const response = await getTaskRequestBody(props.taskId)
+      if (!props.taskId && !props.requestId) {
+        throw new Error('request body reference unavailable')
+      }
+      const response = await getLogRequestBody(props.taskId, props.requestId)
       if (!response.success || response.data === undefined) {
         throw new Error(response.message || 'request body unavailable')
       }
@@ -71,7 +75,7 @@ export function UsageLogRequestBodySection(
       props.isAdmin &&
       props.open &&
       !hasEmbeddedRequestBody &&
-      Boolean(props.taskId),
+      Boolean(props.taskId || props.requestId),
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   })

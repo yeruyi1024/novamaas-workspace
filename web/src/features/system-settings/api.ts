@@ -22,6 +22,7 @@ import type {
   ConfirmPaymentComplianceResponse,
   FetchUpstreamRatiosRequest,
   LogCleanupTask,
+  RequestBodyArchiveTask,
   SystemOptionsResponse,
   SystemTaskListResponse,
   SystemTaskResponse,
@@ -72,6 +73,30 @@ export async function getCurrentLogCleanupTask() {
 
 export async function getSystemTask(taskId: string) {
   const res = await api.get<SystemTaskResponse<LogCleanupTask>>(
+    `/api/system-task/${taskId}`
+  )
+  return res.data
+}
+
+export async function startRequestBodyArchiveTask() {
+  const res = await api.post<SystemTaskResponse<RequestBodyArchiveTask>>(
+    '/api/system-task/request-body-archive'
+  )
+  return res.data
+}
+
+export async function getCurrentRequestBodyArchiveTask() {
+  const res = await api.get<SystemTaskResponse<RequestBodyArchiveTask | null>>(
+    '/api/system-task/current',
+    {
+      params: { type: 'request_body_archive' },
+    }
+  )
+  return res.data
+}
+
+export async function getRequestBodyArchiveTask(taskId: string) {
+  const res = await api.get<SystemTaskResponse<RequestBodyArchiveTask>>(
     `/api/system-task/${taskId}`
   )
   return res.data

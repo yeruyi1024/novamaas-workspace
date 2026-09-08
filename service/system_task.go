@@ -85,6 +85,15 @@ func (logCleanupHandler) Run(ctx context.Context, task *model.SystemTask, runner
 
 func init() {
 	RegisterSystemTaskHandler(logCleanupHandler{})
+	RegisterSystemTaskHandler(requestBodyArchiveHandler{})
+}
+
+type requestBodyArchiveHandler struct{}
+
+func (requestBodyArchiveHandler) Type() string { return model.SystemTaskTypeRequestBodyArchive }
+
+func (requestBodyArchiveHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	runRequestBodyArchiveTask(ctx, task, runnerID)
 }
 
 type LogCleanupPayload struct {
@@ -100,7 +109,36 @@ type LogCleanupState struct {
 }
 
 type LogCleanupResult struct {
-	DeletedCount int64 `json:"deleted_count"`
+	DeletedCount              int64 `json:"deleted_count"`
+	RequestBodiesDeletedCount int64 `json:"request_bodies_deleted_count"`
+}
+
+type RequestBodyArchivePayload struct {
+	BatchSize int `json:"batch_size"`
+}
+
+type RequestBodyArchiveState struct {
+	Initialized        bool                              `json:"initialized"`
+	Phase              string                            `json:"phase"`
+	Total              int64                             `json:"total"`
+	Processed          int64                             `json:"processed"`
+	Progress           int                               `json:"progress"`
+	TaskUpperID        int64                             `json:"task_upper_id"`
+	TaskCursor         int64                             `json:"task_cursor"`
+	LogUpperCursor     model.LogRequestBodyArchiveCursor `json:"log_upper_cursor"`
+	LogCursor          model.LogRequestBodyArchiveCursor `json:"log_cursor"`
+	ArchivedCount      int64                             `json:"archived_count"`
+	TaskRowsCleaned    int64                             `json:"task_rows_cleaned"`
+	LogRowsCleaned     int64                             `json:"log_rows_cleaned"`
+	InvalidRowsSkipped int64                             `json:"invalid_rows_skipped"`
+}
+
+type RequestBodyArchiveResult struct {
+	ScannedRows        int64 `json:"scanned_rows"`
+	ArchivedCount      int64 `json:"archived_count"`
+	TaskRowsCleaned    int64 `json:"task_rows_cleaned"`
+	LogRowsCleaned     int64 `json:"log_rows_cleaned"`
+	InvalidRowsSkipped int64 `json:"invalid_rows_skipped"`
 }
 
 var (
@@ -186,6 +224,31 @@ func StartLogCleanupTask(targetTimestamp int64) (*model.SystemTask, error) {
 	task, err := model.CreateSystemTask(model.SystemTaskTypeLogCleanup, payload, state)
 	if err != nil {
 		activeTask, activeErr := model.GetActiveSystemTask(model.SystemTaskTypeLogCleanup)
+		if activeErr == nil && activeTask != nil {
+			return activeTask, nil
+		}
+		return nil, err
+	}
+	notifySystemTaskRunner()
+	return task, nil
+}
+
+func StartRequestBodyArchiveTask() (*model.SystemTask, error) {
+	activeTask, err := model.GetActiveSystemTask(model.SystemTaskTypeRequestBodyArchive)
+	if err != nil {
+		return nil, err
+	}
+	if activeTask != nil {
+		return activeTask, nil
+	}
+
+	task, err := model.CreateSystemTask(
+		model.SystemTaskTypeRequestBodyArchive,
+		RequestBodyArchivePayload{BatchSize: logCleanupBatchSize},
+		RequestBodyArchiveState{},
+	)
+	if err != nil {
+		activeTask, activeErr := model.GetActiveSystemTask(model.SystemTaskTypeRequestBodyArchive)
 		if activeErr == nil && activeTask != nil {
 			return activeTask, nil
 		}
@@ -419,10 +482,213 @@ func runLogCleanupTask(ctx context.Context, task *model.SystemTask, runnerID str
 		return
 	}
 
-	result := LogCleanupResult{DeletedCount: state.Processed}
+	requestBodiesDeleted, err := model.DeleteOrphanTaskRequestBodiesBefore(ctx, payload.TargetTimestamp)
+	if err != nil {
+		failSystemTask(task, runnerID, err)
+		return
+	}
+	result := LogCleanupResult{
+		DeletedCount: state.Processed, RequestBodiesDeletedCount: requestBodiesDeleted,
+	}
 	if err := model.FinishSystemTask(task.TaskID, runnerID, model.SystemTaskStatusSucceeded, result, ""); err != nil {
 		logSystemTaskLockError(ctx, task, err)
 	}
+}
+
+func runRequestBodyArchiveTask(ctx context.Context, task *model.SystemTask, runnerID string) {
+	payload := RequestBodyArchivePayload{}
+	if err := task.DecodePayload(&payload); err != nil {
+		failSystemTask(task, runnerID, err)
+		return
+	}
+	if payload.BatchSize <= 0 {
+		payload.BatchSize = logCleanupBatchSize
+	}
+
+	state := RequestBodyArchiveState{}
+	if err := task.DecodeState(&state); err != nil {
+		failSystemTask(task, runnerID, err)
+		return
+	}
+	if !state.Initialized {
+		if err := initializeRequestBodyArchiveState(ctx, &state); err != nil {
+			failSystemTask(task, runnerID, err)
+			return
+		}
+		if err := model.UpdateSystemTaskState(task.TaskID, runnerID, state); err != nil {
+			logSystemTaskLockError(ctx, task, err)
+			return
+		}
+	}
+
+	for state.Phase == "tasks" {
+		if err := ctx.Err(); err != nil {
+			failSystemTask(task, runnerID, err)
+			return
+		}
+		rows, err := model.FindLegacyTaskRequestBodyBatch(ctx, state.TaskCursor, state.TaskUpperID, payload.BatchSize)
+		if err != nil {
+			failSystemTask(task, runnerID, err)
+			return
+		}
+		if len(rows) == 0 {
+			state.Phase = "logs"
+			if err := model.UpdateSystemTaskState(task.TaskID, runnerID, state); err != nil {
+				logSystemTaskLockError(ctx, task, err)
+				return
+			}
+			break
+		}
+		for _, row := range rows {
+			archived, archiveErr := model.ArchiveLegacyTaskRequestBody(ctx, row)
+			if archiveErr != nil {
+				failSystemTask(task, runnerID, archiveErr)
+				return
+			}
+			if archived {
+				state.ArchivedCount++
+				state.TaskRowsCleaned++
+			}
+			state.TaskCursor = row.ID
+			state.Processed++
+		}
+		state.Progress = requestBodyArchiveProgress(state.Processed, state.Total)
+		if err := model.UpdateSystemTaskState(task.TaskID, runnerID, state); err != nil {
+			logSystemTaskLockError(ctx, task, err)
+			return
+		}
+	}
+
+	for state.Phase == "logs" {
+		if err := ctx.Err(); err != nil {
+			failSystemTask(task, runnerID, err)
+			return
+		}
+		rows, err := model.FindLogRequestBodyArchiveBatch(ctx, state.LogCursor, state.LogUpperCursor, payload.BatchSize)
+		if err != nil {
+			failSystemTask(task, runnerID, err)
+			return
+		}
+		if len(rows) == 0 {
+			state.Phase = "complete"
+			break
+		}
+
+		updates := make([]model.LogRequestBodyArchiveUpdate, 0, len(rows))
+		for _, row := range rows {
+			state.LogCursor = model.LogRequestBodyArchiveCursor{
+				ID: row.ID, CreatedAt: row.CreatedAt, RequestID: row.RequestID, OtherSHA256: row.OtherSHA256,
+			}
+			state.Processed++
+			if row.Other == "" {
+				continue
+			}
+			other, parseErr := common.StrToMap(row.Other)
+			if parseErr != nil || other == nil {
+				state.InvalidRowsSkipped++
+				continue
+			}
+			requestBodyValue, hasRequestBody := other["request_body"]
+			if !hasRequestBody {
+				continue
+			}
+			requestBody, normalizeErr := normalizeArchivedRequestBody(requestBodyValue)
+			if normalizeErr != nil {
+				state.InvalidRowsSkipped++
+				continue
+			}
+			taskID, _ := other["task_id"].(string)
+			if taskID == "" && row.RequestID == "" {
+				state.InvalidRowsSkipped++
+				continue
+			}
+			if saveErr := model.SaveTaskRequestBodyAt(ctx, taskID, row.RequestID, requestBody, row.CreatedAt); saveErr != nil {
+				failSystemTask(task, runnerID, saveErr)
+				return
+			}
+			delete(other, "request_body")
+			other["request_body_available"] = true
+			if taskID == "" {
+				other["request_body_ref"] = "request:" + row.RequestID
+			}
+			updates = append(updates, model.LogRequestBodyArchiveUpdate{
+				ID: row.ID, CreatedAt: row.CreatedAt, RequestID: row.RequestID,
+				OriginalOther: row.Other, Other: common.MapToJsonStr(other),
+			})
+			state.ArchivedCount++
+			state.LogRowsCleaned++
+		}
+		if err := model.UpdateArchivedLogRequestBodies(ctx, updates); err != nil {
+			failSystemTask(task, runnerID, err)
+			return
+		}
+		state.Progress = requestBodyArchiveProgress(state.Processed, state.Total)
+		if err := model.UpdateSystemTaskState(task.TaskID, runnerID, state); err != nil {
+			logSystemTaskLockError(ctx, task, err)
+			return
+		}
+	}
+
+	state.Phase = "complete"
+	state.Progress = 100
+	if err := model.UpdateSystemTaskState(task.TaskID, runnerID, state); err != nil {
+		logSystemTaskLockError(ctx, task, err)
+		return
+	}
+	result := RequestBodyArchiveResult{
+		ScannedRows: state.Processed, ArchivedCount: state.ArchivedCount,
+		TaskRowsCleaned: state.TaskRowsCleaned, LogRowsCleaned: state.LogRowsCleaned,
+		InvalidRowsSkipped: state.InvalidRowsSkipped,
+	}
+	if err := model.FinishSystemTask(task.TaskID, runnerID, model.SystemTaskStatusSucceeded, result, ""); err != nil {
+		logSystemTaskLockError(ctx, task, err)
+	}
+}
+
+func initializeRequestBodyArchiveState(ctx context.Context, state *RequestBodyArchiveState) error {
+	taskUpperID, err := model.GetTaskRequestBodyArchiveUpperID(ctx)
+	if err != nil {
+		return err
+	}
+	logUpperCursor, err := model.GetLogRequestBodyArchiveUpperCursor(ctx)
+	if err != nil {
+		return err
+	}
+	taskTotal, err := model.CountTasksThroughID(ctx, taskUpperID)
+	if err != nil {
+		return err
+	}
+	logTotal, err := model.CountLogsThroughCursor(ctx, logUpperCursor)
+	if err != nil {
+		return err
+	}
+	state.Initialized = true
+	state.Phase = "tasks"
+	state.Total = taskTotal + logTotal
+	state.TaskUpperID = taskUpperID
+	state.LogUpperCursor = logUpperCursor
+	state.Progress = requestBodyArchiveProgress(state.Processed, state.Total)
+	return nil
+}
+
+func normalizeArchivedRequestBody(value any) ([]byte, error) {
+	if text, ok := value.(string); ok {
+		var decoded any
+		if err := common.Unmarshal([]byte(text), &decoded); err == nil {
+			return []byte(text), nil
+		}
+	}
+	return common.Marshal(value)
+}
+
+func requestBodyArchiveProgress(processed int64, total int64) int {
+	if total <= 0 || processed >= total {
+		return 100
+	}
+	if processed <= 0 {
+		return 0
+	}
+	return int(processed * 100 / total)
 }
 
 func syncLogCleanupStateFromRemaining(state *LogCleanupState, remaining int64) {

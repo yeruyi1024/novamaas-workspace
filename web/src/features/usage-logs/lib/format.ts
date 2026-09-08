@@ -29,6 +29,13 @@ import type { LogOtherData } from '../types'
 
 export { normalizeTierLabel }
 
+const MAX_LOG_OTHER_CACHE_CHARS = 4 * 1024 * 1024
+const parsedLogOtherCache = new Map<
+  string,
+  { value: LogOtherData | null; size: number }
+>()
+let parsedLogOtherCacheChars = 0
+
 const PARAM_OVERRIDE_ACTION_MAP: Record<string, string> = {
   set: 'Set',
   delete: 'Delete',
@@ -158,13 +165,36 @@ export function hasToolSurcharge(other: LogOtherData | null): boolean {
  */
 export function parseLogOther(other: string): LogOtherData | null {
   if (!other) return null
+  const cached = parsedLogOtherCache.get(other)
+  if (cached) {
+    parsedLogOtherCache.delete(other)
+    parsedLogOtherCache.set(other, cached)
+    return cached.value
+  }
+
+  let value: LogOtherData | null
   try {
-    return JSON.parse(other) as LogOtherData
+    value = JSON.parse(other) as LogOtherData
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to parse log other field:', error)
-    return null
+    value = null
   }
+
+  if (other.length > MAX_LOG_OTHER_CACHE_CHARS) return value
+  while (
+    parsedLogOtherCacheChars + other.length > MAX_LOG_OTHER_CACHE_CHARS &&
+    parsedLogOtherCache.size > 0
+  ) {
+    const oldestKey = parsedLogOtherCache.keys().next().value
+    if (oldestKey === undefined) break
+    const oldest = parsedLogOtherCache.get(oldestKey)
+    parsedLogOtherCache.delete(oldestKey)
+    parsedLogOtherCacheChars -= oldest?.size ?? 0
+  }
+  parsedLogOtherCache.set(other, { value, size: other.length })
+  parsedLogOtherCacheChars += other.length
+  return value
 }
 
 export function getReasoningEffortVariant(

@@ -77,7 +77,7 @@ func TestCaptureVideoTaskRequestBodyRequiresJSON(t *testing.T) {
 func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}))
+	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}, &model.TaskRequestBody{}))
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousErrorLogEnabled := constant.ErrorLogEnabled
 	previousRedisEnabled := common.RedisEnabled
@@ -102,6 +102,8 @@ func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 	c.Set("group", "default")
 	c.Set(string(constant.ContextKeyRequestStartTime), time.Now())
 	common.SetContextKey(c, constant.ContextKeyVideoTaskOriginalRequestBody, `{"prompt":"failed request"}`)
+	common.SetContextKey(c, constant.ContextKeyVideoTaskRequestBodyStored, true)
+	common.SetContextKey(c, constant.ContextKeyVideoTaskPublicID, "task_failed")
 	common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, true)
 	common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, 1)
 
@@ -116,9 +118,9 @@ func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 	var other map[string]any
 	require.NoError(t, common.Unmarshal([]byte(log.Other), &other))
 	assert.Equal(t, true, other["is_task"])
-	requestBody, ok := other["request_body"].(string)
-	require.True(t, ok)
-	assert.JSONEq(t, `{"prompt":"failed request"}`, requestBody)
+	assert.Equal(t, true, other["request_body_available"])
+	assert.Equal(t, "task_failed", other["task_id"])
+	assert.NotContains(t, other, "request_body")
 	assert.Equal(t, true, other["temporary_media_converted"])
 	assert.Equal(t, float64(1), other["temporary_media_converted_count"])
 }
@@ -126,22 +128,56 @@ func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 func TestGetTaskRequestBodyAllowsAdminLookup(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}))
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
+	previousDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = previousDB })
+
+	require.NoError(t, model.SaveTaskRequestBody("task_admin", "request_admin", []byte(`{"prompt":"admin-visible"}`)))
+
+	response := runTaskRequestBodyHandler(1, "task_admin", GetTaskRequestBody)
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.JSONEq(t, `{"success":true,"message":"","data":{"prompt":"admin-visible"}}`, response.Body.String())
+}
+
+func TestGetTaskRequestBodyFallsBackToLegacyTaskProperty(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
 	previousDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
 
 	require.NoError(t, db.Create(&model.Task{
-		TaskID: "task_admin",
+		TaskID: "task_legacy",
 		UserId: 73,
 		Properties: model.Properties{
-			RequestBody: json.RawMessage(`{"prompt":"admin-visible"}`),
+			RequestBody: json.RawMessage(`{"prompt":"legacy"}`),
 		},
 	}).Error)
 
-	response := runTaskRequestBodyHandler(1, "task_admin", GetTaskRequestBody)
+	response := runTaskRequestBodyHandler(1, "task_legacy", GetTaskRequestBody)
 	assert.Equal(t, http.StatusOK, response.Code)
-	assert.JSONEq(t, `{"success":true,"message":"","data":{"prompt":"admin-visible"}}`, response.Body.String())
+	assert.JSONEq(t, `{"success":true,"message":"","data":{"prompt":"legacy"}}`, response.Body.String())
+}
+
+func TestGetLogRequestBodySupportsLegacyErrorRequestID(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.TaskRequestBody{}))
+	previousDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = previousDB })
+	require.NoError(t, model.SaveTaskRequestBody("", "request_error", []byte(`{"prompt":"failed"}`)))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/log/request-body?request_id=request_error", nil)
+
+	GetLogRequestBody(c)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.JSONEq(t, `{"success":true,"message":"","data":{"prompt":"failed"}}`, recorder.Body.String())
 }
 
 func runTaskRequestBodyHandler(userID int, taskID string, handler gin.HandlerFunc) *httptest.ResponseRecorder {
