@@ -87,6 +87,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#17](https://github.com/yeruyi1024/novamaas-workspace/pull/17) | 2026-09-08 | `feat` | 对象存储 / 火山方舟 | 新增系统级存储 Profile 与用途 Policy，以私有阿里云 OSS 签名地址兼容火山原生 Base64 媒体请求，并实现任务终态清理、请求审计分流及管理员访问控制。 | NovaMaaS 下游专属；上游当前没有等价的火山 Base64 暂存、通用对象存储策略与审计分流组合实现。 | PR 审核中 |
 | [#14](https://github.com/yeruyi1024/novamaas-workspace/pull/14) | 2026-09-07 | `feat` | 视频任务 / 使用日志 | 为 DoubaoVideo 增加 302 重定向与 600 秒服务端代理模式，记录 DoubaoVideo、原生 Ark、阿里百炼视频任务请求体，并在鉴权日志详情中按数据可用性提供视频下载和格式化 JSON 查看入口。 | NovaMaaS 下游专属；上游当前没有等价的视频交付模式与任务请求审计组合实现。 | PR 审核中 |
 | [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | PR 审核中 |
 | [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 | 已合并 |
