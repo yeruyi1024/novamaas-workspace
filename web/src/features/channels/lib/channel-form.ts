@@ -22,6 +22,7 @@ import {
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_TYPE_DOUBAO_VIDEO,
   CHANNEL_TYPE_NEW_API,
+  CHANNEL_TYPE_VOLC_NATIVE,
   CHANNEL_STATUS,
   ERROR_MESSAGES,
   FIELD_PASSTHROUGH_TYPES,
@@ -279,6 +280,8 @@ export const channelFormSchema = z
     allow_speed: z.boolean().optional(), // Anthropic: speed mode control
     claude_beta_query: z.boolean().optional(), // Anthropic: beta query passthrough
     disable_task_polling_sleep: z.boolean().optional(),
+    base64_staging_enabled: z.boolean().optional(),
+    base64_staging_models: z.string().optional(),
     video_content_delivery_mode: z.enum(['proxy', 'redirect']).optional(),
     // Upstream model update settings (stored in settings JSON)
     upstream_model_update_check_enabled: z.boolean().optional(),
@@ -452,6 +455,8 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   allow_speed: false,
   claude_beta_query: false,
   disable_task_polling_sleep: false,
+  base64_staging_enabled: false,
+  base64_staging_models: '',
   video_content_delivery_mode: 'proxy',
   upstream_model_update_check_enabled: false,
   upstream_model_update_auto_sync_enabled: false,
@@ -517,6 +522,8 @@ export function transformChannelToFormDefaults(
   let allowSpeed = false
   let claudeBetaQuery = false
   let disableTaskPollingSleep = false
+  let base64StagingEnabled = false
+  let base64StagingModels = ''
   let videoContentDeliveryMode: 'proxy' | 'redirect' = 'proxy'
   let upstreamModelUpdateCheckEnabled = false
   let upstreamModelUpdateAutoSyncEnabled = false
@@ -538,6 +545,10 @@ export function transformChannelToFormDefaults(
       allowSpeed = parsed.allow_speed === true
       claudeBetaQuery = parsed.claude_beta_query === true
       disableTaskPollingSleep = parsed.disable_task_polling_sleep === true
+      base64StagingEnabled = parsed.base64_staging?.enabled === true
+      base64StagingModels = Array.isArray(parsed.base64_staging?.models)
+        ? parsed.base64_staging.models.join(',')
+        : ''
       videoContentDeliveryMode =
         parsed.video_content_delivery_mode === 'redirect' ? 'redirect' : 'proxy'
       upstreamModelUpdateCheckEnabled =
@@ -598,6 +609,8 @@ export function transformChannelToFormDefaults(
     allow_speed: allowSpeed,
     claude_beta_query: claudeBetaQuery,
     disable_task_polling_sleep: disableTaskPollingSleep,
+    base64_staging_enabled: base64StagingEnabled,
+    base64_staging_models: base64StagingModels,
     video_content_delivery_mode: videoContentDeliveryMode,
     allow_safety_identifier: allowSafetyIdentifier,
     upstream_model_update_check_enabled: upstreamModelUpdateCheckEnabled,
@@ -732,6 +745,26 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
 
   settingsObj.disable_task_polling_sleep =
     formData.disable_task_polling_sleep === true
+
+  if (
+    formData.type === CHANNEL_TYPE_VOLC_NATIVE &&
+    formData.base64_staging_enabled === true
+  ) {
+    settingsObj.base64_staging = {
+      enabled: true,
+      storage_policy: 'relay_media_temp',
+      models: [
+        ...new Set(
+          String(formData.base64_staging_models || '')
+            .split(',')
+            .map((model) => model.trim())
+            .filter(Boolean)
+        ),
+      ],
+    }
+  } else if ('base64_staging' in settingsObj) {
+    delete settingsObj.base64_staging
+  }
 
   if (formData.type === CHANNEL_TYPE_DOUBAO_VIDEO) {
     settingsObj.video_content_delivery_mode =

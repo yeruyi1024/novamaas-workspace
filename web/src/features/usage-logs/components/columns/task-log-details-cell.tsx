@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Braces, Download } from 'lucide-react'
+import { Braces, Download, Info } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -27,12 +27,15 @@ import { Spinner } from '@/components/ui/spinner'
 import { TASK_ACTIONS, TASK_STATUS } from '../../constants'
 import {
   downloadTaskVideo,
+  canGetTaskInformation,
+  getTaskInformation,
   getTaskRequestBody,
   getTaskVideoContentInfo,
 } from '../../task-content-api'
 import type { TaskLog } from '../../types'
 import { FailReasonDialog } from '../dialogs/fail-reason-dialog'
 import { RequestBodyDialog } from '../dialogs/request-body-dialog'
+import { TaskInformationDialog } from '../dialogs/task-information-dialog'
 
 const VIDEO_ACTIONS = new Set<string>([
   TASK_ACTIONS.GENERATE,
@@ -42,7 +45,7 @@ const VIDEO_ACTIONS = new Set<string>([
   TASK_ACTIONS.REMIX_GENERATE,
 ])
 
-function formatRequestBody(body: unknown): string {
+function formatJson(body: unknown): string {
   if (typeof body === 'string') {
     try {
       return JSON.stringify(JSON.parse(body), null, 2)
@@ -74,6 +77,12 @@ export function TaskLogDetailsCell({
   const [requestBodyLoading, setRequestBodyLoading] = useState(false)
   const [requestBodyError, setRequestBodyError] = useState(false)
   const [videoDownloading, setVideoDownloading] = useState(false)
+  const [taskInformationOpen, setTaskInformationOpen] = useState(false)
+  const [taskInformationJson, setTaskInformationJson] = useState<string | null>(
+    null
+  )
+  const [taskInformationLoading, setTaskInformationLoading] = useState(false)
+  const [taskInformationError, setTaskInformationError] = useState(false)
 
   const canDownloadVideo =
     log.status === TASK_STATUS.SUCCESS &&
@@ -87,15 +96,32 @@ export function TaskLogDetailsCell({
     setRequestBodyLoading(true)
     setRequestBodyError(false)
     try {
-      const response = await getTaskRequestBody(log.task_id, isAdmin)
+      const response = await getTaskRequestBody(log.task_id)
       if (!response.success || response.data === undefined) {
         throw new Error(response.message || 'request body unavailable')
       }
-      setRequestBodyJson(formatRequestBody(response.data))
+      setRequestBodyJson(formatJson(response.data))
     } catch {
       setRequestBodyError(true)
     } finally {
       setRequestBodyLoading(false)
+    }
+  }
+
+  const handleTaskInformation = async () => {
+    setTaskInformationOpen(true)
+    if (taskInformationLoading) return
+
+    setTaskInformationLoading(true)
+    setTaskInformationError(false)
+    setTaskInformationJson(null)
+    try {
+      const response = await getTaskInformation(log.task_id, log.platform)
+      setTaskInformationJson(formatJson(response))
+    } catch {
+      setTaskInformationError(true)
+    } finally {
+      setTaskInformationLoading(false)
     }
   }
 
@@ -138,7 +164,10 @@ export function TaskLogDetailsCell({
   }
 
   const hasDetails =
-    canDownloadVideo || log.request_body_available || Boolean(log.fail_reason)
+    canDownloadVideo ||
+    (isAdmin && log.request_body_available) ||
+    canGetTaskInformation(log.platform) ||
+    Boolean(log.fail_reason)
   if (!hasDetails) {
     return <span className='text-muted-foreground/60 text-xs'>-</span>
   }
@@ -161,7 +190,7 @@ export function TaskLogDetailsCell({
           {videoDownloading ? t('Downloading...') : t('Download video')}
         </Button>
       ) : null}
-      {log.request_body_available ? (
+      {isAdmin && log.request_body_available ? (
         <Button
           type='button'
           variant='ghost'
@@ -170,6 +199,22 @@ export function TaskLogDetailsCell({
         >
           <Braces data-icon='inline-start' />
           {t('View request body')}
+        </Button>
+      ) : null}
+      {canGetTaskInformation(log.platform) ? (
+        <Button
+          type='button'
+          variant='ghost'
+          size='xs'
+          disabled={taskInformationLoading}
+          onClick={handleTaskInformation}
+        >
+          {taskInformationLoading ? (
+            <Spinner data-icon='inline-start' />
+          ) : (
+            <Info data-icon='inline-start' />
+          )}
+          {t('View information')}
         </Button>
       ) : null}
       {log.fail_reason ? (
@@ -195,6 +240,13 @@ export function TaskLogDetailsCell({
         loading={requestBodyLoading}
         open={requestBodyOpen}
         onOpenChange={setRequestBodyOpen}
+      />
+      <TaskInformationDialog
+        error={taskInformationError}
+        json={taskInformationJson}
+        loading={taskInformationLoading}
+        open={taskInformationOpen}
+        onOpenChange={setTaskInformationOpen}
       />
     </div>
   )

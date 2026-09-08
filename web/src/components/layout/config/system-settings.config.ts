@@ -16,10 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 import {
   Box,
   CreditCard,
+  HardDriveUpload,
   Layout,
   Settings,
   Shield,
@@ -34,6 +35,7 @@ import { getModelsSectionNavItems } from '@/features/system-settings/models/sect
 import { getOperationsSectionNavItems } from '@/features/system-settings/operations/section-registry.tsx'
 import { getSecuritySectionNavItems } from '@/features/system-settings/security/section-registry.tsx'
 import { getSiteSectionNavItems } from '@/features/system-settings/site/section-registry.tsx'
+import { getStorageSectionNavItems } from '@/features/system-settings/storage/section-registry'
 
 import type { NavGroup, SidebarView } from '../types'
 
@@ -79,6 +81,11 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
           title: t('Console Content'),
           icon: Layout,
           items: getContentSectionNavItems(t),
+        },
+        {
+          title: t('Storage'),
+          icon: HardDriveUpload,
+          items: getStorageSectionNavItems(t),
         },
         {
           title: t('Operations'),

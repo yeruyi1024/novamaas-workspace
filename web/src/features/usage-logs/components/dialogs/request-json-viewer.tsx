@@ -23,13 +23,19 @@ import {
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block'
 
-export default function RequestJsonViewer({ json }: { json: string }) {
+export default function RequestJsonViewer({
+  filename = 'request-body.json',
+  json,
+}: {
+  filename?: string
+  json: string
+}) {
   const { t } = useTranslation()
   return (
     <CodeBlock
       code={json}
       enableCollapse={false}
-      filename='request-body.json'
+      filename={filename}
       language='json'
       maxExpandedLines={28}
       showLineNumbers

@@ -48,6 +48,20 @@ NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、�
 > [!NOTE]
 > “持续增强”与“产品路线图”用于区分已经交付的基础能力和后续建设方向，不代表尚未发布的功能已经可用于生产环境。正式能力范围以对应版本说明和实际界面为准。
 
+### 对象存储与火山 Base64 兼容增强
+
+系统设置新增通用“存储配置（Profile）+ 用途策略（Policy）”模型，首个驱动为阿里云 OSS。火山原生渠道可按渠道及模型开启 Base64 媒体暂存：平台校验并上传 `content[].image_url.url` 中的 JPEG、PNG 或 WebP Data URI，并在发往上游的请求副本中替换为限时签名 HTTPS 地址。任务日志保存并展示实际发送给上游的转换后请求；使用日志为管理员保留原始 Base64 请求并标记“已被临时存储转换”，非管理员无法查看请求体。
+
+- OSS Bucket 应保持私有，不需要设置公共读；平台使用 OSS V4 签名地址提供临时访问，最长有效期为 168 小时。
+- 静态 AccessKey 在数据库中使用 AES-GCM 加密。生产部署应显式配置稳定的 `STORAGE_CREDENTIAL_ENCRYPTION_KEY`；未配置时会依次尝试复用 `CRYPTO_SECRET`、`SESSION_SECRET`，三者均缺失则拒绝保存静态凭证。
+- 对象路径包含用途前缀、UTC 日期、不可逆用户标识和任务 ID，实现用户与任务隔离；Data URI 声明的 MIME 类型必须与解码后的文件特征一致，并受单文件、单请求总量和文件数限制。
+- 为保证 SQLite、MySQL 和 PostgreSQL 默认部署下都能完整记录原始请求，当前视频任务请求体仍执行 2 MiB 审计写入上限；超限请求会在上传前明确拒绝，不会以丢弃或改写 Base64 日志换取继续执行。
+- 任务成功、失败或确认取消后会触发清理；上传失败、进程中断和上游状态不确定时由数据库租约重试与最长保留期限兜底，成功删除后的对象账本墓碑保留 30 天再分批清理。建议同时在 OSS 配置生命周期规则，按 `temporary/relay-media/` 前缀做更长周期的灾难兜底清理。
+- 本次只新增 `storage_profiles`、`storage_credentials`、`storage_policies`、`storage_objects` 四张表，不修改既有数据库表字段。Profile 的服务商类型已为腾讯云 COS 和 S3 兼容存储（包括 MinIO）预留，当前尚未启用对应驱动；后续素材库可复用同一存储层并按用途生成临时授权地址。
+- 火山原生和 DoubaoVideo 任务日志支持直接查询任务信息，分别复用 `/api/v3/contents/generations/tasks/{taskID}` 和 `/v1/video/generations/{taskID}`；普通用户只能查询自己的任务，管理员可从任务日志跨用户诊断。
+
+配置顺序：先在“系统设置 → 存储 → 对象存储”创建并测试 OSS 配置，再启用“中转媒体临时存储”策略，最后在目标火山原生渠道的高级设置中开启“Base64 媒体暂存”。阿里云侧最小权限需覆盖目标业务前缀以及 `temporary/relay-media/healthcheck/` 测试前缀的上传、签名读取和删除；接口行为参考[阿里云 OSS Go SDK V2 文档](https://help.aliyun.com/zh/oss/developer-reference/manual-for-go-sdk-v2/)、[V4 预签名下载文档](https://help.aliyun.com/en/oss/developer-reference/v2-presign-download)和[生命周期规则文档](https://help.aliyun.com/zh/oss/user-guide/lifecycle-rules-based-on-the-last-modified-time/)，火山请求格式参考[火山方舟原生内容生成接口](https://docs.volcengine.com/docs/82379/1520757?lang=zh)。
+
 ## 产品路线图
 
 NovaMaaS 将围绕供应聚合、商业运营和算力资源三个方向持续演进。路线图不绑定未经验证的交付日期，每项能力会在完成实现、测试与版本记录后正式发布。
@@ -73,6 +87,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#17](https://github.com/yeruyi1024/novamaas-workspace/pull/17) | 2026-09-08 | `feat` | 对象存储 / 火山方舟 | 新增系统级存储 Profile 与用途 Policy，以私有阿里云 OSS 签名地址兼容火山原生 Base64 媒体请求，并实现任务终态清理、请求审计分流及管理员访问控制。 | NovaMaaS 下游专属；上游当前没有等价的火山 Base64 暂存、通用对象存储策略与审计分流组合实现。 | PR 审核中 |
 | [#14](https://github.com/yeruyi1024/novamaas-workspace/pull/14) | 2026-09-07 | `feat` | 视频任务 / 使用日志 | 为 DoubaoVideo 增加 302 重定向与 600 秒服务端代理模式，记录 DoubaoVideo、原生 Ark、阿里百炼视频任务请求体，并在鉴权日志详情中按数据可用性提供视频下载和格式化 JSON 查看入口。 | NovaMaaS 下游专属；上游当前没有等价的视频交付模式与任务请求审计组合实现。 | PR 审核中 |
 | [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | PR 审核中 |
 | [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 | 已合并 |

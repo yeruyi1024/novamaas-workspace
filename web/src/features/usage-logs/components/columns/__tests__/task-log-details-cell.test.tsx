@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import {
   downloadTaskVideo,
+  getTaskInformation,
   getTaskVideoContentInfo,
   getTaskRequestBody,
 } from '../../../task-content-api'
@@ -28,7 +29,10 @@ import type { TaskLog } from '../../../types'
 import { TaskLogDetailsCell } from '../task-log-details-cell'
 
 vi.mock('../../../task-content-api', () => ({
+  canGetTaskInformation: (platform: string) =>
+    platform === '54' || platform === '61',
   downloadTaskVideo: vi.fn(),
+  getTaskInformation: vi.fn(),
   getTaskVideoContentInfo: vi.fn(),
   getTaskRequestBody: vi.fn(),
 }))
@@ -58,6 +62,7 @@ describe('TaskLogDetailsCell', () => {
     vi.mocked(getTaskRequestBody).mockReset()
     vi.mocked(downloadTaskVideo).mockReset()
     vi.mocked(getTaskVideoContentInfo).mockReset()
+    vi.mocked(getTaskInformation).mockReset()
   })
 
   test('shows the formatted request JSON regardless of task status', async () => {
@@ -68,7 +73,7 @@ describe('TaskLogDetailsCell', () => {
 
     render(
       <TaskLogDetailsCell
-        isAdmin={false}
+        isAdmin
         log={{
           ...successfulVideoLog,
           status: 'FAILURE',
@@ -80,7 +85,7 @@ describe('TaskLogDetailsCell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View request body' }))
 
     await waitFor(() =>
-      expect(getTaskRequestBody).toHaveBeenCalledWith('task_video', false)
+      expect(getTaskRequestBody).toHaveBeenCalledWith('task_video')
     )
     expect((await screen.findByTestId('request-json')).textContent).toBe(`{
   "prompt": "hello",
@@ -89,6 +94,25 @@ describe('TaskLogDetailsCell', () => {
   }
 }`)
     expect(screen.getByText('upstream failed')).toBeInTheDocument()
+  })
+
+  test('hides the request body action from non-administrators', () => {
+    render(
+      <TaskLogDetailsCell
+        isAdmin={false}
+        log={{
+          ...successfulVideoLog,
+          platform: 'other',
+          result_url: undefined,
+        }}
+      />
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'View request body' })
+    ).not.toBeInTheDocument()
+    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(screen.getByText('-')).toBeInTheDocument()
   })
 
   test('downloads successful video content through the authenticated API', async () => {
@@ -146,12 +170,46 @@ describe('TaskLogDetailsCell', () => {
     expect(downloadTaskVideo).not.toHaveBeenCalled()
   })
 
+  test.each([
+    { platform: '54', taskId: 'task_doubao' },
+    { platform: '61', taskId: 'task_volc_native' },
+  ])(
+    'queries and displays task information for platform $platform',
+    async ({ platform, taskId }) => {
+      vi.mocked(getTaskInformation).mockResolvedValue({
+        id: taskId,
+        status: 'succeeded',
+      })
+
+      render(
+        <TaskLogDetailsCell
+          isAdmin
+          log={{
+            ...successfulVideoLog,
+            platform,
+            task_id: taskId,
+          }}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'View information' }))
+
+      await waitFor(() =>
+        expect(getTaskInformation).toHaveBeenCalledWith(taskId, platform)
+      )
+      expect((await screen.findByTestId('request-json')).textContent).toContain(
+        `"id": "${taskId}"`
+      )
+    }
+  )
+
   test('hides unavailable request body and video actions for legacy tasks', () => {
     render(
       <TaskLogDetailsCell
         isAdmin={false}
         log={{
           ...successfulVideoLog,
+          platform: 'other',
           result_url: undefined,
           request_body_available: false,
         }}
@@ -163,6 +221,9 @@ describe('TaskLogDetailsCell', () => {
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'View request body' })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'View information' })
     ).not.toBeInTheDocument()
     expect(screen.getByText('-')).toBeInTheDocument()
   })

@@ -236,6 +236,8 @@ export interface LogOtherData {
   task_id?: string
   request_body_available?: boolean
   request_body?: unknown
+  temporary_media_converted?: boolean
+  temporary_media_converted_count?: number
   reason?: string
   // Subscription billing fields
   subscription_plan_id?: string

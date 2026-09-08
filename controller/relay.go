@@ -23,6 +23,7 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
+	storageService "github.com/QuantumNous/new-api/service/storage"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
@@ -37,8 +38,6 @@ import (
 // leaving room for the task row and protocol overhead. Larger media inputs
 // should use URLs instead of embedding base64 data in the request body.
 const maxStoredVideoTaskRequestBodyBytes = 2 * 1024 * 1024
-
-const videoTaskRequestBodyLogKey = "video_task_request_body_log"
 
 var errVideoTaskRequestBodyTooLarge = errors.New("video task request body exceeds the 2 MiB persistence limit")
 
@@ -415,9 +414,15 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		other["channel_id"] = channelId
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
-		if requestBody := c.GetString(videoTaskRequestBodyLogKey); requestBody != "" {
+		if requestBody := common.GetContextKeyString(c, constant.ContextKeyVideoTaskOriginalRequestBody); requestBody != "" {
 			other["is_task"] = true
 			other["request_body"] = requestBody
+		}
+		if common.GetContextKeyBool(c, constant.ContextKeyTemporaryMediaConverted) {
+			other["temporary_media_converted"] = true
+			if count := common.GetContextKeyInt(c, constant.ContextKeyTemporaryMediaConvertedCount); count > 0 {
+				other["temporary_media_converted_count"] = count
+			}
 		}
 		adminInfo := make(map[string]interface{})
 		adminInfo["use_channel"] = c.GetStringSlice("use_channel")
@@ -593,7 +598,10 @@ func RelayTask(c *gin.Context) {
 			taskErr = service.TaskErrorWrapperLocal(bodyErr, "persist_request_body_failed", statusCode)
 			break
 		}
-		c.Set(videoTaskRequestBodyLogKey, string(requestBodyToStore))
+		common.SetContextKey(c, constant.ContextKeyVideoTaskOriginalRequestBody, string(requestBodyToStore))
+		common.SetContextKey(c, constant.ContextKeyVideoTaskUpstreamRequestBody, "")
+		common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, false)
+		common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, 0)
 		c.Request.Body = io.NopCloser(bodyStorage)
 
 		result, taskErr = relay.RelayTaskSubmit(c, relayInfo)
@@ -643,13 +651,20 @@ func RelayTask(c *gin.Context) {
 		task.Quota = result.Quota
 		task.Data = result.TaskData
 		task.Action = relayInfo.Action
-		task.Properties.RequestBody = requestBodyToStore
+		if upstreamBody := common.GetContextKeyString(c, constant.ContextKeyVideoTaskUpstreamRequestBody); upstreamBody != "" {
+			task.Properties.RequestBody = []byte(upstreamBody)
+		} else {
+			task.Properties.RequestBody = requestBodyToStore
+		}
 		if insertErr := task.Insert(); insertErr != nil {
 			common.SysError("insert task error: " + insertErr.Error())
 		}
 	}
 
 	if taskErr != nil {
+		if relayInfo.PublicTaskID != "" && taskErr.StatusCode >= http.StatusBadRequest && taskErr.StatusCode < http.StatusInternalServerError && taskErr.StatusCode != http.StatusRequestTimeout && taskErr.StatusCode != http.StatusTooManyRequests {
+			storageService.ScheduleTaskCleanup(relayInfo.PublicTaskID, common.GetTimestamp())
+		}
 		respondTaskError(c, taskErr)
 	}
 }

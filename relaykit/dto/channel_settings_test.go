@@ -10,6 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBase64StagingModelAllowlist(t *testing.T) {
+	settings := &ChannelOtherSettings{Base64Staging: &Base64StagingSettings{
+		Enabled: true,
+		Models:  []string{"seedance-enabled"},
+	}}
+
+	assert.True(t, settings.IsBase64StagingEnabled("seedance-enabled"))
+	assert.False(t, settings.IsBase64StagingEnabled("seedance-disabled"))
+	settings.Base64Staging.Models = nil
+	assert.True(t, settings.IsBase64StagingEnabled("any-model"))
+	settings.Base64Staging.Enabled = false
+	assert.False(t, settings.IsBase64StagingEnabled("any-model"))
+}
+
 func TestAdvancedCustomValidateResponsesToChatConverterPath(t *testing.T) {
 	valid := &AdvancedCustomConfig{
 		Routes: []AdvancedCustomRoute{

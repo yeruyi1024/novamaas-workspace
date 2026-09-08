@@ -215,6 +215,19 @@ func SetApiRouter(router *gin.Engine) {
 			customOAuthRoute.PUT("/:id", controller.UpdateCustomOAuthProvider)
 			customOAuthRoute.DELETE("/:id", controller.DeleteCustomOAuthProvider)
 		}
+		storageRoute := apiRouter.Group("/storage")
+		storageRoute.Use(middleware.RootAuth())
+		{
+			storageRoute.GET("/profiles", controller.ListStorageProfiles)
+			storageRoute.GET("/profiles/:id", controller.GetStorageProfile)
+			storageRoute.POST("/profiles", controller.CreateStorageProfile)
+			storageRoute.PUT("/profiles/:id", controller.UpdateStorageProfile)
+			storageRoute.DELETE("/profiles/:id", controller.DeleteStorageProfile)
+			storageRoute.POST("/profiles/test", controller.TestStorageProfileInput)
+			storageRoute.POST("/profiles/:id/test", controller.TestSavedStorageProfile)
+			storageRoute.GET("/policies/relay-media-temp", controller.GetRelayMediaStoragePolicy)
+			storageRoute.PUT("/policies/relay-media-temp", controller.UpdateRelayMediaStoragePolicy)
+		}
 		performanceRoute := apiRouter.Group("/performance")
 		performanceRoute.Use(middleware.RootAuth())
 		{
@@ -327,7 +340,6 @@ func SetApiRouter(router *gin.Engine) {
 		taskRoute := apiRouter.Group("/task")
 		{
 			taskRoute.GET("/self", middleware.UserAuth(), controller.GetUserTask)
-			taskRoute.GET("/self/:task_id/request-body", middleware.UserAuth(), controller.GetUserTaskRequestBody)
 			taskRoute.GET("/", middleware.AdminAuth(), controller.GetAllTask)
 			taskRoute.GET("/:task_id/request-body", middleware.AdminAuth(), controller.GetTaskRequestBody)
 		}

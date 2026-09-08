@@ -23,6 +23,10 @@ import {
   CHANNEL_TYPE_VOLC_NATIVE,
   CHANNEL_TYPE_WARNINGS,
 } from '../../constants'
+import {
+  CHANNEL_FORM_DEFAULT_VALUES,
+  transformFormDataToCreatePayload,
+} from '../channel-form'
 import { getChannelTypeConfig, getDefaultBaseUrl } from '../channel-type-config'
 import { getChannelTypeIcon, getKeyPromptForType } from '../channel-utils'
 
@@ -49,5 +53,40 @@ describe('Volc Native channel', () => {
     expect(CHANNEL_TYPE_WARNINGS[CHANNEL_TYPE_VOLC_NATIVE]).toBe(
       'Use native /api/v3 endpoints. Model mapping rewrites only the top-level model field; parameter overrides are not supported.'
     )
+  })
+
+  test('serializes Base64 staging as a Volc Native-only channel setting', () => {
+    const result = transformFormDataToCreatePayload({
+      ...CHANNEL_FORM_DEFAULT_VALUES,
+      name: 'volc-native',
+      type: CHANNEL_TYPE_VOLC_NATIVE,
+      key: 'test-key',
+      models: 'doubao-seedance-1-0-pro',
+      group: ['default'],
+      base64_staging_enabled: true,
+      base64_staging_models:
+        'doubao-seedance-1-0-pro, doubao-seedance-1-0-pro, custom-model',
+    })
+
+    expect(JSON.parse(String(result.channel.settings))).toMatchObject({
+      base64_staging: {
+        enabled: true,
+        storage_policy: 'relay_media_temp',
+        models: ['doubao-seedance-1-0-pro', 'custom-model'],
+      },
+    })
+
+    const nonVolcResult = transformFormDataToCreatePayload({
+      ...CHANNEL_FORM_DEFAULT_VALUES,
+      name: 'openai',
+      type: 1,
+      key: 'test-key',
+      models: 'gpt-4o',
+      group: ['default'],
+      base64_staging_enabled: true,
+    })
+    expect(
+      JSON.parse(String(nonVolcResult.channel.settings))
+    ).not.toHaveProperty('base64_staging')
   })
 })

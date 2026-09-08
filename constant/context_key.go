@@ -60,6 +60,15 @@ const (
 	// ContextKeyFileSourcesToCleanup stores file sources that need cleanup when request ends
 	ContextKeyFileSourcesToCleanup ContextKey = "file_sources_to_cleanup"
 
+	// Async video task request bodies have two distinct audit views. The
+	// original body is retained for administrator-only usage logs, while the
+	// upstream body is persisted with the task after provider-specific
+	// transformations such as Base64 media staging.
+	ContextKeyVideoTaskOriginalRequestBody ContextKey = "video_task_original_request_body"
+	ContextKeyVideoTaskUpstreamRequestBody ContextKey = "video_task_upstream_request_body"
+	ContextKeyTemporaryMediaConverted      ContextKey = "temporary_media_converted"
+	ContextKeyTemporaryMediaConvertedCount ContextKey = "temporary_media_converted_count"
+
 	// ContextKeyAdminRejectReason stores an admin-only reject/block reason extracted from upstream responses.
 	// It is not returned to end users, but can be persisted into consume/error logs for debugging.
 	ContextKeyAdminRejectReason ContextKey = "admin_reject_reason"

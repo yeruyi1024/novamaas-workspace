@@ -17,33 +17,45 @@ func SetVideoRouter(router *gin.Engine) {
 		videoProxyRouter.GET("/videos/:task_id/content", controller.VideoProxy)
 	}
 
-	videoV1Router := router.Group("/v1")
-	videoV1Router.Use(middleware.RouteTag("relay"))
-	videoV1Router.Use(middleware.TokenAuth(), middleware.Distribute())
+	videoV1WriteRouter := router.Group("/v1")
+	videoV1WriteRouter.Use(middleware.RouteTag("relay"))
+	videoV1WriteRouter.Use(middleware.TokenAuth(), middleware.Distribute())
 	{
-		videoV1Router.POST("/video/generations", controller.RelayTask)
-		videoV1Router.GET("/video/generations/:task_id", controller.RelayTaskFetch)
-		videoV1Router.POST("/videos/:video_id/remix", controller.RelayTask)
+		videoV1WriteRouter.POST("/video/generations", controller.RelayTask)
+		videoV1WriteRouter.POST("/videos/:video_id/remix", controller.RelayTask)
+		videoV1WriteRouter.POST("/videos", controller.RelayTask)
 	}
-	// openai compatible API video routes
-	// docs: https://platform.openai.com/docs/api-reference/videos/create
+
+	// Task detail reads are also used by the authenticated dashboard. The
+	// response builder still enforces owner access, with an administrator-only
+	// cross-user lookup for the task log page.
+	videoV1ReadRouter := router.Group("/v1")
+	videoV1ReadRouter.Use(middleware.RouteTag("relay"))
+	videoV1ReadRouter.Use(middleware.TokenOrUserAuth(), middleware.Distribute())
 	{
-		videoV1Router.POST("/videos", controller.RelayTask)
-		videoV1Router.GET("/videos/:task_id", controller.RelayTaskFetch)
+		videoV1ReadRouter.GET("/video/generations/:task_id", controller.RelayTaskFetch)
+		videoV1ReadRouter.GET("/videos/:task_id", controller.RelayTaskFetch)
 	}
 
 	// Fire Ark native async content-generation API. These routes deliberately
 	// stay outside /v1 so only ChannelTypeVolcNative can serve them.
-	volcNativeRouter := router.Group("/api/v3")
-	volcNativeRouter.Use(middleware.RouteTag("relay"))
-	volcNativeRouter.Use(middleware.SystemPerformanceCheck())
-	volcNativeRouter.Use(middleware.TokenAuth())
-	volcNativeRouter.Use(middleware.ModelRequestRateLimit())
+	volcNativeWriteRouter := router.Group("/api/v3")
+	volcNativeWriteRouter.Use(middleware.RouteTag("relay"))
+	volcNativeWriteRouter.Use(middleware.SystemPerformanceCheck())
+	volcNativeWriteRouter.Use(middleware.TokenAuth())
+	volcNativeWriteRouter.Use(middleware.ModelRequestRateLimit())
 	{
-		volcNativeRouter.POST("/contents/generations/tasks", middleware.Distribute(), controller.RelayTask)
-		volcNativeRouter.GET("/contents/generations/tasks", controller.RelayVolcNativeTaskList)
-		volcNativeRouter.GET("/contents/generations/tasks/:task_id", controller.RelayVolcNativeTaskFetch)
-		volcNativeRouter.DELETE("/contents/generations/tasks/:task_id", controller.RelayVolcNativeTaskDelete)
+		volcNativeWriteRouter.POST("/contents/generations/tasks", middleware.Distribute(), controller.RelayTask)
+		volcNativeWriteRouter.DELETE("/contents/generations/tasks/:task_id", controller.RelayVolcNativeTaskDelete)
+	}
+
+	volcNativeReadRouter := router.Group("/api/v3")
+	volcNativeReadRouter.Use(middleware.RouteTag("relay"))
+	volcNativeReadRouter.Use(middleware.SystemPerformanceCheck())
+	volcNativeReadRouter.Use(middleware.TokenOrUserAuth())
+	{
+		volcNativeReadRouter.GET("/contents/generations/tasks", controller.RelayVolcNativeTaskList)
+		volcNativeReadRouter.GET("/contents/generations/tasks/:task_id", controller.RelayVolcNativeTaskFetch)
 	}
 
 	klingV1Router := router.Group("/kling/v1")

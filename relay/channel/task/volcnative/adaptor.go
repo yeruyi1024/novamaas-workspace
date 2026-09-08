@@ -19,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/task/doubao"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
+	storageService "github.com/QuantumNous/new-api/service/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -36,6 +37,11 @@ var ModelList = []string{
 
 type TaskAdaptor struct {
 	doubao.TaskAdaptor
+}
+
+type stagedRequestBody struct {
+	body           []byte
+	convertedCount int
 }
 
 func (a *TaskAdaptor) GetChannelName() string { return "volc-native-task" }
@@ -86,10 +92,38 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
+	if info.ChannelOtherSettings.IsBase64StagingEnabled(info.OriginModelName) {
+		policyKey := info.ChannelOtherSettings.Base64Staging.StoragePolicy
+		cacheKey := "volc_native_base64_staging:" + policyKey
+		if cached, exists := c.Get(cacheKey); exists {
+			if staged, ok := cached.(stagedRequestBody); ok {
+				body = staged.body
+				common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, staged.convertedCount)
+				common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, staged.convertedCount > 0)
+			}
+		} else {
+			var convertedCount int
+			body, convertedCount, err = storageService.MaterializeVolcNativeBase64(
+				c.Request.Context(),
+				body,
+				info.UserId,
+				info.RequestId,
+				info.PublicTaskID,
+				policyKey,
+			)
+			if err != nil {
+				return nil, err
+			}
+			c.Set(cacheKey, stagedRequestBody{body: body, convertedCount: convertedCount})
+			common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, convertedCount)
+			common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, convertedCount > 0)
+		}
+	}
 	body, err = helper.ApplyModelMappingToJSONBody(info, body)
 	if err != nil {
 		return nil, err
 	}
+	common.SetContextKey(c, constant.ContextKeyVideoTaskUpstreamRequestBody, string(body))
 	return bytes.NewReader(body), nil
 }
 

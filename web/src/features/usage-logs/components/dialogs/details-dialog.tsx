@@ -611,10 +611,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
   )
   const hasEmbeddedRequestBody = other?.request_body !== undefined
   const showRequestBody =
-    hasEmbeddedRequestBody ||
-    (other?.is_task === true &&
-      other.request_body_available === true &&
-      Boolean(other.task_id))
+    props.isAdmin &&
+    (hasEmbeddedRequestBody ||
+      (other?.is_task === true &&
+        other.request_body_available === true &&
+        Boolean(other.task_id)))
 
   return (
     <Dialog
@@ -694,6 +695,20 @@ export function DetailsDialog(props: DetailsDialogProps) {
               label={t('Group')}
               value={props.log.group || other?.group || ''}
               mono
+            />
+          )}
+
+          {other?.temporary_media_converted === true && (
+            <DetailRow
+              label={t('Temporary media conversion')}
+              value={
+                <StatusBadge
+                  label={t('Temporarily stored and converted')}
+                  variant='info'
+                  size='sm'
+                  copyable={false}
+                />
+              }
             />
           )}
 
