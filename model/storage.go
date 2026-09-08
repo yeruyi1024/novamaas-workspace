@@ -204,7 +204,7 @@ func GetActiveStorageCredential(profileID int) (*StorageCredential, error) {
 
 func GetStoragePolicyByKey(key string) (*StoragePolicy, error) {
 	var policy StoragePolicy
-	err := DB.Where("key = ?", key).First(&policy).Error
+	err := DB.Where(map[string]any{"key": key}).First(&policy).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
