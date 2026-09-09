@@ -87,6 +87,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) | 2026-09-09 | `feat/fix/perf` | 视频任务 / 日志 / 登录与审计 | 为阿里百炼增加任务详情实时拉取；公开视频默认直连资源方并保留 `/content` 代理兼容模式；登录会话调整为 24 小时；新增系统公告、视频生成与违规统计、强制知晓及设备指纹审计；修复普通用户使用日志字段丢失。 | NovaMaaS 下游专属；其中用量统计修复同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e)。 | PR 审核中 |
 | [#20](https://github.com/yeruyi1024/novamaas-workspace/pull/20) | 2026-09-08 | `perf` | 日志 / 任务审计 | 将任务请求体从 `logs.other` 与 `tasks.properties` 迁移至独立归档表，保留管理员按需查看，并通过可恢复批处理清理历史热表载荷。 | NovaMaaS 下游专属；上游当前没有独立请求体归档、按需审计读取与历史迁移组合能力。 | PR 审核中 |
 | [#19](https://github.com/yeruyi1024/novamaas-workspace/pull/19) | 2026-09-08 | `feat` | 视频任务 / 计费 | 为 Doubao Seedance 2.0 增加稳定公开模型名，使其可映射到不同上游模型 ID，同时复用 720p、1080p、4K 与视频输入计费倍率。 | NovaMaaS 下游专属；上游当前没有该稳定公开别名及其参数计费映射。 | PR 审核中 |
 | [#18](https://github.com/yeruyi1024/novamaas-workspace/pull/18) | 2026-09-08 | `fix` | 对象存储 / 数据兼容 | 使用 GORM 方言感知条件引用存储策略 `key` 列，修复 MySQL 1064 错误，并增加 SQLite、MySQL、PostgreSQL 查询回归测试。 | NovaMaaS 下游专属；属于 #17 对象存储能力的兼容性修复，上游当前没有等价的存储策略实现。 | PR 审核中 |

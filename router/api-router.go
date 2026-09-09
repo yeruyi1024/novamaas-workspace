@@ -85,6 +85,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/sessions", middleware.DisableCache(), controller.GetLoginSessions)
 				selfRoute.DELETE("/sessions/:sid", middleware.DisableCache(), controller.DeleteLoginSession)
 				selfRoute.POST("/sessions/revoke-others", middleware.DisableCache(), controller.RevokeOtherLoginSessions)
+				selfRoute.GET("/login-notice", middleware.DisableCache(), controller.GetLoginNotice)
+				selfRoute.POST("/login-notice/acknowledge", middleware.DisableCache(), controller.AcknowledgeLoginNotice)
 				selfRoute.GET("/self/groups", controller.GetUserGroups)
 				selfRoute.GET("/self", controller.GetSelf)
 				selfRoute.GET("/models", controller.GetUserModels)

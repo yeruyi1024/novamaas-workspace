@@ -35,6 +35,9 @@ func TestHardDeleteUserFailsClosedWhenAuthFenceCannotPublish(t *testing.T) {
 		Status: UserSessionStatusActive, RefreshHash: "refresh-hash", LoginMethod: "password",
 		LastActiveAt: 1, ExpiresAt: 2,
 	}).Error)
+	require.NoError(t, DB.Create(&LoginNoticeAcknowledgement{
+		UserID: user.Id, SessionID: "hard-delete-session", DeviceFingerprint: "fingerprint",
+	}).Error)
 	require.NoError(t, DB.Create(&AuthFlow{
 		TokenHash: "hard-delete-auth-flow", Purpose: AuthFlowPurposeTwoFALogin,
 		UserId: user.Id, ExpiresAt: time.Now().Add(time.Minute),
@@ -65,6 +68,7 @@ func TestHardDeleteUserFailsClosedWhenAuthFenceCannotPublish(t *testing.T) {
 		&PasskeyCredential{},
 		&UserOAuthBinding{},
 		&UserSession{},
+		&LoginNoticeAcknowledgement{},
 		&AuthFlow{},
 		&ExternalIdentityClaim{},
 	} {
@@ -95,6 +99,9 @@ func TestHardDeleteUserPublishesTombstoneAndPurgesAuthenticationData(t *testing.
 		Status: UserSessionStatusActive, RefreshHash: "refresh-hash", LoginMethod: "password",
 		LastActiveAt: 1, ExpiresAt: 2,
 	}).Error)
+	require.NoError(t, DB.Create(&LoginNoticeAcknowledgement{
+		UserID: user.Id, SessionID: "hard-delete-success-session", DeviceFingerprint: "fingerprint",
+	}).Error)
 	require.NoError(t, DB.Create(&AuthFlow{
 		TokenHash: "hard-delete-success-flow", Purpose: AuthFlowPurposeTwoFALogin,
 		UserId: user.Id, ExpiresAt: time.Now().Add(time.Minute),
@@ -116,6 +123,7 @@ func TestHardDeleteUserPublishesTombstoneAndPurgesAuthenticationData(t *testing.
 		&PasskeyCredential{},
 		&UserOAuthBinding{},
 		&UserSession{},
+		&LoginNoticeAcknowledgement{},
 		&AuthFlow{},
 		&ExternalIdentityClaim{},
 	} {

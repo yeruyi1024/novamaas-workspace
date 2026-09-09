@@ -39,6 +39,7 @@ func TestMain(m *testing.M) {
 		&TaskRequestBody{},
 		&User{},
 		&UserSession{},
+		&LoginNoticeAcknowledgement{},
 		&AuthFlow{},
 		&ExternalIdentityClaim{},
 		&Token{},
@@ -73,6 +74,7 @@ func truncateTables(t *testing.T) {
 		DB.Exec("DELETE FROM auth_flows")
 		DB.Exec("DELETE FROM external_identity_claims")
 		DB.Exec("DELETE FROM user_sessions")
+		DB.Exec("DELETE FROM login_notice_acknowledgements")
 		DB.Exec("DELETE FROM passkey_credentials")
 		DB.Exec("DELETE FROM two_fa_backup_codes")
 		DB.Exec("DELETE FROM two_fas")

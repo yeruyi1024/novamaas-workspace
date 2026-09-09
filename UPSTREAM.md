@@ -16,6 +16,7 @@
 
 ## 已选择同步的上游改动
 
+- 2026-09-09：同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e) 的日志用量统计修复，通过本仓库 [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) 将 RPM/TPM 查询结果先扫描到独立结构，再赋值给完整统计对象，避免第二次扫描覆盖已汇总的 quota。该 PR 同时包含 NovaMaaS 下游专属的阿里百炼任务详情刷新、公开视频直连交付、24 小时登录会话、登录公告与违规确认审计，以及普通用户日志展示修复；已通过相关 Go 测试、前端测试、类型检查和 `relaykit` 独立构建。
 - 2026-09-06：参考上游问题 [QuantumNous/new-api#6166](https://github.com/QuantumNous/new-api/issues/6166) 与待合并修复 [QuantumNous/new-api#6174](https://github.com/QuantumNous/new-api/pull/6174)，通过本仓库 [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) 实现阿里百炼 Wan3 视频任务结果对整数、小数及数字字符串时长的兼容解析，解决任务可提交但轮询无法更新的问题。本仓库额外拒绝非数值、非有限值和超出本机 `int` 范围的输入，并补充 `relaykit` 数值解析测试、阿里任务适配器回归测试、独立模块构建及真实任务轮询验证。
 - 2026-09-05：同步 [QuantumNous/new-api#6653](https://github.com/QuantumNous/new-api/pull/6653) 的提交 `362c9d666ab4dddbe789cba2c1acc4217573d6a5`，新增独立的 Volc Native（渠道类型 61）和火山方舟原生 `/api/v3` 图片、视频任务接口。本仓库补充了双向渠道隔离、任务凭据延续、令牌访问限制、请求边界校验、完整任务响应、前端国际化、测试和使用文档。上游 PR 在同步时仍处于未合并状态，因此本改动会在独立分支和本仓库 PR 中验证后再决定是否进入主分支。
 

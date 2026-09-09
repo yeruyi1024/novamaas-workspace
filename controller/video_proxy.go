@@ -87,6 +87,25 @@ func validateVideoContentURL(videoURL, proxy string) error {
 	return common.ValidateURLWithFetchSetting(videoURL, fetchSetting.EnableSSRFProtection, fetchSetting.AllowPrivateIp, fetchSetting.DomainFilterMode, fetchSetting.IpFilterMode, fetchSetting.DomainList, fetchSetting.IpList, fetchSetting.AllowedPorts, fetchSetting.ApplyIPFilterForDomain)
 }
 
+func shouldRedirectVideoContent(task *model.Task, channel *model.Channel, videoURL string) bool {
+	if task == nil || channel == nil || channel.GetOtherSettings().VideoContentDeliveryMode == channelsettings.VideoContentDeliveryModeProxy {
+		return false
+	}
+	switch channel.Type {
+	case constant.ChannelTypeGemini, constant.ChannelTypeVertexAi, constant.ChannelTypeOpenAI, constant.ChannelTypeSora:
+		return false
+	}
+	videoURL = strings.TrimSpace(videoURL)
+	if videoURL == "" || strings.HasPrefix(videoURL, "data:") || isTaskProxyContentURL(videoURL, task.TaskID) {
+		return false
+	}
+	parsed, err := url.Parse(videoURL)
+	if err != nil || parsed.User != nil || parsed.Host == "" {
+		return false
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
 // GetVideoContentInfo lets authenticated browser clients distinguish a direct
 // redirect from a same-origin proxy before starting the download. Browsers can
 // then navigate to the redirect URL without applying fetch/XHR CORS checks.
@@ -97,22 +116,12 @@ func GetVideoContentInfo(c *gin.Context) {
 	}
 
 	response := videoContentInfoResponse{DeliveryMode: channelsettings.VideoContentDeliveryModeProxy}
-	if channel.Type != constant.ChannelTypeDoubaoVideo ||
-		channel.GetOtherSettings().VideoContentDeliveryMode != channelsettings.VideoContentDeliveryModeRedirect {
+	videoURL := strings.TrimSpace(task.GetResultURL())
+	if !shouldRedirectVideoContent(task, channel, videoURL) {
 		common.ApiSuccess(c, response)
 		return
 	}
 
-	videoURL := strings.TrimSpace(task.GetResultURL())
-	if videoURL == "" {
-		logger.LogError(c.Request.Context(), fmt.Sprintf("Video URL is empty for task %s", task.TaskID))
-		videoProxyError(c, http.StatusBadGateway, "server_error", "Failed to fetch video content")
-		return
-	}
-	if strings.HasPrefix(videoURL, "data:") {
-		common.ApiSuccess(c, response)
-		return
-	}
 	if err := validateVideoContentURL(videoURL, channel.GetSetting().Proxy); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Video URL blocked for task %s: %v", task.TaskID, err))
 		videoProxyError(c, http.StatusForbidden, "server_error", fmt.Sprintf("request blocked: %v", err))
@@ -216,8 +225,7 @@ func VideoProxy(c *gin.Context) {
 		return
 	}
 
-	if channel.Type == constant.ChannelTypeDoubaoVideo &&
-		channel.GetOtherSettings().VideoContentDeliveryMode == channelsettings.VideoContentDeliveryModeRedirect {
+	if shouldRedirectVideoContent(task, channel, videoURL) {
 		c.Header("Cache-Control", "private, no-store")
 		c.Redirect(http.StatusFound, videoURL)
 		return

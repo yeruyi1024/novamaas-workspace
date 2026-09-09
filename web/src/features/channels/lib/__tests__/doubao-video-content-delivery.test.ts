@@ -57,10 +57,10 @@ function doubaoChannel(settings: string): Channel {
 }
 
 describe('DoubaoVideo content delivery settings', () => {
-  test('defaults existing channels to server proxy', () => {
+  test('defaults existing channels to direct resource delivery', () => {
     const defaults = transformChannelToFormDefaults(doubaoChannel('{}'))
 
-    expect(defaults.video_content_delivery_mode).toBe('proxy')
+    expect(defaults.video_content_delivery_mode).toBe('redirect')
   })
 
   test('loads and persists redirect mode for DoubaoVideo', () => {

@@ -140,6 +140,7 @@ export function TaskLogDetailsCell({
         const anchor = document.createElement('a')
         anchor.href = contentInfo.data.url
         anchor.download = `${log.task_id}.mp4`
+        anchor.target = '_blank'
         anchor.rel = 'noopener'
         document.body.append(anchor)
         anchor.click()
