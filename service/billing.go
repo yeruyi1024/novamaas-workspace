@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
+
 	"github.com/QuantumNous/new-api/logger"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -90,6 +93,10 @@ func SettleBilling(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, actualQuo
 	quotaDelta := actualQuota - relayInfo.FinalPreConsumedQuota
 	if quotaDelta != 0 {
 		return PostConsumeQuota(relayInfo, quotaDelta, relayInfo.FinalPreConsumedQuota, true)
+	}
+	if actualQuota == 0 && relayInfo.BillingSource != BillingSourceSubscription {
+		_, err := model.PostBillingAdjustment(&model.BillingEntry{EventKey: "free:" + common.GetUUID(), UserID: relayInfo.UserId, Kind: "usage", RequestID: relayInfo.RequestId, ModelName: relayInfo.OriginModelName, TokenID: relayInfo.TokenId}, nil)
+		return err
 	}
 	return nil
 }

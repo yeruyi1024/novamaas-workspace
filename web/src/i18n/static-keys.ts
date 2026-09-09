@@ -19,6 +19,9 @@ For commercial licensing, please contact support@quantumnous.com
 // Static translation keys that don't get picked up by the t('...') regex.
 // These cover dynamic labels (e.g. constants, configs) that are passed into t at runtime.
 export const STATIC_I18N_KEYS = [
+  // Billing document branding errors
+  'Unable to prepare PDF branding. Check the system Logo URL and Footer settings, then try again.',
+
   // Volc Native channel
   'Volc Native',
   'Volcengine Ark API Key',

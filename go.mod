@@ -41,6 +41,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/shopspring/decimal v1.4.0
+	github.com/signintech/gopdf v0.33.0
 	github.com/stretchr/testify v1.11.1
 	github.com/stripe/stripe-go/v81 v81.4.0
 	github.com/tcolgate/mp3 v0.0.0-20170426193717-e79c5a46d300
@@ -75,6 +76,7 @@ require (
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect
+	github.com/phpdave11/gofpdi v1.0.14-0.20211212211723-1f10f9844311 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect

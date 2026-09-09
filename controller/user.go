@@ -1171,7 +1171,7 @@ func ManageUser(c *gin.Context) {
 				common.ApiError(c, err)
 				return
 			}
-			if err := model.IncreaseUserQuota(user.Id, req.Value, true); err != nil {
+			if _, err := model.PostBillingAdjustment(&model.BillingEntry{EventKey: "funding:" + common.GetUUID(), UserID: user.Id, ActorID: c.GetInt("id"), Kind: "funding", WalletDelta: int64(req.Value)}, nil); err != nil {
 				common.ApiError(c, err)
 				return
 			}
@@ -1183,7 +1183,7 @@ func ManageUser(c *gin.Context) {
 				common.ApiErrorI18n(c, i18n.MsgUserQuotaChangeZero)
 				return
 			}
-			if err := model.DecreaseUserQuota(user.Id, req.Value, true); err != nil {
+			if _, err := model.PostBillingAdjustment(&model.BillingEntry{EventKey: "funding:" + common.GetUUID(), UserID: user.Id, ActorID: c.GetInt("id"), Kind: "funding", WalletDelta: -int64(req.Value)}, nil); err != nil {
 				common.ApiError(c, err)
 				return
 			}
@@ -1196,7 +1196,7 @@ func ManageUser(c *gin.Context) {
 				return
 			}
 			oldQuota := user.Quota
-			if err := model.DB.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", req.Value).Error; err != nil {
+			if _, err := model.PostBillingAdjustment(&model.BillingEntry{EventKey: "funding:" + common.GetUUID(), UserID: user.Id, ActorID: c.GetInt("id"), Kind: "funding"}, &req.Value); err != nil {
 				common.ApiError(c, err)
 				return
 			}

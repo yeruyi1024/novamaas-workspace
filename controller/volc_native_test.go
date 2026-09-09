@@ -83,7 +83,7 @@ func setupVolcNativeControllerTest(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.Channel{}, &model.User{}, &model.Token{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.Channel{}, &model.User{}, &model.Token{}, &model.Log{}, &model.BillingAccount{}, &model.BillingAccountEvent{}, &model.BillingEntry{}, &model.BillingHour{}, &model.BillingOperation{}, &model.BillingStatement{}, &model.StorageObject{}))
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	previousDB, previousLogDB := model.DB, model.LOG_DB

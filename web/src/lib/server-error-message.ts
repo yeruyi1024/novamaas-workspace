@@ -17,6 +17,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 const serverErrorMessageKeys = {
+  BILLING_OPERATION_FAILED: 'Something went wrong!',
+  BILLING_NOT_FOUND: 'Content not found.',
+  BILLING_CONFLICT: 'Billing data changed. Refresh and try again.',
+  BILLING_HISTORY_UNRECONCILED:
+    'Historical usage exists without formal entries. Review historical accounting before issuing a statement.',
+  BILLING_HISTORY_BLOCKED:
+    'Historical import is blocked. Refresh the review and resolve all checks before confirming.',
+  BILLING_BRANDING_INVALID:
+    'Unable to prepare PDF branding. Check the system Logo URL and Footer settings, then try again.',
+  BILLING_NOT_CONFIGURED:
+    'Ask an administrator to enable formal accounting for this account.',
+  BILLING_MONTH_OPEN:
+    'Prepare after the month closes plus 24 hours. Review the archived draft before issuing it to the customer.',
+  BILLING_PENDING:
+    'Unfinished settlements exist. Reconcile them before preparing a statement.',
+  BILLING_IDENTITY_REQUIRED: 'Company title and tax ID are required.',
+  BILLING_EXISTS: 'An active statement already exists for this month.',
+  BILLING_START_LOCKED:
+    'Accounting cannot be backdated or changed after posting starts.',
   AUTH_SESSION_LIMIT:
     'Too many active login sessions. On a device where you are already signed in, open Login sessions and use “Sign out other sessions” to revoke them. If you cannot access a signed-in device, reset your password to sign out all sessions.',
   AUTH_SESSION_ISSUANCE_LIMIT:

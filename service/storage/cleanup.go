@@ -62,6 +62,9 @@ func runStorageCleanupPass(runnerID string) {
 }
 
 func deleteStorageObject(runnerID string, object *model.StorageObject) {
+	if object.Purpose == model.StorageObjectPurposeBillingArchive {
+		return
+	}
 	profile, err := model.GetStorageProfileByID(object.StorageProfileID)
 	if err == nil && profile == nil {
 		err = fmt.Errorf("storage profile %d does not exist", object.StorageProfileID)

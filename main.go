@@ -151,6 +151,7 @@ func main() {
 	// switch are enforced inside the runner and each handler's Enabled().
 	controller.RegisterScheduledSystemTasks()
 	service.StartSystemTaskRunner()
+	service.StartBillingStatementWorker()
 	storageService.StartCleanupTask()
 
 	if os.Getenv("BATCH_UPDATE_ENABLED") == "true" {

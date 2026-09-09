@@ -100,7 +100,7 @@ export function LoginNoticeDialog() {
         if (!nextOpen) setAcknowledgedSessionID(sessionID)
       }}
     >
-      <AlertDialogContent className='max-h-[min(90svh,760px)] max-w-[calc(100%-2rem)] sm:max-w-2xl'>
+      <AlertDialogContent className='max-h-[min(90svh,760px)] w-[calc(100%-2rem)] data-[size=default]:max-w-3xl data-[size=default]:sm:max-w-3xl'>
         <AlertDialogHeader className='place-items-start text-left'>
           <AlertDialogTitle>{t('Login information')}</AlertDialogTitle>
           <AlertDialogDescription>

@@ -41,6 +41,7 @@ NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、�
 | 统一 AI 网关 | 多供应商接入、协议转换、模型路由、失败重试与访问控制 | 已具备基础能力 |
 | Token 聚合 | 统一管理多来源 Token、渠道、模型能力、额度和使用策略 | 持续增强 |
 | Token 分销 | 面向客户、团队和合作渠道封装访问能力，并支持计量与费用管理 | 持续增强 |
+| 客户消费对账 | 按日/小时查询、月度凭证归档、管理员下发、客户确认与历史核验导入 | 已实现一期，部署前需完成环境验收 |
 | 多租户商业化 | 租户隔离、组织权限、产品定价、渠道策略、账单与经营分析 | 产品路线图 |
 | 算力纳管 | 统一登记、分组、监控和调度异构算力资源 | 产品路线图 |
 | 算力租赁 | 将可调度算力封装为可分配、可计量、可结算的供应产品 | 产品路线图 |
@@ -61,6 +62,22 @@ NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、�
 - 火山原生和 DoubaoVideo 任务日志支持直接查询任务信息，分别复用 `/api/v3/contents/generations/tasks/{taskID}` 和 `/v1/video/generations/{taskID}`；普通用户只能查询自己的任务，管理员可从任务日志跨用户诊断。
 
 配置顺序：先在“系统设置 → 存储 → 对象存储”创建并测试 OSS 配置，再启用“中转媒体临时存储”策略，最后在目标火山原生渠道的高级设置中开启“Base64 媒体暂存”。阿里云侧最小权限需覆盖目标业务前缀以及 `temporary/relay-media/healthcheck/` 测试前缀的上传、签名读取和删除；接口行为参考[阿里云 OSS Go SDK V2 文档](https://help.aliyun.com/zh/oss/developer-reference/manual-for-go-sdk-v2/)、[V4 预签名下载文档](https://help.aliyun.com/en/oss/developer-reference/v2-presign-download)和[生命周期规则文档](https://help.aliyun.com/zh/oss/user-guide/lifecycle-rules-based-on-the-last-modified-time/)，火山请求格式参考[火山方舟原生内容生成接口](https://docs.volcengine.com/docs/82379/1520757?lang=zh)。
+
+### 客户消费对账（一期）
+
+`/billing` 提供管理员与下游客户之间的服务消费对账；当前业务前提是管理员充值的钱包额度，不包含资金余额总账、订阅/赠送核算、发票、银行凭证或电子签章。
+
+- **消费查询**：默认当天，按小时查看消费、退款和净额，可下钻请求明细；管理员默认查询自己，可切换客户。月度历史参考按日展示，金额遵循系统货币配置。
+- **正式记账**：管理员设置客户的正式记账起点，客户可维护企业抬头和税号。起点之前的日志只作为历史参考，不会因更改日期自动补入正式账本。
+- **月度对账**：月结束满 24 小时、出单条件通过后创建归档草稿；管理员核对主体、逐日金额与 PDF 后下发，客户通过自己的登录会话确认或提出异议。确认时间与版本留痕，不再次扣款，也不自动到期确认。
+- **凭证固化**：复用系统中启用的私有阿里云 OSS 配置，异步保存明细分片、冻结快照、原始 PDF 与 SHA-256 清单，上传回读校验完成后才成为可下发草稿。确认回执在首次下载时另行生成归档，原件不变。新草稿冻结系统徽标和页脚，PDF 下载名称使用中文名称加时间戳。
+- **历史核验导入**：先只读预览来源、金额和阻断条件，再由管理员填写依据、勾选并二次确认。导入追加可追溯账目与云端来源副本，不重复扣费、不覆盖已有单据、不自动下发；在线入口仅支持正式账本为空的已关闭月份，每月最多 10,000 条。
+
+正式钱包结算、账务明细和小时汇总在同一主库事务内更新；正式月预览读取最多 744 个小时桶。历史消费查询仍在日志库按用户和日期索引范围聚合，并使用每进程 15 秒有界缓存，不是 OSS 计算或离线全历史汇总。未配置独立 `LOG_SQL_DSN` 时，这部分查询使用主库；`LOG_SQL_DSN` 需要可写日志库，不能指向只读从库。
+
+上线前先备份并在隔离数据库验证迁移，统一升级参与计费的节点、排空旧请求与批量额度更新后，再为客户开启正式记账。使用日志禁止应用层清理；账务数据继续保留在主库，OSS 是永久凭证副本，不会自动删除热库。必须确认临时媒体生命周期规则不覆盖 `billing/statements/`，并保留原存储配置、凭据及加密密钥。当前没有新增读副本路由、自动冷归档恢复或生产容量压测承诺。
+
+操作路径、已验证范围与部署边界见[一期实施说明](docs/design/BILLING_STATEMENTS_IMPLEMENTATION.zh_CN.md)、[验收指南](docs/design/BILLING_STATEMENTS_ACCEPTANCE.zh_CN.md)和[历史核验与统计说明](docs/design/BILLING_HISTORY_REVIEW.zh_CN.md)。
 
 ## 产品路线图
 
@@ -87,6 +104,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#22](https://github.com/yeruyi1024/novamaas-workspace/pull/22) | 2026-09-10 | `feat/perf` | 计费 / 客户对账 / 永久凭证 | 新增持久钱包结算与小时账本、正式记账起点及企业主体、管理员下发和客户确认、受控历史核验导入；以私有 OSS 固化明细、版本化 PDF 与清单，禁止清理使用日志。 | NovaMaaS 下游专属；上游当前没有等价的正式消费账本、历史导入确认与不可变月度凭证组合能力。 | PR 审核中 |
 | [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) | 2026-09-09 | `feat/fix/perf` | 视频任务 / 日志 / 登录与审计 | 为阿里百炼增加任务详情实时拉取；公开视频默认直连资源方并保留 `/content` 代理兼容模式；登录会话调整为 24 小时；新增系统公告、视频生成与违规统计、强制知晓及设备指纹审计；修复普通用户使用日志字段丢失。 | NovaMaaS 下游专属；其中用量统计修复同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e)。 | PR 审核中 |
 | [#20](https://github.com/yeruyi1024/novamaas-workspace/pull/20) | 2026-09-08 | `perf` | 日志 / 任务审计 | 将任务请求体从 `logs.other` 与 `tasks.properties` 迁移至独立归档表，保留管理员按需查看，并通过可恢复批处理清理历史热表载荷。 | NovaMaaS 下游专属；上游当前没有独立请求体归档、按需审计读取与历史迁移组合能力。 | PR 审核中 |
 | [#19](https://github.com/yeruyi1024/novamaas-workspace/pull/19) | 2026-09-08 | `feat` | 视频任务 / 计费 | 为 Doubao Seedance 2.0 增加稳定公开模型名，使其可映射到不同上游模型 ID，同时复用 720p、1080p、4K 与视频输入计费倍率。 | NovaMaaS 下游专属；上游当前没有该稳定公开别名及其参数计费映射。 | PR 审核中 |
@@ -149,6 +167,10 @@ docker run --rm -p 3000:3000 -v novamaas-data:/data novamaas:local
 | [UPSTREAM.md](UPSTREAM.md) | 上游基线、同步记录、来源提交与维护策略 |
 | [docs/BUILD.zh_CN.md](docs/BUILD.zh_CN.md) | 本地构建、CI、安装包、GHCR 与腾讯云 CCR 发布说明 |
 | [docs/VOLC_NATIVE.zh_CN.md](docs/VOLC_NATIVE.zh_CN.md) | 火山方舟原生 API 渠道、任务接口和兼容性边界 |
+| [对账单一期实施说明](docs/design/BILLING_STATEMENTS_IMPLEMENTATION.zh_CN.md) | 实际交付范围、记账/归档机制、迁移和部署边界 |
+| [对账单验收指南](docs/design/BILLING_STATEMENTS_ACCEPTANCE.zh_CN.md) | 历史查询、正式记账、创建草稿、下发与客户确认操作 |
+| [历史核验与统计说明](docs/design/BILLING_HISTORY_REVIEW.zh_CN.md) | 历史导入确认边界、空单防护、MySQL 聚合与 PDF 固化 |
+| [对账产品方案](docs/design/BILLING_STATEMENTS_PRD.zh_CN.md) / [技术方案](docs/design/BILLING_STATEMENTS_TECH.zh_CN.md) / [数据专项方案](docs/design/BILLING_STATEMENTS_DATA_PIPELINE.zh_CN.md) | 设计基线与后续演进建议；不代表全部能力已实现 |
 | [LICENSE](LICENSE) | AGPL-3.0 许可证与适用条款 |
 | [NOTICE](NOTICE) | 上游声明、署名和附加许可说明 |
 | [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) | 第三方依赖许可证信息 |
