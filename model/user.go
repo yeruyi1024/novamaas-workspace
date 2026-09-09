@@ -972,6 +972,7 @@ func deleteUserAuthenticationData(tx *gorm.DB, userId int) error {
 		&TwoFABackupCode{},
 		&TwoFA{},
 		&UserSession{},
+		&LoginNoticeAcknowledgement{},
 		&AuthFlow{},
 		&PasskeyCredential{},
 		&Token{},

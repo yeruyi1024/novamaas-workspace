@@ -19,6 +19,15 @@ func TestVolcNativeTaskKeepsSubmissionCredentialPrivate(t *testing.T) {
 	require.NotContains(t, string(body), "submission-key")
 }
 
+func TestAliTaskKeepsSubmissionCredentialPrivate(t *testing.T) {
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeAli, ApiKey: "ali-submission-key"}, TaskRelayInfo: &relaycommon.TaskRelayInfo{}}
+	task := InitTask("17", info)
+	require.Equal(t, "ali-submission-key", task.PrivateData.Key)
+	body, err := common.Marshal(task)
+	require.NoError(t, err)
+	require.NotContains(t, string(body), "ali-submission-key")
+}
+
 func TestVolcNativeTaskPersistsOriginalAndUpstreamModels(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		OriginModelName: "public-seedance",

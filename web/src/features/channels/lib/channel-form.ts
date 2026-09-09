@@ -457,7 +457,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   disable_task_polling_sleep: false,
   base64_staging_enabled: false,
   base64_staging_models: '',
-  video_content_delivery_mode: 'proxy',
+  video_content_delivery_mode: 'redirect',
   upstream_model_update_check_enabled: false,
   upstream_model_update_auto_sync_enabled: false,
   upstream_model_update_ignored_models: '',
@@ -550,7 +550,7 @@ export function transformChannelToFormDefaults(
         ? parsed.base64_staging.models.join(',')
         : ''
       videoContentDeliveryMode =
-        parsed.video_content_delivery_mode === 'redirect' ? 'redirect' : 'proxy'
+        parsed.video_content_delivery_mode === 'proxy' ? 'proxy' : 'redirect'
       upstreamModelUpdateCheckEnabled =
         parsed.upstream_model_update_check_enabled === true
       upstreamModelUpdateAutoSyncEnabled =

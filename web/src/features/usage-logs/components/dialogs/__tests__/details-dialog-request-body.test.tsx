@@ -113,6 +113,10 @@ describe('DetailsDialog request body', () => {
 
     expect(getLogRequestBody).not.toHaveBeenCalled()
     expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+    expect(screen.getByText('request_video')).toBeInTheDocument()
+    expect(screen.getByText('video-token')).toBeInTheDocument()
+    expect(screen.getByText('default')).toBeInTheDocument()
+    expect(screen.getByText('5.0s')).toBeInTheDocument()
   })
 
   test('does not request or show a body for unrelated usage logs', () => {

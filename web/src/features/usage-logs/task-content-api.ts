@@ -48,6 +48,7 @@ export async function getLogRequestBody(
 }
 
 const TASK_INFO_PATHS: Record<string, (taskId: string) => string> = {
+  [TASK_PLATFORMS.ALI]: (taskId) => `/v1/video/generations/${taskId}`,
   [TASK_PLATFORMS.DOUBAO_VIDEO]: (taskId) => `/v1/video/generations/${taskId}`,
   [TASK_PLATFORMS.VOLC_NATIVE]: (taskId) =>
     `/api/v3/contents/generations/tasks/${taskId}`,

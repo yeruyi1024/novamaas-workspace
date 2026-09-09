@@ -209,6 +209,7 @@ export const TASK_PLATFORMS = {
   RUNWAY: 'runway',
   LUMA: 'luma',
   VIGGLE: 'viggle',
+  ALI: '17',
   DOUBAO_VIDEO: '54',
   VOLC_NATIVE: '61',
 } as const

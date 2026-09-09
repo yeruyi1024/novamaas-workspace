@@ -37,6 +37,7 @@ describe('task information API', () => {
   })
 
   test.each([
+    ['17', '/v1/video/generations/task%2F1'],
     ['61', '/api/v3/contents/generations/tasks/task%2F1'],
     ['54', '/v1/video/generations/task%2F1'],
   ])(

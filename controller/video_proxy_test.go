@@ -50,11 +50,15 @@ func setupVideoProxyControllerTest(t *testing.T) *gorm.DB {
 }
 
 func insertVideoProxyTask(t *testing.T, db *gorm.DB, mode dto.VideoContentDeliveryMode, resultURL string) {
+	insertVideoProxyTaskForChannel(t, db, constant.ChannelTypeDoubaoVideo, mode, resultURL)
+}
+
+func insertVideoProxyTaskForChannel(t *testing.T, db *gorm.DB, channelType int, mode dto.VideoContentDeliveryMode, resultURL string) {
 	t.Helper()
 	channel := &model.Channel{
-		Id:     54,
-		Type:   constant.ChannelTypeDoubaoVideo,
-		Name:   "doubao-video",
+		Id:     channelType,
+		Type:   channelType,
+		Name:   "video-channel",
 		Status: common.ChannelStatusEnabled,
 	}
 	channel.SetOtherSettings(dto.ChannelOtherSettings{VideoContentDeliveryMode: mode})
@@ -141,7 +145,7 @@ func TestVideoProxyRedirectsDoubaoContentWithoutFetchingIt(t *testing.T) {
 	assert.Zero(t, upstreamRequests.Load())
 }
 
-func TestVideoProxyKeepsDoubaoServerProxyAsDefault(t *testing.T) {
+func TestVideoProxyRedirectsPublicVideoByDefault(t *testing.T) {
 	db := setupVideoProxyControllerTest(t)
 	var upstreamRequests atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -151,6 +155,24 @@ func TestVideoProxyKeepsDoubaoServerProxyAsDefault(t *testing.T) {
 	}))
 	t.Cleanup(upstream.Close)
 	insertVideoProxyTask(t, db, "", upstream.URL+"/video.mp4")
+
+	recorder := runVideoProxyRequest()
+
+	assert.Equal(t, http.StatusFound, recorder.Code)
+	assert.Equal(t, upstream.URL+"/video.mp4", recorder.Header().Get("Location"))
+	assert.Zero(t, upstreamRequests.Load())
+}
+
+func TestVideoProxyPreservesExplicitServerProxyCompatibility(t *testing.T) {
+	db := setupVideoProxyControllerTest(t)
+	var upstreamRequests atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		upstreamRequests.Add(1)
+		w.Header().Set("Content-Type", "video/mp4")
+		_, _ = w.Write([]byte("video-data"))
+	}))
+	t.Cleanup(upstream.Close)
+	insertVideoProxyTask(t, db, dto.VideoContentDeliveryModeProxy, upstream.URL+"/video.mp4")
 
 	recorder := runVideoProxyRequest()
 
@@ -191,5 +213,36 @@ func TestVideoContentInfoDoesNotExposeURLForProxyDelivery(t *testing.T) {
 		"data": {
 			"delivery_mode": "proxy"
 		}
+	}`, recorder.Body.String())
+}
+
+func TestVideoContentInfoRedirectsAliPublicResourceByDefault(t *testing.T) {
+	db := setupVideoProxyControllerTest(t)
+	insertVideoProxyTaskForChannel(t, db, constant.ChannelTypeAli, "", "https://cdn.example.com/ali.mp4")
+
+	recorder := runVideoContentInfoRequest()
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.JSONEq(t, `{
+		"success": true,
+		"message": "",
+		"data": {
+			"delivery_mode": "redirect",
+			"url": "https://cdn.example.com/ali.mp4"
+		}
+	}`, recorder.Body.String())
+}
+
+func TestVideoContentInfoKeepsCredentialedProvidersOnProxy(t *testing.T) {
+	db := setupVideoProxyControllerTest(t)
+	insertVideoProxyTaskForChannel(t, db, constant.ChannelTypeGemini, "", "https://cdn.example.com/gemini.mp4")
+
+	recorder := runVideoContentInfoRequest()
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.JSONEq(t, `{
+		"success": true,
+		"message": "",
+		"data": {"delivery_mode": "proxy"}
 	}`, recorder.Body.String())
 }

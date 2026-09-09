@@ -355,6 +355,19 @@ func TestLoginSessionCreateRefreshAndRevoke(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrLoginSessionRevoked))
 }
 
+func TestCreateLoginSessionExpiresAfterTwentyFourHours(t *testing.T) {
+	useTestSessionSecret(t)
+	user := setupAuthSessionTestDB(t)
+	before := time.Now().Unix()
+
+	bundle, err := CreateLoginSession(user.Id, "password", "127.0.0.1", "test-agent")
+	require.NoError(t, err)
+
+	after := time.Now().Unix()
+	assert.GreaterOrEqual(t, bundle.Session.ExpiresAt, before+int64((24*time.Hour)/time.Second))
+	assert.LessOrEqual(t, bundle.Session.ExpiresAt, after+int64((24*time.Hour)/time.Second))
+}
+
 func TestIndependentRedisSessionRevokeConvergesAfterCacheTTL(t *testing.T) {
 	useTestSessionSecret(t)
 	user := setupAuthSessionTestDB(t)
