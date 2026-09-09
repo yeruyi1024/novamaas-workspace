@@ -100,9 +100,14 @@ func RefundMidjourneyQuota(ctx context.Context, task *model.Midjourney, reason s
 		return true
 	}
 
-	if err := model.IncreaseUserQuota(task.UserId, quota, false); err != nil {
+	applied, err := model.RefundBillingMidjourney(task, CovertMjpActionToModelName(task.Action))
+	if err != nil {
 		logger.LogWarn(ctx, fmt.Sprintf("退还 Midjourney 用户额度失败 task %s: %s", task.MjId, err.Error()))
 		return false
+	}
+	if !applied {
+		task.Quota = 0
+		return true
 	}
 
 	if task.TokenId > 0 {
@@ -132,9 +137,6 @@ func RefundMidjourneyQuota(ctx context.Context, task *model.Midjourney, reason s
 	})
 
 	task.Quota = 0
-	if err := task.UpdateBillingState(); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("Midjourney 退款成功但清除 quota 失败 task %s: %s", task.MjId, err.Error()))
-	}
 	return true
 }
 

@@ -69,12 +69,12 @@ func TestChooseDBRejectsClickHouseForMainDatabase(t *testing.T) {
 func TestClickHouseLogTTLExpression(t *testing.T) {
 	assert.Equal(t, "", clickHouseLogTTLExpression(0))
 	assert.Equal(t, "", clickHouseLogTTLExpression(-5))
-	assert.Equal(t, "toDateTime(created_at) + INTERVAL 30 DAY DELETE", clickHouseLogTTLExpression(30))
+	assert.Empty(t, clickHouseLogTTLExpression(30), "legacy TTL settings must never delete usage evidence")
 }
 
 func TestClickHouseLogTTLClause(t *testing.T) {
 	assert.Equal(t, "", clickHouseLogTTLClause(0))
-	assert.Equal(t, "\nTTL toDateTime(created_at) + INTERVAL 7 DAY DELETE", clickHouseLogTTLClause(7))
+	assert.Empty(t, clickHouseLogTTLClause(7))
 }
 
 func TestClickHouseLogCreateTableSQL(t *testing.T) {
@@ -87,7 +87,7 @@ func TestClickHouseLogCreateTableSQL(t *testing.T) {
 
 	withTTL := clickHouseLogCreateTableSQL(30)
 	assert.Contains(t, withTTL, "ORDER BY (created_at, request_id)")
-	assert.Contains(t, withTTL, "TTL toDateTime(created_at) + INTERVAL 30 DAY DELETE")
+	assert.NotContains(t, withTTL, "TTL ")
 }
 
 func TestClickHouseCreateTableHasTTL(t *testing.T) {

@@ -37,6 +37,13 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTableRowActionMenu } from '@/components/data-table/core/row-action-menu'
 import { Button } from '@/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
@@ -46,6 +53,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { BillingProfileCard } from '@/features/billing/components/billing-profile-card'
 import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
 
 import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
@@ -71,6 +79,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
+  const [billingOpen, setBillingOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
 
   const handleEdit = () => {
@@ -161,6 +170,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         ariaLabel={t('Open menu')}
         contentClassName='w-48'
       >
+        <DropdownMenuItem onClick={() => setBillingOpen(true)}>
+          {t('Billing identity')}
+        </DropdownMenuItem>
         {isDisabled ? (
           <DropdownMenuItem onClick={() => handleManage('enable')}>
             {t('Enable')}
@@ -263,6 +275,16 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuShortcut>
         </DropdownMenuItem>
       </DataTableRowActionMenu>
+
+      <Dialog open={billingOpen} onOpenChange={setBillingOpen}>
+        <DialogContent className='max-h-[90dvh] overflow-y-auto sm:max-w-xl'>
+          <DialogHeader>
+            <DialogTitle>{t('Billing identity')}</DialogTitle>
+            <DialogDescription>{user.username}</DialogDescription>
+          </DialogHeader>
+          {billingOpen && <BillingProfileCard userId={user.id} admin />}
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={resetPasskeyOpen}

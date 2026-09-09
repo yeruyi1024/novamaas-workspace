@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 	sqlDB.SetMaxOpenConns(1)
 
 	if err := db.AutoMigrate(
+		&BillingAccount{}, &BillingAccountEvent{}, &BillingOperation{}, &BillingEntry{}, &BillingHour{}, &BillingStatement{}, &BillingStatementEvent{}, &BillingArtifact{},
 		&Task{},
 		&TaskRequestBody{},
 		&User{},
@@ -69,6 +70,9 @@ func TestMain(m *testing.M) {
 func truncateTables(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
+		for _, table := range []string{"billing_accounts", "billing_account_events", "billing_operations", "billing_entries", "billing_hours", "billing_statements", "billing_statement_events", "billing_artifacts"} {
+			DB.Exec("DELETE FROM " + table)
+		}
 		DB.Exec("DELETE FROM tasks")
 		DB.Exec("DELETE FROM task_request_bodies")
 		DB.Exec("DELETE FROM auth_flows")

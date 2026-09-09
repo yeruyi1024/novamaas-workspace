@@ -146,10 +146,20 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 		return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
 	}
 
+	if relayInfo.Billing != nil {
+		// Streaming chunks extend the reservation; only final settlement is
+		// consumption. Posting every chunk and the final total would double bill.
+		current := relayInfo.Billing.GetPreConsumedQuota()
+		if quota > common.MaxWalletQuota-current {
+			return model.ErrWalletQuotaLimitExceeded
+		}
+		return relayInfo.Billing.Reserve(current + quota)
+	}
 	err = PostConsumeQuota(relayInfo, quota, 0, false)
 	if err != nil {
 		return err
 	}
+	relayInfo.FinalPreConsumedQuota += quota
 	logger.LogInfo(ctx, "realtime streaming consume quota success, quota: "+fmt.Sprintf("%d", quota))
 	return nil
 }
@@ -436,11 +446,11 @@ func postConsumeQuotaWithResult(relayInfo *relaycommon.RelayInfo, quota int, pre
 		}
 	} else {
 		// Wallet
-		if quota > 0 {
-			err = model.DecreaseUserQuota(relayInfo.UserId, quota, false)
-		} else {
-			err = model.IncreaseUserQuota(relayInfo.UserId, -quota, false)
-		}
+		_, err = model.PostBillingAdjustment(&model.BillingEntry{
+			EventKey: "adjust:" + common.GetUUID(), UserID: relayInfo.UserId,
+			Kind: "usage", Quota: int64(quota), WalletDelta: -int64(quota),
+			RequestID: relayInfo.RequestId, ModelName: relayInfo.OriginModelName, TokenID: relayInfo.TokenId,
+		}, nil)
 		if err != nil {
 			return result, err
 		}

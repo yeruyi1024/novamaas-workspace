@@ -65,6 +65,25 @@ func SetApiRouter(router *gin.Engine) {
 		// Universal secure verification routes
 		apiRouter.POST("/verify", middleware.UserAuth(), middleware.CriticalRateLimit(), middleware.DisableCache(), controller.UniversalVerify)
 
+		billingRoute := apiRouter.Group("/billing", middleware.UserAuth(), middleware.DisableCache())
+		{
+			billingRoute.GET("/day", controller.BillingDay)
+			billingRoute.GET("/usage-details", controller.BillingUsageDetails)
+			billingRoute.GET("/account", controller.BillingAccount)
+			billingRoute.PUT("/account", middleware.CriticalRateLimit(), controller.UpdateBillingAccount)
+			billingRoute.GET("/statements", controller.ListBillingStatements)
+			billingRoute.GET("/statements/:statement_id", controller.GetBillingStatement)
+			billingRoute.POST("/statements/:statement_id/actions", middleware.CriticalRateLimit(), controller.ActOnBillingStatement)
+			billingRoute.GET("/statements/:statement_id/files/:kind/:ordinal", controller.DownloadBillingArtifact)
+			billingAdmin := billingRoute.Group("/admin", middleware.AdminAuth())
+			billingAdmin.GET("/preview", controller.BillingMonthPreview)
+			billingAdmin.GET("/storage-profiles", controller.BillingStorageProfiles)
+			billingAdmin.GET("/history-review", controller.ReviewBillingHistory)
+			billingAdmin.GET("/history-imports", controller.ListBillingHistoryImports)
+			billingAdmin.POST("/history-imports", controller.ConfirmBillingHistoryImport)
+			billingAdmin.GET("/history-imports/:import_id/source", controller.DownloadBillingHistorySource)
+			billingAdmin.POST("/statements", middleware.CriticalRateLimit(), controller.CreateBillingStatement)
+		}
 		userRoute := apiRouter.Group("/user")
 		{
 			userRoute.POST("/auth/refresh", middleware.SessionCookieOriginGuard(), middleware.CriticalRateLimit(), middleware.DisableCache(), controller.RefreshAuth)

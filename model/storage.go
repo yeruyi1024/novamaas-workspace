@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 	StoragePolicyRelayMediaTemp = "relay_media_temp"
 
 	StorageObjectPurposeRelayMediaTemp = "relay_media_temp"
+	StorageObjectPurposeBillingArchive = "billing_archive"
 	StorageObjectStatusUploading       = "uploading"
 	StorageObjectStatusUploaded        = "uploaded"
 	StorageObjectStatusDeletePending   = "delete_pending"
@@ -264,6 +266,7 @@ func MarkStorageObjectsForTaskDeletion(taskID string, deleteAfter int64) error {
 		return nil
 	}
 	return DB.Model(&StorageObject{}).
+		Where("purpose <> ?", StorageObjectPurposeBillingArchive).
 		Where("task_id = ? AND status IN ?", taskID, []string{StorageObjectStatusUploaded, StorageObjectStatusDeleteFailed}).
 		Updates(map[string]any{
 			"status":       StorageObjectStatusDeletePending,
@@ -277,7 +280,7 @@ func ClaimStorageObjectsForDeletion(now int64, leaseUntil int64, lockedBy string
 		limit = 50
 	}
 	var candidates []*StorageObject
-	err := DB.Where(
+	err := DB.Where("purpose <> ? AND delete_after > 0", StorageObjectPurposeBillingArchive).Where(
 		"((status IN ? AND delete_after <= ?) OR (status = ? AND delete_lease_until <= ?))",
 		[]string{StorageObjectStatusUploading, StorageObjectStatusUploaded, StorageObjectStatusDeletePending, StorageObjectStatusDeleteFailed}, now,
 		StorageObjectStatusDeleting, now,
@@ -289,6 +292,7 @@ func ClaimStorageObjectsForDeletion(now int64, leaseUntil int64, lockedBy string
 	claimed := make([]*StorageObject, 0, len(candidates))
 	for _, candidate := range candidates {
 		result := DB.Model(&StorageObject{}).
+			Where("purpose <> ? AND delete_after > 0", StorageObjectPurposeBillingArchive).
 			Where("id = ? AND ((status IN ? AND delete_after <= ?) OR (status = ? AND delete_lease_until <= ?))",
 				candidate.ID,
 				[]string{StorageObjectStatusUploading, StorageObjectStatusUploaded, StorageObjectStatusDeletePending, StorageObjectStatusDeleteFailed}, now,
@@ -362,9 +366,32 @@ func FailStorageObjectDeletion(id int64, lockedBy string, deleteAfter int64, mes
 func StorageProfileHasObjects(profileID int) (bool, error) {
 	var count int64
 	err := DB.Model(&StorageObject{}).
-		Where("storage_profile_id = ? AND status <> ?", profileID, StorageObjectStatusDeleted).
+		Where("storage_profile_id = ? AND (status <> ? OR purpose = ?)", profileID, StorageObjectStatusDeleted, StorageObjectPurposeBillingArchive).
 		Count(&count).Error
 	return count > 0, err
+}
+
+// Storage profile edits and permanent object registration share this lock.
+func LockStorageProfile(tx *gorm.DB, id int) (*StorageProfile, error) {
+	var profile StorageProfile
+	err := lockForUpdate(tx).First(&profile, id).Error
+	return &profile, err
+}
+
+func RegisterBillingArchiveObject(expected *StorageProfile, object *StorageObject) error {
+	if expected == nil || object.StorageProfileID != expected.ID || object.Purpose != StorageObjectPurposeBillingArchive {
+		return errors.New("invalid billing storage registration")
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		profile, err := LockStorageProfile(tx, expected.ID)
+		if err != nil {
+			return err
+		}
+		if profile.Status == StorageProfileStatusArchived || profile.ProviderType != expected.ProviderType || profile.Endpoint != expected.Endpoint || profile.Region != expected.Region || profile.Bucket != expected.Bucket {
+			return errors.New("billing storage identity changed before registration")
+		}
+		return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(object).Error
+	})
 }
 
 func StorageProfileIsReferenced(profileID int) (bool, error) {
@@ -387,6 +414,7 @@ func PurgeDeletedStorageObjects(deletedBefore int64, limit int) (int64, error) {
 	}
 	var ids []int64
 	if err := DB.Model(&StorageObject{}).
+		Where("purpose <> ?", StorageObjectPurposeBillingArchive).
 		Where("status = ? AND deleted_at > 0 AND deleted_at <= ?", StorageObjectStatusDeleted, deletedBefore).
 		Order("deleted_at asc").Limit(limit).Pluck("id", &ids).Error; err != nil {
 		return 0, err

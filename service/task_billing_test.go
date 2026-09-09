@@ -43,6 +43,7 @@ func TestMain(m *testing.M) {
 	common.LogConsumeEnabled = true
 
 	if err := db.AutoMigrate(
+		&model.BillingAccount{}, &model.BillingAccountEvent{}, &model.BillingOperation{}, &model.BillingEntry{}, &model.BillingHour{}, &model.BillingStatement{}, &model.BillingStatementEvent{}, &model.BillingArtifact{}, &model.BillingHistoryImport{},
 		&model.Task{},
 		&model.TaskRequestBody{},
 		&model.User{},
@@ -68,6 +69,9 @@ func TestMain(m *testing.M) {
 func truncate(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
+		for _, table := range []string{"billing_accounts", "billing_account_events", "billing_operations", "billing_entries", "billing_hours", "billing_statements", "billing_statement_events", "billing_artifacts", "billing_history_imports"} {
+			model.DB.Exec("DELETE FROM " + table)
+		}
 		model.DB.Exec("DELETE FROM tasks")
 		model.DB.Exec("DELETE FROM task_request_bodies")
 		model.DB.Exec("DELETE FROM users")
@@ -862,6 +866,7 @@ func TestRecalculate_PositiveDelta(t *testing.T) {
 	seedChargedAccounting(t, userID, channelID, tokenID, preConsumed, 1)
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
+	require.NoError(t, model.DB.Create(task).Error)
 
 	RecalculateTaskQuota(ctx, task, actualQuota, "adaptor adjustment")
 
@@ -901,6 +906,7 @@ func TestRecalculate_NegativeDelta(t *testing.T) {
 	seedChargedAccounting(t, userID, channelID, tokenID, preConsumed, 1)
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
+	require.NoError(t, model.DB.Create(task).Error)
 
 	RecalculateTaskQuota(ctx, task, actualQuota, "adaptor adjustment")
 
@@ -1286,6 +1292,7 @@ func TestSettle_NonPerCallBilling_AppliesAdaptorAdjustment(t *testing.T) {
 	seedChannel(t, channelID)
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
+	require.NoError(t, model.DB.Create(task).Error)
 	// PerCallBilling defaults to false
 
 	adaptor := &mockAdaptor{adjustReturn: adaptorQuota}

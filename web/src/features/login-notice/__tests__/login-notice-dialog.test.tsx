@@ -132,4 +132,32 @@ describe('LoginNoticeDialog', () => {
     await waitFor(() => expect(getLoginNotice).toHaveBeenCalledOnce())
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
+
+  test('uses a wide notice layout without losing narrow-screen margins', async () => {
+    vi.mocked(getLoginNotice).mockResolvedValue({
+      announcements: [],
+      statistics: {
+        today: { generated: 0, violations: 0 },
+        seven_days: { generated: 52, violations: 2 },
+        thirty_days: { generated: 63, violations: 2 },
+      },
+      requires_acknowledgement: true,
+      acknowledged: false,
+    })
+
+    renderDialog()
+
+    const dialog = await screen.findByRole('alertdialog')
+    // The size variants must override the primitive's more-specific narrow
+    // defaults; a plain sm:max-w-* class alone does not widen this dialog.
+    expect(dialog).toHaveClass(
+      'w-[calc(100%-2rem)]',
+      'data-[size=default]:max-w-3xl',
+      'data-[size=default]:sm:max-w-3xl'
+    )
+    expect(dialog).not.toHaveClass('data-[size=default]:max-w-xs')
+    expect(dialog).not.toHaveClass('data-[size=default]:sm:max-w-sm')
+    expect(dialog).toHaveClass('max-h-[min(90svh,760px)]')
+    expect(screen.getByRole('button', { name: 'I acknowledge' })).toBeVisible()
+  })
 })

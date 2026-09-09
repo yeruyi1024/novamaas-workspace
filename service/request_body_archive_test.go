@@ -87,7 +87,7 @@ func TestRequestBodyArchiveMovesLegacyPayloadsAndPreservesAdminLookup(t *testing
 	assert.Equal(t, int64(2), archiveRows)
 }
 
-func TestLogCleanupRemovesOnlyExpiredOrphanRequestBodies(t *testing.T) {
+func TestLegacyLogCleanupPreservesLogsAndRequestBodies(t *testing.T) {
 	truncate(t)
 	ctx := context.Background()
 	require.NoError(t, model.DB.Create(&model.Log{CreatedAt: 100, RequestId: "request_old"}).Error)
@@ -112,7 +112,7 @@ func TestLogCleanupRemovesOnlyExpiredOrphanRequestBodies(t *testing.T) {
 
 	_, exists, err := model.GetArchivedRequestBody("", "request_old")
 	require.NoError(t, err)
-	assert.False(t, exists)
+	assert.True(t, exists)
 	_, exists, err = model.GetArchivedRequestBody("", "request_recent")
 	require.NoError(t, err)
 	assert.True(t, exists)
@@ -121,5 +121,10 @@ func TestLogCleanupRemovesOnlyExpiredOrphanRequestBodies(t *testing.T) {
 	assert.True(t, exists)
 	_, exists, err = model.GetArchivedRequestBody("task_failed", "")
 	require.NoError(t, err)
-	assert.False(t, exists)
+	assert.True(t, exists)
+	var count int64
+	require.NoError(t, model.DB.Model(&model.Log{}).Count(&count).Error)
+	assert.Equal(t, int64(2), count)
+	_, err = StartLogCleanupTask(150)
+	assert.ErrorIs(t, err, model.ErrUsageLogsRetained)
 }

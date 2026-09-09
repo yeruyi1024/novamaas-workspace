@@ -107,9 +107,9 @@ func SaveProfile(id int, input ProfileInput) (*ProfileView, error) {
 
 	var savedCredential *model.StorageCredential
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
-		var existing model.StorageProfile
 		if id > 0 {
-			if err := tx.First(&existing, id).Error; err != nil {
+			existing, err := model.LockStorageProfile(tx, id)
+			if err != nil {
 				return err
 			}
 			if existing.Status == model.StorageProfileStatusArchived {
@@ -178,28 +178,28 @@ func SaveProfile(id int, input ProfileInput) (*ProfileView, error) {
 }
 
 func ArchiveProfile(id int) error {
-	profile, err := model.GetStorageProfileByID(id)
-	if err != nil {
-		return err
-	}
-	if profile == nil || profile.Status == model.StorageProfileStatusArchived {
-		return gorm.ErrRecordNotFound
-	}
-	referenced, err := model.StorageProfileIsReferenced(id)
-	if err != nil {
-		return err
-	}
-	if referenced {
-		return errors.New("storage profile is still referenced by a storage policy")
-	}
-	hasObjects, err := model.StorageProfileHasObjects(id)
-	if err != nil {
-		return err
-	}
-	if hasObjects {
-		return errors.New("storage profile still has objects pending retention or deletion")
-	}
 	return model.DB.Transaction(func(tx *gorm.DB) error {
+		profile, err := model.LockStorageProfile(tx, id)
+		if err != nil {
+			return err
+		}
+		if profile.Status == model.StorageProfileStatusArchived {
+			return gorm.ErrRecordNotFound
+		}
+		var referenced int64
+		if err := tx.Model(&model.StoragePolicy{}).Where("storage_profile_id = ?", id).Count(&referenced).Error; err != nil {
+			return err
+		}
+		if referenced > 0 {
+			return errors.New("storage profile is still referenced by a storage policy")
+		}
+		hasObjects, err := storageProfileHasObjects(tx, id)
+		if err != nil {
+			return err
+		}
+		if hasObjects {
+			return errors.New("storage profile still has objects pending retention or deletion")
+		}
 		if err := tx.Model(&model.StorageProfile{}).Where("id = ?", id).Updates(map[string]any{
 			"status":     model.StorageProfileStatusArchived,
 			"updated_at": common.GetTimestamp(),
@@ -435,7 +435,7 @@ func profileView(profile *model.StorageProfile, credential *model.StorageCredent
 func storageProfileHasObjects(tx *gorm.DB, profileID int) (bool, error) {
 	var count int64
 	err := tx.Model(&model.StorageObject{}).
-		Where("storage_profile_id = ? AND status <> ?", profileID, model.StorageObjectStatusDeleted).
+		Where("storage_profile_id = ? AND (status <> ? OR purpose = ?)", profileID, model.StorageObjectStatusDeleted, model.StorageObjectPurposeBillingArchive).
 		Count(&count).Error
 	return count > 0, err
 }

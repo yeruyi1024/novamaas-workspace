@@ -103,10 +103,8 @@ func taskAdjustFunding(task *model.Task, delta int) error {
 	if taskIsSubscription(task) {
 		return model.PostConsumeUserSubscriptionDelta(task.PrivateData.SubscriptionId, int64(delta))
 	}
-	if delta > 0 {
-		return model.DecreaseUserQuota(task.UserId, delta, false)
-	}
-	return model.IncreaseUserQuota(task.UserId, -delta, false)
+	_, err := model.AdjustBillingTaskQuota(task, task.Quota+delta, taskModelName(task))
+	return err
 }
 
 // taskAdjustTokenQuota 调整任务的令牌额度，delta > 0 表示扣费，delta < 0 表示退还。
@@ -182,9 +180,21 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 	}
 
 	// 1. 退还资金来源（钱包或订阅）
-	if err := taskAdjustFunding(task, -quota); err != nil {
-		logger.LogWarn(ctx, fmt.Sprintf("退还资金来源失败 task %s: %s", task.TaskID, err.Error()))
-		return false
+	if !taskIsSubscription(task) {
+		applied, err := model.AdjustBillingTaskQuota(task, 0, taskModelName(task))
+		if err != nil {
+			logger.LogWarn(ctx, "task wallet refund failed: "+err.Error())
+			return false
+		}
+		if !applied {
+			task.Quota = 0
+			return true
+		}
+	} else {
+		if err := taskAdjustFunding(task, -quota); err != nil {
+			logger.LogWarn(ctx, fmt.Sprintf("退还资金来源失败 task %s: %s", task.TaskID, err.Error()))
+			return false
+		}
 	}
 
 	// 2. 退还令牌额度
@@ -213,8 +223,10 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 	// 5. 资金退款完成后再清除持久化标记。
 	// 回写失败必须显式告警，避免漏掉潜在的重复退款风险。
 	task.Quota = 0
-	if err := task.UpdateQuota(); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("退款成功但清除 task quota 失败 task %s: %s", task.TaskID, err.Error()))
+	if taskIsSubscription(task) {
+		if err := task.UpdateQuota(); err != nil {
+			logger.LogError(ctx, fmt.Sprintf("退款成功但清除 task quota 失败 task %s: %s", task.TaskID, err.Error()))
+		}
 	}
 	return true
 }
@@ -245,17 +257,31 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	))
 
 	// 调整资金来源
-	if err := taskAdjustFunding(task, quotaDelta); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("差额结算资金调整失败 task %s: %s", task.TaskID, err.Error()))
-		return
+	if !taskIsSubscription(task) {
+		applied, err := model.AdjustBillingTaskQuota(task, actualQuota, taskModelName(task))
+		if err != nil {
+			logger.LogError(ctx, "task wallet settlement failed: "+err.Error())
+			return
+		}
+		if !applied {
+			task.Quota = actualQuota
+			return
+		}
+	} else {
+		if err := taskAdjustFunding(task, quotaDelta); err != nil {
+			logger.LogError(ctx, fmt.Sprintf("差额结算资金调整失败 task %s: %s", task.TaskID, err.Error()))
+			return
+		}
 	}
 
 	// 调整令牌额度
 	taskAdjustTokenQuota(ctx, task, quotaDelta)
 
 	task.Quota = actualQuota
-	if err := task.UpdateQuota(); err != nil {
-		logger.LogError(ctx, fmt.Sprintf("差额结算回写 quota 失败 task %s: %s", task.TaskID, err.Error()))
+	if taskIsSubscription(task) {
+		if err := task.UpdateQuota(); err != nil {
+			logger.LogError(ctx, fmt.Sprintf("差额结算回写 quota 失败 task %s: %s", task.TaskID, err.Error()))
+		}
 	}
 
 	// 提交阶段已经累计过一次请求；结算阶段只调整最终用量。

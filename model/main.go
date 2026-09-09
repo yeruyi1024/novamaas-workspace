@@ -308,6 +308,8 @@ func migrateDB() error {
 	}
 
 	err := DB.AutoMigrate(
+		&BillingAccount{}, &BillingAccountEvent{}, &BillingOperation{}, &BillingEntry{}, &BillingHour{},
+		&BillingStatement{}, &BillingStatementEvent{}, &BillingArtifact{}, &BillingHistoryImport{},
 		&Channel{},
 		&Token{},
 		&User{},
@@ -370,6 +372,9 @@ func migrateDB() error {
 }
 
 func migrateDBFast() error {
+	if err := DB.AutoMigrate(&BillingAccount{}, &BillingAccountEvent{}, &BillingOperation{}, &BillingEntry{}, &BillingHour{}, &BillingStatement{}, &BillingStatementEvent{}, &BillingArtifact{}, &BillingHistoryImport{}); err != nil {
+		return err
+	}
 
 	var wg sync.WaitGroup
 
@@ -473,18 +478,11 @@ func migrateClickHouseLogDB() error {
 }
 
 func clickHouseLogTTLDays() int {
-	ttlDays := common.GetEnvOrDefault("LOG_SQL_CLICKHOUSE_TTL_DAYS", 0)
-	if ttlDays < 0 {
-		return 0
-	}
-	return ttlDays
+	return 0
 }
 
 func clickHouseLogTTLExpression(ttlDays int) string {
-	if ttlDays <= 0 {
-		return ""
-	}
-	return fmt.Sprintf("toDateTime(created_at) + INTERVAL %d DAY DELETE", ttlDays)
+	return ""
 }
 
 func clickHouseLogTTLClause(ttlDays int) string {
