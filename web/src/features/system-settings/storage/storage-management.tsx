@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import i18next from 'i18next'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -75,6 +76,19 @@ function assertSuccess<T>(response: StorageAPIResponse<T>): T {
   return response.data
 }
 
+function storageErrorMessage(error: unknown): string {
+  if (axios.isAxiosError<StorageAPIResponse>(error)) {
+    return (
+      error.response?.data?.message ||
+      error.message ||
+      i18next.t('Storage operation failed')
+    )
+  }
+  return error instanceof Error
+    ? error.message
+    : i18next.t('Storage operation failed')
+}
+
 export function StorageManagement() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -107,21 +121,21 @@ export function StorageManagement() {
       setDialogOpen(false)
       toast.success(t('Storage profile saved'))
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error) => toast.error(storageErrorMessage(error)),
   })
 
   const testDraftMutation = useMutation({
     mutationFn: async (values: StorageProfileFormValues) =>
       assertSuccess(await testStorageProfile(values)),
     onSuccess: () => toast.success(t('Storage test completed successfully')),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error) => toast.error(storageErrorMessage(error)),
   })
 
   const testSavedMutation = useMutation({
     mutationFn: async (id: number) =>
       assertSuccess(await testSavedStorageProfile(id)),
     onSuccess: () => toast.success(t('Storage test completed successfully')),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error) => toast.error(storageErrorMessage(error)),
   })
 
   const archiveMutation = useMutation({
@@ -132,7 +146,7 @@ export function StorageManagement() {
       setArchiveTarget(null)
       toast.success(t('Storage profile archived'))
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error) => toast.error(storageErrorMessage(error)),
   })
 
   const policyMutation = useMutation({
@@ -144,7 +158,7 @@ export function StorageManagement() {
       await queryClient.invalidateQueries({ queryKey: RELAY_POLICY_QUERY_KEY })
       toast.success(t('Storage policy saved'))
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error) => toast.error(storageErrorMessage(error)),
   })
 
   const openCreateDialog = () => {
@@ -285,9 +299,7 @@ export function StorageManagement() {
                     policy={policyQuery.data}
                     profiles={profilesQuery.data ?? []}
                     isSaving={policyMutation.isPending}
-                    onSave={async (values) => {
-                      await policyMutation.mutateAsync(values)
-                    }}
+                    onSave={(values) => policyMutation.mutate(values)}
                   />
                 )}
               </>
@@ -302,12 +314,8 @@ export function StorageManagement() {
         isSaving={saveProfileMutation.isPending}
         isTesting={testDraftMutation.isPending}
         onOpenChange={setDialogOpen}
-        onSave={async (values) => {
-          await saveProfileMutation.mutateAsync(values)
-        }}
-        onTest={async (values) => {
-          await testDraftMutation.mutateAsync(values)
-        }}
+        onSave={(values) => saveProfileMutation.mutate(values)}
+        onTest={(values) => testDraftMutation.mutate(values)}
       />
 
       <AlertDialog

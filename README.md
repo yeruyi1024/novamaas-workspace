@@ -54,7 +54,7 @@ NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、�
 系统设置新增通用“存储配置（Profile）+ 用途策略（Policy）”模型，首个驱动为阿里云 OSS。火山原生和 DoubaoVideo 渠道均可按渠道及模型开启 Base64 媒体暂存：平台校验并上传 `content[].image_url.url` 中的 JPEG、PNG、WebP Data URI，以及 `content[].video_url.url` 中的 MP4、WebM、MOV Data URI，并在发往上游的请求副本中替换为限时签名 HTTPS 地址。任务日志保存并展示实际发送给上游的转换后请求；使用日志为管理员保留原始 Base64 请求并标记“已被临时存储转换”，非管理员无法查看请求体。
 
 - OSS Bucket 应保持私有，不需要设置公共读；平台使用 OSS V4 签名地址提供临时访问，最长有效期为 168 小时。
-- 静态 AccessKey 在数据库中使用 AES-GCM 加密。生产部署应显式配置稳定的 `STORAGE_CREDENTIAL_ENCRYPTION_KEY`；未配置时会依次尝试复用 `CRYPTO_SECRET`、`SESSION_SECRET`，三者均缺失则拒绝保存静态凭证。
+- 静态 AccessKey 在数据库中使用 AES-GCM 加密。生产部署应显式配置稳定的 `STORAGE_CREDENTIAL_ENCRYPTION_KEY`；未配置时会依次尝试复用 `CRYPTO_SECRET`、`SESSION_SECRET`，三者均缺失则拒绝保存静态凭证，并在“测试配置”时返回明确的服务配置错误。输入校验、服务配置和 OSS 连通性失败分别返回 `400`、`503` 和 `502`，前端会展示后端返回的具体原因。
 - 对象路径包含用途前缀、UTC 日期、不可逆用户标识和任务 ID，实现用户与任务隔离；Data URI 声明的 MIME 类型必须与解码后的文件特征一致，并受单文件、单请求总量和文件数限制。
 - 为保证 SQLite、MySQL 和 PostgreSQL 默认部署下都能完整记录原始请求，当前视频任务请求体（包括图片和视频 Data URI）仍执行 2 MiB 审计写入上限；超限请求会在上传前明确拒绝，不会以丢弃或改写 Base64 日志换取继续执行。
 - 任务成功、失败或确认取消后会触发清理；上传失败、进程中断和上游状态不确定时由数据库租约重试与最长保留期限兜底，成功删除后的对象账本墓碑保留 30 天再分批清理。建议同时在 OSS 配置生命周期规则，按 `temporary/relay-media/` 前缀做更长周期的灾难兜底清理。
@@ -516,6 +516,7 @@ docker run --name new-api -d --restart always \
 | Variable Name | Description | Default Value |
 |--------|------|--------|
 | `SESSION_SECRET` | Authentication signing secret; must be identical on every node | - |
+| `STORAGE_CREDENTIAL_ENCRYPTION_KEY` | Stable AES-GCM master key for static object-storage credentials; must be identical on every node and across restarts | Falls back to `CRYPTO_SECRET`, then `SESSION_SECRET` |
 | `SESSION_COOKIE_SECURE` | `false`/unset disables the refresh/logout OriginGuard for local HTTP dev proxies; `true` enables the Secure cookie and strict Origin checks | `false` |
 | `SESSION_COOKIE_TRUSTED_URL` | Required with Secure mode: comma-separated exact HTTPS Origins allowed to call refresh/logout; not a relay CORS allowlist | - |
 | `TRUSTED_PROXIES` | Unset/blank trusts loopback, RFC 1918 and IPv6 ULA with a startup warning; `none` trusts no proxies; an explicit proxy IP/CIDR list replaces the defaults | `127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7` |

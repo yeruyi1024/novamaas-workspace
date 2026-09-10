@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -224,7 +225,7 @@ func TestProfile(ctx context.Context, input ProfileInput) error {
 		Config:       "{}",
 	}
 	if err := validateProfileInput(profile, input.AuthType); err != nil {
-		return err
+		return &RequestError{StatusCode: http.StatusBadRequest, Err: err}
 	}
 	credential, _, err := buildStorageCredential(0, input, nil, false)
 	if err != nil {
@@ -232,9 +233,16 @@ func TestProfile(ctx context.Context, input ProfileInput) error {
 	}
 	driver, err := driverForProfile(profile, credential)
 	if err != nil {
-		return err
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, errStorageCredentialEncryptionKeyUnavailable) {
+			statusCode = http.StatusServiceUnavailable
+		}
+		return &RequestError{StatusCode: statusCode, Err: err}
 	}
-	return testObjectDriver(ctx, driver)
+	if err = testObjectDriver(ctx, driver); err != nil {
+		return &RequestError{StatusCode: http.StatusBadGateway, Err: err}
+	}
+	return nil
 }
 
 func TestSavedProfile(ctx context.Context, id int) error {
@@ -251,9 +259,16 @@ func TestSavedProfile(ctx context.Context, id int) error {
 	}
 	driver, err := driverForProfile(profile, credential)
 	if err != nil {
-		return err
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, errStorageCredentialEncryptionKeyUnavailable) {
+			statusCode = http.StatusServiceUnavailable
+		}
+		return &RequestError{StatusCode: statusCode, Err: err}
 	}
-	return testObjectDriver(ctx, driver)
+	if err = testObjectDriver(ctx, driver); err != nil {
+		return &RequestError{StatusCode: http.StatusBadGateway, Err: err}
+	}
+	return nil
 }
 
 func GetRelayMediaPolicy() (*model.StoragePolicy, error) {
@@ -334,7 +349,7 @@ func buildStorageCredential(profileID int, input ProfileInput, active *model.Sto
 		return credential, true, nil
 	}
 	if accessKeyID == "" || accessKeySecret == "" {
-		return nil, false, errors.New("access key ID and secret are required for static credentials")
+		return nil, false, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("access key ID and secret are required for static credentials")}
 	}
 	payload, err := encryptCredential(CredentialSecret{
 		AccessKeyID:     accessKeyID,
@@ -342,7 +357,11 @@ func buildStorageCredential(profileID int, input ProfileInput, active *model.Sto
 		SecurityToken:   securityToken,
 	})
 	if err != nil {
-		return nil, false, err
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, errStorageCredentialEncryptionKeyUnavailable) {
+			statusCode = http.StatusServiceUnavailable
+		}
+		return nil, false, &RequestError{StatusCode: statusCode, Err: err}
 	}
 	credential.EncryptedPayload = payload
 	credential.AccessKeyHint = accessKeyHint(accessKeyID)
