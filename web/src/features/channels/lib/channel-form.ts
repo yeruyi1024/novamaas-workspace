@@ -19,10 +19,10 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 
 import {
+  BASE64_STAGING_CHANNEL_TYPES,
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_TYPE_DOUBAO_VIDEO,
   CHANNEL_TYPE_NEW_API,
-  CHANNEL_TYPE_VOLC_NATIVE,
   CHANNEL_STATUS,
   ERROR_MESSAGES,
   FIELD_PASSTHROUGH_TYPES,
@@ -747,7 +747,7 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
     formData.disable_task_polling_sleep === true
 
   if (
-    formData.type === CHANNEL_TYPE_VOLC_NATIVE &&
+    BASE64_STAGING_CHANNEL_TYPES.has(formData.type) &&
     formData.base64_staging_enabled === true
   ) {
     settingsObj.base64_staging = {

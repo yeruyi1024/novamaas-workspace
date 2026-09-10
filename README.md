@@ -49,19 +49,19 @@ NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、�
 > [!NOTE]
 > “持续增强”与“产品路线图”用于区分已经交付的基础能力和后续建设方向，不代表尚未发布的功能已经可用于生产环境。正式能力范围以对应版本说明和实际界面为准。
 
-### 对象存储与火山 Base64 兼容增强
+### 对象存储与火山视频 Base64 兼容增强
 
-系统设置新增通用“存储配置（Profile）+ 用途策略（Policy）”模型，首个驱动为阿里云 OSS。火山原生渠道可按渠道及模型开启 Base64 媒体暂存：平台校验并上传 `content[].image_url.url` 中的 JPEG、PNG 或 WebP Data URI，并在发往上游的请求副本中替换为限时签名 HTTPS 地址。任务日志保存并展示实际发送给上游的转换后请求；使用日志为管理员保留原始 Base64 请求并标记“已被临时存储转换”，非管理员无法查看请求体。
+系统设置新增通用“存储配置（Profile）+ 用途策略（Policy）”模型，首个驱动为阿里云 OSS。火山原生和 DoubaoVideo 渠道均可按渠道及模型开启 Base64 媒体暂存：平台校验并上传 `content[].image_url.url` 中的 JPEG、PNG、WebP Data URI，以及 `content[].video_url.url` 中的 MP4、WebM、MOV Data URI，并在发往上游的请求副本中替换为限时签名 HTTPS 地址。任务日志保存并展示实际发送给上游的转换后请求；使用日志为管理员保留原始 Base64 请求并标记“已被临时存储转换”，非管理员无法查看请求体。
 
 - OSS Bucket 应保持私有，不需要设置公共读；平台使用 OSS V4 签名地址提供临时访问，最长有效期为 168 小时。
 - 静态 AccessKey 在数据库中使用 AES-GCM 加密。生产部署应显式配置稳定的 `STORAGE_CREDENTIAL_ENCRYPTION_KEY`；未配置时会依次尝试复用 `CRYPTO_SECRET`、`SESSION_SECRET`，三者均缺失则拒绝保存静态凭证。
 - 对象路径包含用途前缀、UTC 日期、不可逆用户标识和任务 ID，实现用户与任务隔离；Data URI 声明的 MIME 类型必须与解码后的文件特征一致，并受单文件、单请求总量和文件数限制。
-- 为保证 SQLite、MySQL 和 PostgreSQL 默认部署下都能完整记录原始请求，当前视频任务请求体仍执行 2 MiB 审计写入上限；超限请求会在上传前明确拒绝，不会以丢弃或改写 Base64 日志换取继续执行。
+- 为保证 SQLite、MySQL 和 PostgreSQL 默认部署下都能完整记录原始请求，当前视频任务请求体（包括图片和视频 Data URI）仍执行 2 MiB 审计写入上限；超限请求会在上传前明确拒绝，不会以丢弃或改写 Base64 日志换取继续执行。
 - 任务成功、失败或确认取消后会触发清理；上传失败、进程中断和上游状态不确定时由数据库租约重试与最长保留期限兜底，成功删除后的对象账本墓碑保留 30 天再分批清理。建议同时在 OSS 配置生命周期规则，按 `temporary/relay-media/` 前缀做更长周期的灾难兜底清理。
 - 本次只新增 `storage_profiles`、`storage_credentials`、`storage_policies`、`storage_objects` 四张表，不修改既有数据库表字段。Profile 的服务商类型已为腾讯云 COS 和 S3 兼容存储（包括 MinIO）预留，当前尚未启用对应驱动；后续素材库可复用同一存储层并按用途生成临时授权地址。
 - 火山原生和 DoubaoVideo 任务日志支持直接查询任务信息，分别复用 `/api/v3/contents/generations/tasks/{taskID}` 和 `/v1/video/generations/{taskID}`；普通用户只能查询自己的任务，管理员可从任务日志跨用户诊断。
 
-配置顺序：先在“系统设置 → 存储 → 对象存储”创建并测试 OSS 配置，再启用“中转媒体临时存储”策略，最后在目标火山原生渠道的高级设置中开启“Base64 媒体暂存”。阿里云侧最小权限需覆盖目标业务前缀以及 `temporary/relay-media/healthcheck/` 测试前缀的上传、签名读取和删除；接口行为参考[阿里云 OSS Go SDK V2 文档](https://help.aliyun.com/zh/oss/developer-reference/manual-for-go-sdk-v2/)、[V4 预签名下载文档](https://help.aliyun.com/en/oss/developer-reference/v2-presign-download)和[生命周期规则文档](https://help.aliyun.com/zh/oss/user-guide/lifecycle-rules-based-on-the-last-modified-time/)，火山请求格式参考[火山方舟原生内容生成接口](https://docs.volcengine.com/docs/82379/1520757?lang=zh)。
+配置顺序：先在“系统设置 → 存储 → 对象存储”创建并测试 OSS 配置，再启用“中转媒体临时存储”策略，最后在目标火山原生或 DoubaoVideo 渠道的高级设置中开启“Base64 媒体暂存”。阿里云侧最小权限需覆盖目标业务前缀以及 `temporary/relay-media/healthcheck/` 测试前缀的上传、签名读取和删除；接口行为参考[阿里云 OSS Go SDK V2 文档](https://help.aliyun.com/zh/oss/developer-reference/manual-for-go-sdk-v2/)、[V4 预签名下载文档](https://help.aliyun.com/en/oss/developer-reference/v2-presign-download)和[生命周期规则文档](https://help.aliyun.com/zh/oss/user-guide/lifecycle-rules-based-on-the-last-modified-time/)，火山请求格式参考[火山方舟原生内容生成接口](https://docs.volcengine.com/docs/82379/1520757?lang=zh)。
 
 ### 客户消费对账（一期）
 
@@ -104,6 +104,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#23](https://github.com/yeruyi1024/novamaas-workspace/pull/23) | 2026-09-10 | `feat` | 对象存储 / 火山方舟视频 | 将 Base64 暂存接入 DoubaoVideo，并把火山原生与 DoubaoVideo 的暂存范围从图片扩展到 MP4、WebM、MOV 视频输入；保留签名 URL、重试复用、任务清理和请求审计边界。 | NovaMaaS 下游专属；上游当前没有等价的 DoubaoVideo Base64 暂存及双渠道视频 Data URI 对象存储转换能力。 | PR 审核中 |
 | [#22](https://github.com/yeruyi1024/novamaas-workspace/pull/22) | 2026-09-10 | `feat/perf` | 计费 / 客户对账 / 永久凭证 | 新增持久钱包结算与小时账本、正式记账起点及企业主体、管理员下发和客户确认、受控历史核验导入；以私有 OSS 固化明细、版本化 PDF 与清单，禁止清理使用日志。 | NovaMaaS 下游专属；上游当前没有等价的正式消费账本、历史导入确认与不可变月度凭证组合能力。 | PR 审核中 |
 | [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) | 2026-09-09 | `feat/fix/perf` | 视频任务 / 日志 / 登录与审计 | 为阿里百炼增加任务详情实时拉取；公开视频默认直连资源方并保留 `/content` 代理兼容模式；登录会话调整为 24 小时；新增系统公告、视频生成与违规统计、强制知晓及设备指纹审计；修复普通用户使用日志字段丢失。 | NovaMaaS 下游专属；其中用量统计修复同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e)。 | PR 审核中 |
 | [#20](https://github.com/yeruyi1024/novamaas-workspace/pull/20) | 2026-09-08 | `perf` | 日志 / 任务审计 | 将任务请求体从 `logs.other` 与 `tasks.properties` 迁移至独立归档表，保留管理员按需查看，并通过可恢复批处理清理历史热表载荷。 | NovaMaaS 下游专属；上游当前没有独立请求体归档、按需审计读取与历史迁移组合能力。 | PR 审核中 |

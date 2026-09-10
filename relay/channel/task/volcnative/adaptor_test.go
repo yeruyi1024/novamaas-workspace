@@ -90,15 +90,12 @@ func TestVolcNativeRequestRecordsCachedBase64StagingConversion(t *testing.T) {
 	staged := []byte(`{"model":"seedance","content":[{"type":"image_url","image_url":{"url":"https://storage.example.com/staged.webp"}}]}`)
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", strings.NewReader(raw))
-	ctx.Set("volc_native_base64_staging:default", stagedRequestBody{body: staged, convertedCount: 1})
+	ctx.Set("volc_native_base64_staging:relay_media_temp", stagedRequestBody{body: staged, convertedCount: 1})
 	info := &relaycommon.RelayInfo{
 		OriginModelName: "seedance",
 		ChannelMeta: &relaycommon.ChannelMeta{
 			ChannelOtherSettings: relaykitdto.ChannelOtherSettings{
-				Base64Staging: &relaykitdto.Base64StagingSettings{
-					Enabled:       true,
-					StoragePolicy: "default",
-				},
+				Base64Staging: &relaykitdto.Base64StagingSettings{Enabled: true},
 			},
 		},
 		TaskRelayInfo: &relaycommon.TaskRelayInfo{},

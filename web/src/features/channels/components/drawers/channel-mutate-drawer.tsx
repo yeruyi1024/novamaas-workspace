@@ -139,6 +139,7 @@ import {
 } from '../../api'
 import {
   ADD_MODE_OPTIONS,
+  BASE64_STAGING_CHANNEL_TYPES,
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_STATUS_LABELS,
   CHANNEL_TYPE_DOUBAO_VIDEO,
@@ -759,6 +760,7 @@ export function ChannelMutateDrawer({
     'disable_task_polling_sleep'
   )
   const currentBase64StagingEnabled = form.watch('base64_staging_enabled')
+  const supportsBase64Staging = BASE64_STAGING_CHANNEL_TYPES.has(currentType)
   const currentVideoContentDeliveryMode = form.watch(
     'video_content_delivery_mode'
   )
@@ -4193,7 +4195,7 @@ export function ChannelMutateDrawer({
                                 )}
                               />
 
-                              {currentType === CHANNEL_TYPE_VOLC_NATIVE && (
+                              {supportsBase64Staging && (
                                 <>
                                   <FormField
                                     control={form.control}
@@ -4206,7 +4208,7 @@ export function ChannelMutateDrawer({
                                           </FormLabel>
                                           <FormDescription>
                                             {t(
-                                              'Upload Base64 images to the configured private object storage and send signed URLs to Volc Native.'
+                                              'Upload Base64 images and videos to private object storage and send signed URLs to Volc Native or DoubaoVideo.'
                                             )}
                                           </FormDescription>
                                         </div>

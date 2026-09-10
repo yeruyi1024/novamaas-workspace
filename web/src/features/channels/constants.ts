@@ -24,6 +24,10 @@ For commercial licensing, please contact support@quantumnous.com
 export const CHANNEL_TYPE_NEW_API = 60
 export const CHANNEL_TYPE_VOLC_NATIVE = 61
 export const CHANNEL_TYPE_DOUBAO_VIDEO = 54
+export const BASE64_STAGING_CHANNEL_TYPES = new Set([
+  CHANNEL_TYPE_DOUBAO_VIDEO,
+  CHANNEL_TYPE_VOLC_NATIVE,
+])
 
 export const CHANNEL_TYPES = {
   0: 'Unknown',

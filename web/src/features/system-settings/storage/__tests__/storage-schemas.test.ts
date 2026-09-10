@@ -81,7 +81,8 @@ describe('storage settings validation', () => {
       max_file_bytes: 10485760,
       max_total_bytes: 20971520,
       max_files: 8,
-      allowed_mime_types: 'image/jpeg,image/png,image/webp',
+      allowed_mime_types:
+        'image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime',
     })
   })
 })

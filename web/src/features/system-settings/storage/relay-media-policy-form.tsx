@@ -45,6 +45,7 @@ import { Switch } from '@/components/ui/switch'
 
 import {
   createStoragePolicySchema,
+  RELAY_MEDIA_ALLOWED_MIME_TYPES,
   storagePolicyToForm,
   type StoragePolicyFormValues,
 } from './storage-schemas'
@@ -138,7 +139,7 @@ export function RelayMediaPolicyForm({
                     </FormLabel>
                     <FormDescription>
                       {t(
-                        'A Volc Native channel must also enable Base64 staging before this policy is used.'
+                        'A Volc Native or DoubaoVideo channel must also enable Base64 staging before this policy is used.'
                       )}
                     </FormDescription>
                   </div>
@@ -240,7 +241,10 @@ export function RelayMediaPolicyForm({
             </p>
             <FormItem>
               <FormLabel>{t('Allowed media types')}</FormLabel>
-              <Input value='image/jpeg, image/png, image/webp' disabled />
+              <Input
+                value={RELAY_MEDIA_ALLOWED_MIME_TYPES.replaceAll(',', ', ')}
+                disabled
+              />
               <FormDescription>
                 {t('Declared MIME type and decoded file signature must match.')}
               </FormDescription>
