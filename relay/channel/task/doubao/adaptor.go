@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -16,8 +17,10 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
+	storageService "github.com/QuantumNous/new-api/service/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -62,6 +65,11 @@ type requestPayload struct {
 	Seed             *dto.IntValue  `json:"seed,omitempty"`
 	CameraFixed      *dto.BoolValue `json:"camera_fixed,omitempty"`
 	Watermark        *dto.BoolValue `json:"watermark,omitempty"`
+}
+
+type stagedRequestBody struct {
+	body           []byte
+	convertedCount int
 }
 
 type responsePayload struct {
@@ -190,15 +198,49 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, errors.Wrap(err, "convert request payload failed")
 	}
-	if info.IsModelMapped {
-		body.Model = info.UpstreamModelName
-	} else {
+	if !info.IsModelMapped {
 		info.UpstreamModelName = body.Model
 	}
 	data, err := common.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
+	if info.ChannelOtherSettings.IsBase64StagingEnabled(info.OriginModelName) {
+		policyKey := strings.TrimSpace(info.ChannelOtherSettings.Base64Staging.StoragePolicy)
+		if policyKey == "" {
+			policyKey = model.StoragePolicyRelayMediaTemp
+		}
+		cacheKey := "doubao_video_base64_staging:" + policyKey
+		if cached, exists := c.Get(cacheKey); exists {
+			if staged, ok := cached.(stagedRequestBody); ok {
+				data = staged.body
+				common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, staged.convertedCount)
+				common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, staged.convertedCount > 0)
+			}
+		} else {
+			var convertedCount int
+			data, convertedCount, err = storageService.MaterializeVideoTaskBase64(
+				c.Request.Context(),
+				data,
+				info.UserId,
+				info.RequestId,
+				info.PublicTaskID,
+				policyKey,
+				storageService.Base64StagingSourceDoubaoVideo,
+			)
+			if err != nil {
+				return nil, err
+			}
+			c.Set(cacheKey, stagedRequestBody{body: data, convertedCount: convertedCount})
+			common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, convertedCount)
+			common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, convertedCount > 0)
+		}
+	}
+	data, err = helper.ApplyModelMappingToJSONBody(info, data)
+	if err != nil {
+		return nil, err
+	}
+	common.SetContextKey(c, constant.ContextKeyVideoTaskUpstreamRequestBody, string(data))
 	return bytes.NewReader(data), nil
 }
 

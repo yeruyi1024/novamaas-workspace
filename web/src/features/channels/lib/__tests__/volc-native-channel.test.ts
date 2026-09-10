@@ -55,7 +55,7 @@ describe('Volc Native channel', () => {
     )
   })
 
-  test('serializes Base64 staging as a Volc Native-only channel setting', () => {
+  test('serializes Base64 staging for a Volc Native channel', () => {
     const result = transformFormDataToCreatePayload({
       ...CHANNEL_FORM_DEFAULT_VALUES,
       name: 'volc-native',

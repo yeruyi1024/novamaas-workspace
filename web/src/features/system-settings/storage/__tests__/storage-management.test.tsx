@@ -39,7 +39,8 @@ vi.mock('../api', () => ({
       max_file_bytes: 10485760,
       max_total_bytes: 20971520,
       max_files: 10,
-      allowed_mime_types: 'image/jpeg,image/png,image/webp',
+      allowed_mime_types:
+        'image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime',
       enabled: false,
       created_at: 0,
       updated_at: 0,

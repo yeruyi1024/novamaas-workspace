@@ -986,8 +986,8 @@ func (channel *Channel) ValidateSettings() error {
 		}
 	}
 	if channelOtherSettings.Base64Staging != nil {
-		if channel.Type != constant.ChannelTypeVolcNative {
-			return fmt.Errorf("base64_staging is only supported by Volc Native channels")
+		if channel.Type != constant.ChannelTypeVolcNative && channel.Type != constant.ChannelTypeDoubaoVideo {
+			return fmt.Errorf("base64_staging is only supported by Volc Native and DoubaoVideo channels")
 		}
 		policy := strings.TrimSpace(channelOtherSettings.Base64Staging.StoragePolicy)
 		if policy != "" && policy != StoragePolicyRelayMediaTemp {

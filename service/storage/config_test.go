@@ -173,6 +173,24 @@ func TestStoragePolicyRejectsUnsupportedMediaType(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsupported storage policy MIME type")
 }
 
+func TestStoragePolicyAcceptsVideoMediaTypes(t *testing.T) {
+	setupStorageDatabase(t)
+
+	policy, err := SaveRelayMediaPolicy(PolicyInput{
+		ObjectPrefix:        "temporary/relay-media",
+		SignedURLTTLSeconds: 3600,
+		RetentionSeconds:    7200,
+		MaxFileBytes:        1024,
+		MaxTotalBytes:       2048,
+		MaxFiles:            2,
+		AllowedMIMETypes:    "video/mp4, video/webm, video/quicktime",
+		Enabled:             false,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "video/mp4,video/webm,video/quicktime", policy.AllowedMIMETypes)
+}
+
 func TestAliyunProfileRejectsCustomEndpointPort(t *testing.T) {
 	err := validateAliyunProfile(&model.StorageProfile{
 		Endpoint: "https://oss-cn-hangzhou.aliyuncs.com:444",

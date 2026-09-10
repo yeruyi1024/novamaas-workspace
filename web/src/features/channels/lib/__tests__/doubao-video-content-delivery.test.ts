@@ -101,4 +101,29 @@ describe('DoubaoVideo content delivery settings', () => {
 
     expect(result.success).toBe(false)
   })
+
+  test('persists Base64 staging for DoubaoVideo models', () => {
+    const payload = transformFormDataToUpdatePayload(
+      {
+        ...CHANNEL_FORM_DEFAULT_VALUES,
+        name: 'doubao-video',
+        type: CHANNEL_TYPE_DOUBAO_VIDEO,
+        key: 'test-key',
+        models: 'doubao-seedance-2-0-260128',
+        group: ['default'],
+        base64_staging_enabled: true,
+        base64_staging_models:
+          'doubao-seedance-2-0-260128, doubao-seedance-2-0-260128',
+      },
+      54
+    )
+
+    expect(JSON.parse(payload.settings || '{}')).toMatchObject({
+      base64_staging: {
+        enabled: true,
+        storage_policy: 'relay_media_temp',
+        models: ['doubao-seedance-2-0-260128'],
+      },
+    })
+  })
 })

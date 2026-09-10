@@ -53,6 +53,32 @@ func TestChannelValidateSettingsRejectsInvalidVideoContentDeliveryMode(t *testin
 	assert.Contains(t, err.Error(), "video_content_delivery_mode")
 }
 
+func TestChannelValidateSettingsAllowsBase64StagingForVideoChannels(t *testing.T) {
+	for _, channelType := range []int{constant.ChannelTypeVolcNative, constant.ChannelTypeDoubaoVideo} {
+		channel := &Channel{Type: channelType}
+		channel.SetOtherSettings(dto.ChannelOtherSettings{
+			Base64Staging: &dto.Base64StagingSettings{
+				Enabled:       true,
+				StoragePolicy: StoragePolicyRelayMediaTemp,
+			},
+		})
+
+		require.NoError(t, channel.ValidateSettings())
+	}
+}
+
+func TestChannelValidateSettingsRejectsBase64StagingForOtherChannels(t *testing.T) {
+	channel := &Channel{Type: constant.ChannelTypeOpenAI}
+	channel.SetOtherSettings(dto.ChannelOtherSettings{
+		Base64Staging: &dto.Base64StagingSettings{Enabled: true},
+	})
+
+	err := channel.ValidateSettings()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Volc Native and DoubaoVideo")
+}
+
 func TestAdvancedCustomChannelRequiresModelListRouteOnlyWhenUpdateChecksEnabled(t *testing.T) {
 	inferenceRoute := dto.AdvancedCustomRoute{
 		IncomingPath: "/v1/chat/completions",

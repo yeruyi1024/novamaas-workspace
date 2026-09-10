@@ -93,7 +93,10 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		return nil, err
 	}
 	if info.ChannelOtherSettings.IsBase64StagingEnabled(info.OriginModelName) {
-		policyKey := info.ChannelOtherSettings.Base64Staging.StoragePolicy
+		policyKey := strings.TrimSpace(info.ChannelOtherSettings.Base64Staging.StoragePolicy)
+		if policyKey == "" {
+			policyKey = model.StoragePolicyRelayMediaTemp
+		}
 		cacheKey := "volc_native_base64_staging:" + policyKey
 		if cached, exists := c.Get(cacheKey); exists {
 			if staged, ok := cached.(stagedRequestBody); ok {
@@ -103,13 +106,14 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 			}
 		} else {
 			var convertedCount int
-			body, convertedCount, err = storageService.MaterializeVolcNativeBase64(
+			body, convertedCount, err = storageService.MaterializeVideoTaskBase64(
 				c.Request.Context(),
 				body,
 				info.UserId,
 				info.RequestId,
 				info.PublicTaskID,
 				policyKey,
+				storageService.Base64StagingSourceVolcNative,
 			)
 			if err != nil {
 				return nil, err

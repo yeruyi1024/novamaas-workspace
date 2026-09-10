@@ -28,6 +28,9 @@ import {
 
 type Translate = (key: string) => string
 
+export const RELAY_MEDIA_ALLOWED_MIME_TYPES =
+  'image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime'
+
 export const createStorageProfileSchema = (
   t: Translate,
   requireStaticCredentials = false
@@ -150,6 +153,6 @@ export function storagePolicyToInput(
     max_file_bytes: Math.round(values.max_file_mib * 1024 * 1024),
     max_total_bytes: Math.round(values.max_total_mib * 1024 * 1024),
     max_files: values.max_files,
-    allowed_mime_types: 'image/jpeg,image/png,image/webp',
+    allowed_mime_types: RELAY_MEDIA_ALLOWED_MIME_TYPES,
   }
 }

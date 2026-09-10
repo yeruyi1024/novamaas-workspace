@@ -93,3 +93,23 @@ func TestGetStoragePolicyByKeyQuotesReservedColumn(t *testing.T) {
 		})
 	}
 }
+
+func TestMigrateRelayMediaPolicyAllowedMIMETypesUpgradesLegacyDefault(t *testing.T) {
+	originalDB := DB
+	t.Cleanup(func() { DB = originalDB })
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&StoragePolicy{}))
+	DB = db
+
+	legacyPolicy := DefaultRelayMediaStoragePolicy()
+	legacyPolicy.AllowedMIMETypes = legacyRelayMediaMIMETypes
+	require.NoError(t, DB.Create(legacyPolicy).Error)
+	require.NoError(t, migrateRelayMediaPolicyAllowedMIMETypes())
+
+	stored, err := GetStoragePolicyByKey(StoragePolicyRelayMediaTemp)
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	assert.Equal(t, RelayMediaAllowedMIMETypes, stored.AllowedMIMETypes)
+}

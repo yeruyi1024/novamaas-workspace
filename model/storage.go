@@ -27,6 +27,8 @@ const (
 	StorageCredentialAuthEnvironment = "environment"
 
 	StoragePolicyRelayMediaTemp = "relay_media_temp"
+	RelayMediaAllowedMIMETypes  = "image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+	legacyRelayMediaMIMETypes   = "image/jpeg,image/png,image/webp"
 
 	StorageObjectPurposeRelayMediaTemp = "relay_media_temp"
 	StorageObjectPurposeBillingArchive = "billing_archive"
@@ -169,9 +171,16 @@ func DefaultRelayMediaStoragePolicy() *StoragePolicy {
 		MaxFileBytes:        10 * 1024 * 1024,
 		MaxTotalBytes:       20 * 1024 * 1024,
 		MaxFiles:            10,
-		AllowedMIMETypes:    "image/jpeg,image/png,image/webp",
+		AllowedMIMETypes:    RelayMediaAllowedMIMETypes,
 		Enabled:             false,
 	}
+}
+
+func migrateRelayMediaPolicyAllowedMIMETypes() error {
+	return DB.Model(&StoragePolicy{}).
+		Where(map[string]any{"key": StoragePolicyRelayMediaTemp}).
+		Where("allowed_mime_types = ?", legacyRelayMediaMIMETypes).
+		Update("allowed_mime_types", RelayMediaAllowedMIMETypes).Error
 }
 
 func GetStorageProfileByID(id int) (*StorageProfile, error) {

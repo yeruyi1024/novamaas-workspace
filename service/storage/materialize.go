@@ -25,6 +25,11 @@ type RequestError struct {
 	Err        error
 }
 
+const (
+	Base64StagingSourceVolcNative  = "volc-native"
+	Base64StagingSourceDoubaoVideo = "doubao-video"
+)
+
 func (err *RequestError) Error() string {
 	if err == nil || err.Err == nil {
 		return "storage request failed"
@@ -55,18 +60,22 @@ type mediaCandidate struct {
 }
 
 type mediaContainer struct {
-	jsonPath string
-	dataURI  string
+	jsonPath  string
+	mediaType string
+	dataURI   string
 }
 
-func MaterializeVolcNativeBase64(ctx context.Context, body []byte, userID int, requestID string, taskID string, policyKey string) ([]byte, int, error) {
+func MaterializeVideoTaskBase64(ctx context.Context, body []byte, userID int, requestID string, taskID string, policyKey string, source string) ([]byte, int, error) {
 	if userID <= 0 || strings.TrimSpace(taskID) == "" {
 		return nil, 0, &RequestError{StatusCode: http.StatusInternalServerError, Err: errors.New("base64 staging requires an authenticated user and task ID")}
+	}
+	if source != Base64StagingSourceVolcNative && source != Base64StagingSourceDoubaoVideo {
+		return nil, 0, &RequestError{StatusCode: http.StatusInternalServerError, Err: errors.New("unsupported base64 staging source")}
 	}
 	if !gjson.ValidBytes(body) {
 		return nil, 0, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("request body must be valid JSON")}
 	}
-	candidateContainers, err := findVolcNativeDataURIContainers(body)
+	candidateContainers, err := findVideoTaskDataURIContainers(body)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -106,7 +115,7 @@ func MaterializeVolcNativeBase64(ctx context.Context, body []byte, userID int, r
 			}
 			continue
 		}
-		objectID, objectKey, err := createRelayStorageObject(profile, policy, candidate, userID, requestID, taskID, index)
+		objectID, objectKey, err := createRelayStorageObject(profile, policy, candidate, userID, requestID, taskID, source, index)
 		if err != nil {
 			cleanupCreatedObjects("request materialization failed")
 			return nil, 0, &RequestError{StatusCode: http.StatusInternalServerError, Err: fmt.Errorf("record temporary media object: %w", err)}
@@ -143,7 +152,7 @@ func replaceMaterializedMediaURL(body []byte, path string, signedURL string) ([]
 	return sjson.SetBytes(body, path, signedURL)
 }
 
-func findVolcNativeDataURIContainers(body []byte) ([]mediaContainer, error) {
+func findVideoTaskDataURIContainers(body []byte) ([]mediaContainer, error) {
 	content := gjson.GetBytes(body, "content")
 	if !content.IsArray() {
 		return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("content must be an array")}
@@ -153,23 +162,26 @@ func findVolcNativeDataURIContainers(body []byte) ([]mediaContainer, error) {
 		if !item.IsObject() {
 			continue
 		}
-		media := item.Get("image_url")
-		if !media.Exists() {
-			continue
-		}
-		if !media.IsObject() {
-			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("content[%d].image_url must be an object", itemIndex)}
-		}
-		url := media.Get("url")
-		if url.Type != gjson.String || strings.TrimSpace(url.String()) == "" {
-			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("content[%d].image_url.url must be a non-empty string", itemIndex)}
-		}
-		rawURL := strings.TrimSpace(url.String())
-		if strings.HasPrefix(strings.ToLower(rawURL), "data:") {
-			containers = append(containers, mediaContainer{
-				jsonPath: fmt.Sprintf("content.%d.image_url.url", itemIndex),
-				dataURI:  rawURL,
-			})
+		for _, mediaType := range []string{"image_url", "video_url"} {
+			media := item.Get(mediaType)
+			if !media.Exists() {
+				continue
+			}
+			if !media.IsObject() {
+				return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("content[%d].%s must be an object", itemIndex, mediaType)}
+			}
+			url := media.Get("url")
+			if url.Type != gjson.String || strings.TrimSpace(url.String()) == "" {
+				return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("content[%d].%s.url must be a non-empty string", itemIndex, mediaType)}
+			}
+			rawURL := strings.TrimSpace(url.String())
+			if strings.HasPrefix(strings.ToLower(rawURL), "data:") {
+				containers = append(containers, mediaContainer{
+					jsonPath:  fmt.Sprintf("content.%d.%s.url", itemIndex, mediaType),
+					mediaType: mediaType,
+					dataURI:   rawURL,
+				})
+			}
 		}
 	}
 	return containers, nil
@@ -192,6 +204,13 @@ func decodeMediaCandidates(containers []mediaContainer, policy *model.StoragePol
 			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("media data URI must use base64 encoding")}
 		}
 		contentType := strings.TrimSpace(strings.TrimSuffix(metadata[5:], ";base64"))
+		expectedPrefix := "image/"
+		if container.mediaType == "video_url" {
+			expectedPrefix = "video/"
+		}
+		if !strings.HasPrefix(contentType, expectedPrefix) {
+			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("%s must contain %s media", container.mediaType, strings.TrimSuffix(expectedPrefix, "/"))}
+		}
 		if _, allowed := allowedTypes[contentType]; !allowed {
 			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("unsupported base64 media type: %s", contentType)}
 		}
@@ -205,7 +224,7 @@ func decodeMediaCandidates(containers []mediaContainer, policy *model.StoragePol
 		if int64(len(payload)) > policy.MaxFileBytes {
 			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("base64 media exceeds the per-file limit of %d bytes", policy.MaxFileBytes)}
 		}
-		actualType := http.DetectContentType(payload)
+		actualType := detectMediaContentType(payload)
 		if actualType != contentType {
 			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: fmt.Errorf("base64 media type mismatch: declared %s, detected %s", contentType, actualType)}
 		}
@@ -229,7 +248,7 @@ func decodeMediaCandidates(containers []mediaContainer, policy *model.StoragePol
 	return candidates, nil
 }
 
-func createRelayStorageObject(profile *model.StorageProfile, policy *model.StoragePolicy, candidate mediaCandidate, userID int, requestID string, taskID string, index int) (int64, string, error) {
+func createRelayStorageObject(profile *model.StorageProfile, policy *model.StoragePolicy, candidate mediaCandidate, userID int, requestID string, taskID string, source string, index int) (int64, string, error) {
 	suffix, err := randomObjectSuffix()
 	if err != nil {
 		return 0, "", err
@@ -239,8 +258,9 @@ func createRelayStorageObject(profile *model.StorageProfile, policy *model.Stora
 		userHash = userHash[:24]
 	}
 	objectID := "obj_" + suffix
-	objectKey := fmt.Sprintf("%s/volc-native/%s/user-%s/%s/%02d-%s.%s",
+	objectKey := fmt.Sprintf("%s/%s/%s/user-%s/%s/%02d-%s.%s",
 		strings.Trim(policy.ObjectPrefix, "/"),
+		source,
 		time.Now().UTC().Format("2006/01/02"),
 		userHash,
 		taskID,
@@ -272,6 +292,17 @@ func createRelayStorageObject(profile *model.StorageProfile, policy *model.Stora
 	return object.ID, objectKey, nil
 }
 
+func detectMediaContentType(payload []byte) string {
+	detected := strings.ToLower(strings.TrimSpace(strings.SplitN(http.DetectContentType(payload), ";", 2)[0]))
+	if detected != "application/octet-stream" {
+		return detected
+	}
+	if len(payload) >= 12 && bytes.Equal(payload[4:8], []byte("ftyp")) && bytes.Equal(payload[8:12], []byte("qt  ")) {
+		return "video/quicktime"
+	}
+	return detected
+}
+
 func mediaExtension(contentType string) (string, bool) {
 	switch contentType {
 	case "image/jpeg":
@@ -280,6 +311,12 @@ func mediaExtension(contentType string) (string, bool) {
 		return "png", true
 	case "image/webp":
 		return "webp", true
+	case "video/mp4":
+		return "mp4", true
+	case "video/webm":
+		return "webm", true
+	case "video/quicktime":
+		return "mov", true
 	default:
 		return "", false
 	}
