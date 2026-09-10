@@ -365,16 +365,18 @@ export function UserAuthForm({
       >
         {passwordLoginEnabled && (
           <FieldGroup className='gap-4'>
-            {/* Username Field */}
+            {/* Login identifier field */}
             <FormField
               control={form.control}
               name='username'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Username or Email')}</FormLabel>
+                  <FormLabel>{t('Username, Email or Phone Number')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={t('Enter your username or email')}
+                      placeholder={t(
+                        'Enter your username, email or phone number'
+                      )}
                       className='h-11 px-3'
                       autoComplete='username'
                       {...field}

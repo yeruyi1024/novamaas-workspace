@@ -32,6 +32,11 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type userMutationRequest struct {
+	model.User
+	Phone *string `json:"phone"`
+}
+
 var (
 	errUserPasswordUnset    = errors.New("user password is not set")
 	errOriginalPasswordFail = errors.New("original password is incorrect")
@@ -663,13 +668,17 @@ func GetUserModels(c *gin.Context) {
 }
 
 func UpdateUser(c *gin.Context) {
-	var updatedUser model.User
-	err := common.DecodeJson(c.Request.Body, &updatedUser)
+	var request userMutationRequest
+	err := common.DecodeJson(c.Request.Body, &request)
+	updatedUser := request.User
 	if err != nil || updatedUser.Id == 0 {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
 	updatedUser.Username = strings.TrimSpace(updatedUser.Username)
+	if request.Phone != nil {
+		updatedUser.Phone = model.NormalizePhone(*request.Phone)
+	}
 	if updatedUser.Username == "" {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -685,6 +694,9 @@ func UpdateUser(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	if request.Phone == nil {
+		updatedUser.Phone = originUser.Phone
 	}
 	if updatedUser.Role != common.RoleGuestUser && updatedUser.Role != originUser.Role {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
@@ -709,6 +721,10 @@ func UpdateUser(c *gin.Context) {
 		authzTouched = touched
 		return err
 	}); err != nil {
+		if errors.Is(err, model.ErrPhoneAlreadyTaken) {
+			common.ApiErrorI18n(c, i18n.MsgUserPhoneAlreadyTaken)
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}
@@ -1001,9 +1017,13 @@ func DeleteSelf(c *gin.Context) {
 }
 
 func CreateUser(c *gin.Context) {
-	var user model.User
-	err := common.DecodeJson(c.Request.Body, &user)
+	var request userMutationRequest
+	err := common.DecodeJson(c.Request.Body, &request)
+	user := request.User
 	user.Username = strings.TrimSpace(user.Username)
+	if request.Phone != nil {
+		user.Phone = model.NormalizePhone(*request.Phone)
+	}
 	if err != nil || user.Username == "" || user.Password == "" {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -1025,6 +1045,7 @@ func CreateUser(c *gin.Context) {
 		Username:    user.Username,
 		Password:    user.Password,
 		DisplayName: user.DisplayName,
+		Phone:       user.Phone,
 		Role:        user.Role, // 保持管理员设置的角色
 	}
 	authzTouched := false
@@ -1036,6 +1057,10 @@ func CreateUser(c *gin.Context) {
 		authzTouched = touched
 		return err
 	}); err != nil {
+		if errors.Is(err, model.ErrPhoneAlreadyTaken) {
+			common.ApiErrorI18n(c, i18n.MsgUserPhoneAlreadyTaken)
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}

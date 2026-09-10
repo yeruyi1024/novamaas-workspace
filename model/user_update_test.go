@@ -272,6 +272,65 @@ func TestInsertRejectsDuplicateEmailWithoutUniqueIndex(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+func TestInsertRejectsDuplicatePhone(t *testing.T) {
+	setupUserUpdateTestState(t)
+
+	require.NoError(t, DB.Create(&User{
+		Username: "existing-phone-user",
+		Password: "old-password",
+		Phone:    "13800138000",
+		Status:   common.UserStatusEnabled,
+	}).Error)
+
+	user := &User{
+		Username: "duplicate-phone-user",
+		Password: "NewPassword123",
+		Phone:    " 13800138000 ",
+		Role:     common.RoleCommonUser,
+		Status:   common.UserStatusEnabled,
+	}
+
+	err := user.Insert(0)
+	require.ErrorIs(t, err, ErrPhoneAlreadyTaken)
+
+	var count int64
+	require.NoError(t, DB.Model(&User{}).Where("username = ?", user.Username).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+func TestEditRejectsPhoneAssignedToAnotherUser(t *testing.T) {
+	setupUserUpdateTestState(t)
+
+	existing := User{
+		Username: "phone-owner",
+		Password: "old-password",
+		Phone:    "13800138000",
+		AffCode:  "phone-owner-aff",
+		Status:   common.UserStatusEnabled,
+		Group:    "default",
+	}
+	editable := User{
+		Username: "phone-editor",
+		Password: "old-password",
+		Phone:    "13900139000",
+		AffCode:  "phone-editor-aff",
+		Status:   common.UserStatusEnabled,
+		Group:    "default",
+	}
+	require.NoError(t, DB.Create(&existing).Error)
+	require.NoError(t, DB.Create(&editable).Error)
+
+	editable.Phone = " 13800138000 "
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		return editable.EditWithTx(tx, false)
+	})
+	require.ErrorIs(t, err, ErrPhoneAlreadyTaken)
+
+	var stored User
+	require.NoError(t, DB.First(&stored, editable.Id).Error)
+	assert.Equal(t, "13900139000", stored.Phone)
+}
+
 func TestInsertKeepsBlankPasswordForPasswordlessUser(t *testing.T) {
 	setupUserUpdateTestState(t)
 
@@ -352,6 +411,41 @@ func TestValidateAndFillRejectsPasswordlessUser(t *testing.T) {
 	var stored User
 	require.NoError(t, DB.Where("username = ?", "passwordless-user").First(&stored).Error)
 	assert.Empty(t, stored.Password)
+}
+
+func TestValidateAndFillAuthenticatesByUsernameEmailOrPhone(t *testing.T) {
+	setupUserUpdateTestState(t)
+
+	passwordHash, err := common.Password2Hash("NewPassword123")
+	require.NoError(t, err)
+	stored := User{
+		Username: "multi-identity-user",
+		Password: passwordHash,
+		Email:    "login@example.com",
+		Phone:    "13800138000",
+		Status:   common.UserStatusEnabled,
+	}
+	require.NoError(t, DB.Create(&stored).Error)
+
+	tests := []struct {
+		name       string
+		identifier string
+	}{
+		{name: "username", identifier: stored.Username},
+		{name: "normalized email", identifier: " LOGIN@EXAMPLE.COM "},
+		{name: "normalized phone", identifier: " 13800138000 "},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			loginUser := User{
+				Username: test.identifier,
+				Password: "NewPassword123",
+			}
+
+			require.NoError(t, loginUser.ValidateAndFill())
+			assert.Equal(t, stored.Id, loginUser.Id)
+		})
+	}
 }
 
 func TestResetUserPasswordByEmailRequiresSingleActiveMatch(t *testing.T) {

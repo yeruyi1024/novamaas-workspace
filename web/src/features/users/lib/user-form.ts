@@ -19,15 +19,15 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 
 import {
-  type PermissionCatalog,
   type AdminPermissionMatrix,
   normalizeAdminPermissions,
+  type PermissionCatalog,
 } from '@/lib/admin-permissions'
 import { quotaUnitsToDollars } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 
 import { DEFAULT_GROUP } from '../constants'
-import { type UserFormData, type User } from '../types'
+import type { User, UserFormData } from '../types'
 
 // ============================================================================
 // Form Schema
@@ -36,6 +36,11 @@ import { type UserFormData, type User } from '../types'
 export const userFormSchema = z.object({
   username: z.string().min(1, 'Username is required'),
   display_name: z.string().optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(32, 'Phone number must be at most 32 characters')
+    .optional(),
   password: z.string().optional(),
   role: z.number().optional(),
   quota_dollars: z.number().min(0).optional(),
@@ -55,6 +60,7 @@ export type UserFormValues = z.infer<typeof userFormSchema>
 export const USER_FORM_DEFAULT_VALUES: UserFormValues = {
   username: '',
   display_name: '',
+  phone: '',
   password: '',
   role: 1, // Default to common user
   quota_dollars: 0,
@@ -79,6 +85,7 @@ export function transformFormDataToPayload(
   const payload: UserFormData & { id?: number } = {
     username: data.username,
     display_name: data.display_name || data.username,
+    phone: data.phone?.trim() || '',
     password: data.password || undefined,
   }
 
@@ -116,6 +123,7 @@ export function transformUserToFormDefaults(user: User): UserFormValues {
   return {
     username: user.username,
     display_name: user.display_name,
+    phone: user.phone || '',
     password: '',
     role: user.role,
     quota_dollars: quotaUnitsToDollars(user.quota),

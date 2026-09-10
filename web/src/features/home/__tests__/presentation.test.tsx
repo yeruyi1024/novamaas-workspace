@@ -105,6 +105,9 @@ test('empty administrator content presents the AI supply value chain and configu
   expect(
     within(main).getByRole('group', { name: 'AI supply network' })
   ).toBeVisible()
+  expect(
+    within(main).getAllByRole('button', { name: 'Get Started' })
+  ).toHaveLength(2)
   expect(within(main).getAllByText('Roadmap')).not.toHaveLength(0)
 })
 
@@ -174,7 +177,7 @@ test('authenticated visitors keep dashboard access from the homepage', async () 
     await screen.findByRole('button', { name: 'Go to Dashboard' })
   ).toHaveAttribute('href', '/dashboard')
   expect(
-    screen.queryByRole('button', { name: 'Start building' })
+    screen.queryByRole('button', { name: 'Get Started' })
   ).not.toBeInTheDocument()
 })
 
