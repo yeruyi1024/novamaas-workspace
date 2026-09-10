@@ -55,7 +55,7 @@ type RelayMediaPolicyFormProps = {
   policy: StoragePolicy
   profiles: StorageProfile[]
   isSaving: boolean
-  onSave: (values: StoragePolicyFormValues) => Promise<void>
+  onSave: (values: StoragePolicyFormValues) => void
 }
 
 function NumberField({

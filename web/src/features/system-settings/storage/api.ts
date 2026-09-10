@@ -36,7 +36,8 @@ export async function listStorageProfiles() {
 export async function createStorageProfile(input: StorageProfileInput) {
   const response = await api.post<StorageAPIResponse<StorageProfile>>(
     '/api/storage/profiles',
-    input
+    input,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }
@@ -47,14 +48,16 @@ export async function updateStorageProfile(
 ) {
   const response = await api.put<StorageAPIResponse<StorageProfile>>(
     `/api/storage/profiles/${id}`,
-    input
+    input,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }
 
 export async function archiveStorageProfile(id: number) {
   const response = await api.delete<StorageAPIResponse>(
-    `/api/storage/profiles/${id}`
+    `/api/storage/profiles/${id}`,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }
@@ -62,14 +65,17 @@ export async function archiveStorageProfile(id: number) {
 export async function testStorageProfile(input: StorageProfileInput) {
   const response = await api.post<StorageAPIResponse>(
     '/api/storage/profiles/test',
-    input
+    input,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }
 
 export async function testSavedStorageProfile(id: number) {
   const response = await api.post<StorageAPIResponse>(
-    `/api/storage/profiles/${id}/test`
+    `/api/storage/profiles/${id}/test`,
+    undefined,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }
@@ -84,7 +90,8 @@ export async function getRelayMediaStoragePolicy() {
 export async function updateRelayMediaStoragePolicy(input: StoragePolicyInput) {
   const response = await api.put<StorageAPIResponse<StoragePolicy>>(
     '/api/storage/policies/relay-media-temp',
-    input
+    input,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }

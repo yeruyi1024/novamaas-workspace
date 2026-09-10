@@ -59,8 +59,8 @@ type StorageProfileDialogProps = {
   isSaving: boolean
   isTesting: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (values: StorageProfileFormValues) => Promise<void>
-  onTest: (values: StorageProfileFormValues) => Promise<void>
+  onSave: (values: StorageProfileFormValues) => void
+  onTest: (values: StorageProfileFormValues) => void
 }
 
 function getProfileDefaults(
@@ -103,9 +103,7 @@ export function StorageProfileDialog({
     if (open) form.reset(getProfileDefaults(profile))
   }, [form, open, profile])
 
-  const runTest = form.handleSubmit(async (values) => {
-    await onTest(values)
-  })
+  const runTest = form.handleSubmit(onTest)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

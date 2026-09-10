@@ -17,9 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
+import { testStorageProfile } from '../api'
 import { StorageManagement } from '../storage-management'
 
 vi.mock('../api', () => ({
@@ -52,29 +54,69 @@ vi.mock('../api', () => ({
   updateRelayMediaStoragePolicy: vi.fn(),
   updateStorageProfile: vi.fn(),
 }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let queryClient: QueryClient
 
+beforeEach(() => vi.clearAllMocks())
 afterEach(() => queryClient?.clear())
+
+function renderStorageManagement() {
+  queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <StorageManagement />
+    </QueryClientProvider>
+  )
+}
 
 describe('storage management', () => {
   test('opens the create profile dialog from the page action', async () => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <StorageManagement />
-      </QueryClientProvider>
-    )
+    renderStorageManagement()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Add profile' }))
 
     expect(await screen.findByRole('dialog')).toBeVisible()
     expect(screen.getByText('Add storage profile')).toBeVisible()
+  })
+
+  test('shows the backend reason when testing a storage profile fails', async () => {
+    vi.mocked(testStorageProfile).mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed with status code 503',
+      response: {
+        data: {
+          success: false,
+          message: 'Set the storage credential encryption key on the server',
+        },
+      },
+    })
+    renderStorageManagement()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add profile' }))
+    fireEvent.change(await screen.findByLabelText('Profile name'), {
+      target: { value: 'Primary OSS' },
+    })
+    fireEvent.change(screen.getByLabelText('Bucket'), {
+      target: { value: 'test-media-bucket' },
+    })
+    fireEvent.change(screen.getByLabelText('Access Key ID'), {
+      target: { value: 'LTAI1234567890' },
+    })
+    fireEvent.change(screen.getByLabelText('Access Key Secret'), {
+      target: { value: 'super-secret-value' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Test configuration' }))
+
+    await waitFor(() => expect(testStorageProfile).toHaveBeenCalledOnce())
+    expect(toast.error).toHaveBeenCalledWith(
+      'Set the storage credential encryption key on the server'
+    )
   })
 })

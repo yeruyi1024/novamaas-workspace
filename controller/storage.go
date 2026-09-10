@@ -3,11 +3,13 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/logger"
 	storageService "github.com/QuantumNous/new-api/service/storage"
 
 	"github.com/gin-gonic/gin"
@@ -48,7 +50,7 @@ func CreateStorageProfile(c *gin.Context) {
 	}
 	profile, err := storageService.SaveProfile(0, input)
 	if err != nil {
-		storageAPIError(c, http.StatusBadRequest, err)
+		storageAPIError(c, storageAPIStatus(err, http.StatusBadRequest), err)
 		return
 	}
 	recordManageAudit(c, "storage.profile_create", map[string]interface{}{"id": profile.ID, "name": profile.Name, "type": profile.ProviderType})
@@ -67,11 +69,7 @@ func UpdateStorageProfile(c *gin.Context) {
 	}
 	profile, err := storageService.SaveProfile(id, input)
 	if err != nil {
-		statusCode := http.StatusBadRequest
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			statusCode = http.StatusNotFound
-		}
-		storageAPIError(c, statusCode, err)
+		storageAPIError(c, storageAPIStatus(err, http.StatusBadRequest), err)
 		return
 	}
 	recordManageAudit(c, "storage.profile_update", map[string]interface{}{"id": profile.ID, "name": profile.Name})
@@ -104,7 +102,7 @@ func TestStorageProfileInput(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 90*time.Second)
 	defer cancel()
 	if err := storageService.TestProfile(ctx, input); err != nil {
-		storageAPIError(c, http.StatusBadGateway, err)
+		storageAPIError(c, storageAPIStatus(err, http.StatusBadGateway), err)
 		return
 	}
 	recordManageAudit(c, "storage.profile_test", map[string]interface{}{"id": "unsaved"})
@@ -119,11 +117,7 @@ func TestSavedStorageProfile(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 90*time.Second)
 	defer cancel()
 	if err := storageService.TestSavedProfile(ctx, id); err != nil {
-		statusCode := http.StatusBadGateway
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			statusCode = http.StatusNotFound
-		}
-		storageAPIError(c, statusCode, err)
+		storageAPIError(c, storageAPIStatus(err, http.StatusInternalServerError), err)
 		return
 	}
 	recordManageAudit(c, "storage.profile_test", map[string]interface{}{"id": id})
@@ -164,8 +158,25 @@ func storageProfileID(c *gin.Context) (int, bool) {
 }
 
 func storageAPIError(c *gin.Context, statusCode int, err error) {
+	if statusCode >= http.StatusInternalServerError {
+		logger.LogError(c.Request.Context(), fmt.Sprintf("storage request failed method=%s path=%s status=%d error=%q", c.Request.Method, c.Request.URL.Path, statusCode, err.Error()))
+	}
 	c.JSON(statusCode, gin.H{
 		"success": false,
 		"message": err.Error(),
 	})
+}
+
+func storageAPIStatus(err error, fallback int) int {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return http.StatusNotFound
+	}
+	var statusError interface{ HTTPStatusCode() int }
+	if errors.As(err, &statusError) {
+		statusCode := statusError.HTTPStatusCode()
+		if statusCode >= http.StatusBadRequest && statusCode <= http.StatusNetworkAuthenticationRequired {
+			return statusCode
+		}
+	}
+	return fallback
 }

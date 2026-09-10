@@ -17,6 +17,8 @@ import (
 
 const credentialEncryptionVersion = "aes-gcm-v1"
 
+var errStorageCredentialEncryptionKeyUnavailable = errors.New("set STORAGE_CREDENTIAL_ENCRYPTION_KEY, CRYPTO_SECRET, or SESSION_SECRET before saving static storage credentials")
+
 type CredentialSecret struct {
 	AccessKeyID     string `json:"access_key_id"`
 	AccessKeySecret string `json:"access_key_secret"`
@@ -89,7 +91,7 @@ func storageCredentialEncryptionKey() ([]byte, error) {
 		masterKey = strings.TrimSpace(os.Getenv("SESSION_SECRET"))
 	}
 	if masterKey == "" {
-		return nil, errors.New("set STORAGE_CREDENTIAL_ENCRYPTION_KEY, CRYPTO_SECRET, or SESSION_SECRET before saving static storage credentials")
+		return nil, errStorageCredentialEncryptionKeyUnavailable
 	}
 	key := sha256.Sum256([]byte("new-api/storage-credential/v1:" + masterKey))
 	return key[:], nil
