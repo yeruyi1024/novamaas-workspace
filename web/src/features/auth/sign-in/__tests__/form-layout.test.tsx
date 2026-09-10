@@ -94,3 +94,13 @@ test('alternative providers follow the password action under one separator', asy
   )
   expect(screen.getAllByText('Or continue with')).toHaveLength(1)
 })
+
+test('password sign-in accepts a username, email address, or phone number', async () => {
+  await renderForm({ password_login_enabled: true })
+
+  expect(
+    screen.getByRole('textbox', {
+      name: 'Username, Email or Phone Number',
+    })
+  ).toHaveAttribute('placeholder', 'Enter your username, email or phone number')
+})

@@ -104,6 +104,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
+| [#25](https://github.com/yeruyi1024/novamaas-workspace/pull/25) | 2026-09-10 | `feat` | 用户 / 登录认证 | 为用户增加可维护且全局唯一的手机号，并支持手机号密码登录与认证版本失效；同步管理界面与登录文案。 | NovaMaaS 下游专属；上游当前没有等价的手机号身份字段、唯一性保护及密码登录组合能力。 | PR 审核中 |
 | [#23](https://github.com/yeruyi1024/novamaas-workspace/pull/23) | 2026-09-10 | `feat` | 对象存储 / 火山方舟视频 | 将 Base64 暂存接入 DoubaoVideo，并把火山原生与 DoubaoVideo 的暂存范围从图片扩展到 MP4、WebM、MOV 视频输入；保留签名 URL、重试复用、任务清理和请求审计边界。 | NovaMaaS 下游专属；上游当前没有等价的 DoubaoVideo Base64 暂存及双渠道视频 Data URI 对象存储转换能力。 | PR 审核中 |
 | [#22](https://github.com/yeruyi1024/novamaas-workspace/pull/22) | 2026-09-10 | `feat/perf` | 计费 / 客户对账 / 永久凭证 | 新增持久钱包结算与小时账本、正式记账起点及企业主体、管理员下发和客户确认、受控历史核验导入；以私有 OSS 固化明细、版本化 PDF 与清单，禁止清理使用日志。 | NovaMaaS 下游专属；上游当前没有等价的正式消费账本、历史导入确认与不可变月度凭证组合能力。 | PR 审核中 |
 | [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) | 2026-09-09 | `feat/fix/perf` | 视频任务 / 日志 / 登录与审计 | 为阿里百炼增加任务详情实时拉取；公开视频默认直连资源方并保留 `/content` 代理兼容模式；登录会话调整为 24 小时；新增系统公告、视频生成与违规统计、强制知晓及设备指纹审计；修复普通用户使用日志字段丢失。 | NovaMaaS 下游专属；其中用量统计修复同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e)。 | PR 审核中 |

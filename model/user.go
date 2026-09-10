@@ -17,7 +17,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const UserNameMaxLength = 20
+const (
+	UserNameMaxLength  = 20
+	UserPhoneMaxLength = 32
+)
 
 var userSortColumns = map[string]string{
 	"id":            "id",
@@ -85,6 +88,7 @@ type User struct {
 	Role             int                        `json:"role" gorm:"type:int;default:1"`   // admin, common
 	Status           int                        `json:"status" gorm:"type:int;default:1"` // enabled, disabled
 	Email            string                     `json:"email" gorm:"index" validate:"max=50"`
+	Phone            string                     `json:"phone" gorm:"type:varchar(32);index" validate:"max=32"`
 	GitHubId         string                     `json:"github_id" gorm:"column:github_id;index"`
 	DiscordId        string                     `json:"discord_id" gorm:"column:discord_id;index"`
 	OidcId           string                     `json:"oidc_id" gorm:"column:oidc_id;index"`
@@ -305,6 +309,10 @@ func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+func NormalizePhone(phone string) string {
+	return strings.TrimSpace(phone)
+}
+
 func emailQuery(tx *gorm.DB, email string) *gorm.DB {
 	if tx == nil {
 		tx = DB
@@ -349,6 +357,40 @@ func EnsureEmailAvailable(email string, excludeUserID int) error {
 	return nil
 }
 
+func phoneQuery(tx *gorm.DB, phone string) *gorm.DB {
+	if tx == nil {
+		tx = DB
+	}
+	return tx.Unscoped().Model(&User{}).Where("phone = ?", NormalizePhone(phone))
+}
+
+func IsPhoneAvailable(phone string, excludeUserID int) (bool, error) {
+	phone = NormalizePhone(phone)
+	if phone == "" {
+		return true, nil
+	}
+	query := phoneQuery(DB, phone)
+	if excludeUserID > 0 {
+		query = query.Where("id <> ?", excludeUserID)
+	}
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count == 0, nil
+}
+
+func EnsurePhoneAvailable(phone string, excludeUserID int) error {
+	available, err := IsPhoneAvailable(phone, excludeUserID)
+	if err != nil {
+		return err
+	}
+	if !available {
+		return ErrPhoneAlreadyTaken
+	}
+	return nil
+}
+
 // withNormalizedEmailLock serializes concurrent writers that target the same
 // normalized email inside tx, so a "check then write" sequence cannot be raced
 // by two transactions. It must be called inside an active transaction; the lock
@@ -378,6 +420,34 @@ func withNormalizedEmailLock(tx *gorm.DB, email string, fn func(tx *gorm.DB) err
 		}
 	}
 	return fn(tx)
+}
+
+// withNormalizedPhoneLock serializes writers targeting the same non-empty
+// phone number. All callers acquire email locks before phone locks so mixed
+// identity writes use one consistent lock order.
+func withNormalizedPhoneLock(tx *gorm.DB, phone string, fn func(tx *gorm.DB) error) error {
+	phone = NormalizePhone(phone)
+	if phone == "" {
+		return fn(tx)
+	}
+	switch {
+	case common.UsingMainDatabase(common.DatabaseTypePostgreSQL):
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", "phone:"+phone).Error; err != nil {
+			return err
+		}
+	case common.UsingMainDatabase(common.DatabaseTypeMySQL):
+		var ids []int
+		if err := tx.Raw("SELECT id FROM users WHERE phone = ? FOR UPDATE", phone).Scan(&ids).Error; err != nil {
+			return err
+		}
+	}
+	return fn(tx)
+}
+
+func withNormalizedUserIdentityLocks(tx *gorm.DB, email string, phone string, fn func(tx *gorm.DB) error) error {
+	return withNormalizedEmailLock(tx, email, func(tx *gorm.DB) error {
+		return withNormalizedPhoneLock(tx, phone, fn)
+	})
 }
 
 func GetMaxUserId() int {
@@ -441,8 +511,13 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	query := tx.Unscoped().Model(&User{})
 
 	// 构建搜索条件
-	likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
-	likeArgs := []interface{}{"%" + keyword + "%", "%" + keyword + "%", "%" + keyword + "%"}
+	likeCondition := "username LIKE ? OR email LIKE ? OR phone LIKE ? OR display_name LIKE ?"
+	likeArgs := []interface{}{
+		"%" + keyword + "%",
+		"%" + keyword + "%",
+		"%" + keyword + "%",
+		"%" + keyword + "%",
+	}
 
 	// 尝试将关键字转换为整数ID
 	keywordInt, err := strconv.Atoi(keyword)
@@ -583,7 +658,11 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 
 func (user *User) prepareForInsert(tx *gorm.DB) error {
 	user.Email = NormalizeEmail(user.Email)
+	user.Phone = NormalizePhone(user.Phone)
 	if err := ensureEmailAvailableWithTx(tx, user.Email, 0); err != nil {
+		return err
+	}
+	if err := ensurePhoneAvailableWithTx(tx, user.Phone, 0); err != nil {
 		return err
 	}
 	if user.Password == "" {
@@ -632,9 +711,28 @@ func ensureEmailAvailableWithTx(tx *gorm.DB, email string, excludeUserID int) er
 	return nil
 }
 
+func ensurePhoneAvailableWithTx(tx *gorm.DB, phone string, excludeUserID int) error {
+	phone = NormalizePhone(phone)
+	if phone == "" {
+		return nil
+	}
+	query := phoneQuery(tx, phone)
+	if excludeUserID > 0 {
+		query = query.Where("id <> ?", excludeUserID)
+	}
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrPhoneAlreadyTaken
+	}
+	return nil
+}
+
 func (user *User) Insert(inviterId int) error {
 	if err := DB.Transaction(func(tx *gorm.DB) error {
-		return withNormalizedEmailLock(tx, user.Email, func(tx *gorm.DB) error {
+		return withNormalizedUserIdentityLocks(tx, user.Email, user.Phone, func(tx *gorm.DB) error {
 			if err := user.prepareForInsert(tx); err != nil {
 				return err
 			}
@@ -698,7 +796,7 @@ func (user *User) FinishInsert(inviterId int) {
 // This is used for OAuth registration where user creation and binding need to be atomic.
 // Post-creation tasks (sidebar config, logs, inviter rewards) are handled after the transaction commits.
 func (user *User) InsertWithTx(tx *gorm.DB, inviterId int) error {
-	return withNormalizedEmailLock(tx, user.Email, func(tx *gorm.DB) error {
+	return withNormalizedUserIdentityLocks(tx, user.Email, user.Phone, func(tx *gorm.DB) error {
 		if err := user.prepareForInsert(tx); err != nil {
 			return err
 		}
@@ -836,32 +934,41 @@ func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
 		}
 	}
 
-	newUser := *user
-	updates := map[string]interface{}{
-		"username":     newUser.Username,
-		"display_name": newUser.DisplayName,
-		"group":        newUser.Group,
-		"remark":       newUser.Remark,
-	}
-	if updatePassword {
-		updates["password"] = newUser.Password
-	}
-
-	current := User{}
-	if err = tx.First(&current, user.Id).Error; err != nil {
-		return err
-	}
-	authChanged := (updatePassword && current.Password != newUser.Password) || current.Group != newUser.Group
-	if authChanged {
-		newUser.AuthVersion, err = IncrementUserAuthVersionWithTx(tx, user.Id)
-		if err != nil {
+	user.Phone = NormalizePhone(user.Phone)
+	return withNormalizedPhoneLock(tx, user.Phone, func(tx *gorm.DB) error {
+		if err := ensurePhoneAvailableWithTx(tx, user.Phone, user.Id); err != nil {
 			return err
 		}
-	}
-	if err = tx.Model(&current).Updates(updates).Error; err != nil {
-		return err
-	}
-	return tx.First(user, user.Id).Error
+
+		newUser := *user
+		updates := map[string]interface{}{
+			"username":     newUser.Username,
+			"display_name": newUser.DisplayName,
+			"phone":        newUser.Phone,
+			"group":        newUser.Group,
+			"remark":       newUser.Remark,
+		}
+		if updatePassword {
+			updates["password"] = newUser.Password
+		}
+
+		current := User{}
+		if err = tx.First(&current, user.Id).Error; err != nil {
+			return err
+		}
+		authChanged := (updatePassword && current.Password != newUser.Password) ||
+			current.Phone != newUser.Phone || current.Group != newUser.Group
+		if authChanged {
+			newUser.AuthVersion, err = IncrementUserAuthVersionWithTx(tx, user.Id)
+			if err != nil {
+				return err
+			}
+		}
+		if err = tx.Model(&current).Updates(updates).Error; err != nil {
+			return err
+		}
+		return tx.First(user, user.Id).Error
+	})
 }
 
 func (user *User) ClearBinding(bindingType string) error {
@@ -994,14 +1101,30 @@ func (user *User) ValidateAndFill() (err error) {
 	if username == "" || password == "" {
 		return ErrUserEmptyCredentials
 	}
-	// find by username or email
-	err = DB.Where("username = ? OR email = ?", username, username).First(user).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrInvalidCredentials
-		}
-		return fmt.Errorf("%w: %v", ErrDatabase, err)
+	// Preserve username precedence, then fall back to normalized email and
+	// phone identities. This keeps login deterministic if legacy data contains
+	// a value that appears in more than one identity namespace.
+	matchedUser := User{}
+	result := DB.Where("username = ?", username).Limit(1).Find(&matchedUser)
+	if result.Error != nil {
+		return fmt.Errorf("%w: %v", ErrDatabase, result.Error)
 	}
+	if result.RowsAffected == 0 {
+		result = DB.Where("LOWER(email) = ?", NormalizeEmail(username)).Limit(1).Find(&matchedUser)
+		if result.Error != nil {
+			return fmt.Errorf("%w: %v", ErrDatabase, result.Error)
+		}
+	}
+	if result.RowsAffected == 0 {
+		result = DB.Where("phone = ?", NormalizePhone(username)).Limit(1).Find(&matchedUser)
+		if result.Error != nil {
+			return fmt.Errorf("%w: %v", ErrDatabase, result.Error)
+		}
+	}
+	if result.RowsAffected == 0 {
+		return ErrInvalidCredentials
+	}
+	*user = matchedUser
 	if user.Password == "" {
 		return ErrInvalidCredentials
 	}

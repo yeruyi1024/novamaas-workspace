@@ -68,7 +68,7 @@ export function CTA(props: CTAProps) {
                 className='maas-primary-action h-11 rounded-full px-5'
                 render={<Link to='/sign-up' />}
               >
-                {t('Start building')}
+                {t('Get Started')}
                 <HugeiconsIcon icon={ArrowRight01Icon} data-icon='inline-end' />
               </Button>
               <Button

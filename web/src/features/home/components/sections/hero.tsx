@@ -106,9 +106,7 @@ export function Hero(props: HeroProps) {
                 <Link to={props.isAuthenticated ? '/dashboard' : '/sign-up'} />
               }
             >
-              {props.isAuthenticated
-                ? t('Go to Dashboard')
-                : t('Start building')}
+              {props.isAuthenticated ? t('Go to Dashboard') : t('Get Started')}
               <HugeiconsIcon icon={ArrowRight01Icon} data-icon='inline-end' />
             </Button>
 
