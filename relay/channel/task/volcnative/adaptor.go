@@ -127,7 +127,9 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	common.SetContextKey(c, constant.ContextKeyVideoTaskUpstreamRequestBody, string(body))
+	if err = relaycommon.RecordVideoTaskUpstreamRequestBody(c, body); err != nil {
+		return nil, err
+	}
 	return bytes.NewReader(body), nil
 }
 

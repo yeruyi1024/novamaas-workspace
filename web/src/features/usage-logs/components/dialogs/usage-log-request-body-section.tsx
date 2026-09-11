@@ -19,16 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 import { AlertCircleIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useQuery } from '@tanstack/react-query'
-import { lazy, Suspense, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
 
-import { getLogRequestBody } from '../../task-content-api'
-
-const RequestJsonViewer = lazy(() => import('./request-json-viewer'))
+import { getLogRequestSnapshots } from '../../task-content-api'
+import { RequestSnapshotsViewer } from './request-snapshots-viewer'
 
 interface UsageLogRequestBodySectionProps {
   isAdmin: boolean
@@ -38,17 +36,6 @@ interface UsageLogRequestBodySectionProps {
   requestId?: string
 }
 
-function formatRequestBody(body: unknown): string {
-  if (typeof body === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(body), null, 2)
-    } catch {
-      return body
-    }
-  }
-  return JSON.stringify(body, null, 2) ?? 'null'
-}
-
 export function UsageLogRequestBodySection(
   props: UsageLogRequestBodySectionProps
 ) {
@@ -56,7 +43,7 @@ export function UsageLogRequestBodySection(
   const hasEmbeddedRequestBody = props.requestBody !== undefined
   const requestBodyQuery = useQuery({
     queryKey: [
-      'usage-log-task-request-body',
+      'usage-log-task-request-snapshots',
       props.isAdmin ? 'admin' : 'self',
       props.taskId,
       props.requestId,
@@ -65,7 +52,10 @@ export function UsageLogRequestBodySection(
       if (!props.taskId && !props.requestId) {
         throw new Error('request body reference unavailable')
       }
-      const response = await getLogRequestBody(props.taskId, props.requestId)
+      const response = await getLogRequestSnapshots(
+        props.taskId,
+        props.requestId
+      )
       if (!response.success || response.data === undefined) {
         throw new Error(response.message || 'request body unavailable')
       }
@@ -79,19 +69,16 @@ export function UsageLogRequestBodySection(
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   })
-  const requestBodyJson = useMemo(() => {
-    const requestBody = hasEmbeddedRequestBody
-      ? props.requestBody
-      : requestBodyQuery.data
-    return requestBody === undefined ? null : formatRequestBody(requestBody)
-  }, [hasEmbeddedRequestBody, props.requestBody, requestBodyQuery.data])
+  const requestSnapshots = hasEmbeddedRequestBody
+    ? { original: props.requestBody }
+    : requestBodyQuery.data
 
   if (!props.open) return null
 
   return (
     <section className='flex min-w-0 flex-col gap-1.5'>
       <Label className='flex items-center gap-1.5 text-xs font-semibold'>
-        {t('Request Body')}
+        {t('Request Snapshots')}
       </Label>
       {!hasEmbeddedRequestBody && requestBodyQuery.isFetching ? (
         <div className='bg-muted/30 text-muted-foreground flex min-h-32 items-center justify-center gap-2 rounded-md border text-sm'>
@@ -106,16 +93,11 @@ export function UsageLogRequestBodySection(
           <AlertDescription>{t('Request failed')}</AlertDescription>
         </Alert>
       ) : null}
-      {requestBodyJson !== null ? (
-        <Suspense
-          fallback={
-            <div className='flex min-h-32 items-center justify-center'>
-              <Spinner />
-            </div>
-          }
-        >
-          <RequestJsonViewer json={requestBodyJson} />
-        </Suspense>
+      {requestSnapshots ? (
+        <RequestSnapshotsViewer
+          original={requestSnapshots.original}
+          upstream={requestSnapshots.upstream}
+        />
       ) : null}
     </section>
   )

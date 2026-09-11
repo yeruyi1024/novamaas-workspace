@@ -23,7 +23,7 @@ import {
   downloadTaskVideo,
   getTaskInformation,
   getTaskVideoContentInfo,
-  getTaskRequestBody,
+  getTaskRequestSnapshots,
 } from '../../../task-content-api'
 import type { TaskLog } from '../../../types'
 import { TaskLogDetailsCell } from '../task-log-details-cell'
@@ -34,7 +34,7 @@ vi.mock('../../../task-content-api', () => ({
   downloadTaskVideo: vi.fn(),
   getTaskInformation: vi.fn(),
   getTaskVideoContentInfo: vi.fn(),
-  getTaskRequestBody: vi.fn(),
+  getTaskRequestSnapshots: vi.fn(),
 }))
 
 vi.mock('@/components/ai-elements/code-block', () => ({
@@ -59,16 +59,27 @@ const successfulVideoLog: TaskLog = {
 
 describe('TaskLogDetailsCell', () => {
   beforeEach(() => {
-    vi.mocked(getTaskRequestBody).mockReset()
+    vi.mocked(getTaskRequestSnapshots).mockReset()
     vi.mocked(downloadTaskVideo).mockReset()
     vi.mocked(getTaskVideoContentInfo).mockReset()
     vi.mocked(getTaskInformation).mockReset()
   })
 
   test('shows the formatted request JSON regardless of task status', async () => {
-    vi.mocked(getTaskRequestBody).mockResolvedValue({
+    vi.mocked(getTaskRequestSnapshots).mockResolvedValue({
       success: true,
-      data: { prompt: 'hello', parameters: { duration: 5 } },
+      data: {
+        original: { prompt: 'hello', parameters: { duration: 5 } },
+        upstream: {
+          model: 'doubao-seedance-upstream',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: 'https://storage.example.com/staged.webp' },
+            },
+          ],
+        },
+      },
     })
 
     render(
@@ -85,7 +96,7 @@ describe('TaskLogDetailsCell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View request body' }))
 
     await waitFor(() =>
-      expect(getTaskRequestBody).toHaveBeenCalledWith('task_video')
+      expect(getTaskRequestSnapshots).toHaveBeenCalledWith('task_video')
     )
     expect((await screen.findByTestId('request-json')).textContent).toBe(`{
   "prompt": "hello",
@@ -93,6 +104,12 @@ describe('TaskLogDetailsCell', () => {
     "duration": 5
   }
 }`)
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'Actual Upstream Request' })
+    )
+    expect((await screen.findByTestId('request-json')).textContent).toContain(
+      'https://storage.example.com/staged.webp'
+    )
     expect(screen.getByText('upstream failed')).toBeInTheDocument()
   })
 
@@ -111,7 +128,7 @@ describe('TaskLogDetailsCell', () => {
     expect(
       screen.queryByRole('button', { name: 'View request body' })
     ).not.toBeInTheDocument()
-    expect(getTaskRequestBody).not.toHaveBeenCalled()
+    expect(getTaskRequestSnapshots).not.toHaveBeenCalled()
     expect(screen.getByText('-')).toBeInTheDocument()
   })
 

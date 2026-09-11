@@ -52,7 +52,7 @@ func TestCaptureVideoTaskRequestBodyChannels(t *testing.T) {
 }
 
 func TestCaptureVideoTaskRequestBodyRejectsOversizedPayload(t *testing.T) {
-	body := bytes.Repeat([]byte(" "), maxStoredVideoTaskRequestBodyBytes+1)
+	body := bytes.Repeat([]byte(" "), model.MaxTaskRequestBodyBytes+1)
 	storage, err := common.CreateBodyStorage(body)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, storage.Close()) })
@@ -60,7 +60,7 @@ func TestCaptureVideoTaskRequestBodyRejectsOversizedPayload(t *testing.T) {
 	got, err := captureVideoTaskRequestBody(constant.ChannelTypeDoubaoVideo, storage)
 
 	assert.Nil(t, got)
-	assert.True(t, errors.Is(err, errVideoTaskRequestBodyTooLarge))
+	assert.True(t, errors.Is(err, model.ErrTaskRequestBodyTooLarge))
 }
 
 func TestCaptureVideoTaskRequestBodyRequiresJSON(t *testing.T) {
@@ -138,6 +138,33 @@ func TestGetTaskRequestBodyAllowsAdminLookup(t *testing.T) {
 	response := runTaskRequestBodyHandler(1, "task_admin", GetTaskRequestBody)
 	assert.Equal(t, http.StatusOK, response.Code)
 	assert.JSONEq(t, `{"success":true,"message":"","data":{"prompt":"admin-visible"}}`, response.Body.String())
+}
+
+func TestGetTaskRequestSnapshotsReturnsOriginalAndUpstreamBodies(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
+	previousDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = previousDB })
+	require.NoError(t, model.SaveTaskRequestSnapshots(
+		"task_snapshots",
+		"request_snapshots",
+		[]byte(`{"model":"public-model","prompt":"hello"}`),
+		[]byte(`{"model":"upstream-model","content":[{"type":"text","text":"hello"}]}`),
+	))
+
+	response := runTaskRequestBodyHandler(1, "task_snapshots", GetTaskRequestSnapshots)
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	var payload struct {
+		Success bool                       `json:"success"`
+		Data    model.TaskRequestSnapshots `json:"data"`
+	}
+	require.NoError(t, common.DecodeJson(response.Body, &payload))
+	assert.True(t, payload.Success)
+	assert.JSONEq(t, `{"model":"public-model","prompt":"hello"}`, string(payload.Data.Original))
+	assert.JSONEq(t, `{"model":"upstream-model","content":[{"type":"text","text":"hello"}]}`, string(payload.Data.Upstream))
 }
 
 func TestGetTaskRequestBodyFallsBackToLegacyTaskProperty(t *testing.T) {

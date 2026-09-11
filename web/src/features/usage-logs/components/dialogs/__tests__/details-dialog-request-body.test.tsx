@@ -17,15 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { UsageLog } from '../../../data/schema'
-import { getLogRequestBody } from '../../../task-content-api'
+import { getLogRequestSnapshots } from '../../../task-content-api'
 import { DetailsDialog } from '../details-dialog'
 
 vi.mock('../../../task-content-api', () => ({
-  getLogRequestBody: vi.fn(),
+  getLogRequestSnapshots: vi.fn(),
 }))
 
 vi.mock('@/components/ai-elements/code-block', () => ({
@@ -82,37 +82,56 @@ function renderDialog(isAdmin: boolean, log: UsageLog = videoUsageLog) {
 
 describe('DetailsDialog request body', () => {
   beforeEach(() => {
-    vi.mocked(getLogRequestBody).mockReset()
+    vi.mocked(getLogRequestSnapshots).mockReset()
   })
 
-  test('shows formatted video request JSON for administrators', async () => {
-    vi.mocked(getLogRequestBody).mockResolvedValue({
+  test('shows original and actual upstream request snapshots for administrators', async () => {
+    vi.mocked(getLogRequestSnapshots).mockResolvedValue({
       success: true,
-      data: { prompt: 'hello', parameters: { duration: 5 } },
+      data: {
+        original: { prompt: 'hello', parameters: { duration: 5 } },
+        upstream: {
+          model: 'doubao-seedance-upstream',
+          content: [{ type: 'text', text: 'hello' }],
+        },
+      },
     })
 
     renderDialog(true)
 
     await waitFor(() =>
-      expect(getLogRequestBody).toHaveBeenCalledWith(
+      expect(getLogRequestSnapshots).toHaveBeenCalledWith(
         'task_video',
         'request_video'
       )
     )
-    expect(await screen.findByText('Request Body')).toBeInTheDocument()
+    expect(await screen.findByText('Request Snapshots')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('tab', { name: 'Original Request' })
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('tab', { name: 'Actual Upstream Request' })
+    ).toBeInTheDocument()
     expect((await screen.findByTestId('request-json')).textContent).toBe(`{
   "prompt": "hello",
   "parameters": {
     "duration": 5
   }
 }`)
+
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'Actual Upstream Request' })
+    )
+    expect((await screen.findByTestId('request-json')).textContent).toContain(
+      '"model": "doubao-seedance-upstream"'
+    )
   })
 
   test('does not request or show the request body for non-administrators', () => {
     renderDialog(false)
 
-    expect(getLogRequestBody).not.toHaveBeenCalled()
-    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+    expect(getLogRequestSnapshots).not.toHaveBeenCalled()
+    expect(screen.queryByText('Request Snapshots')).not.toBeInTheDocument()
     expect(screen.getByText('request_video')).toBeInTheDocument()
     expect(screen.getByText('video-token')).toBeInTheDocument()
     expect(screen.getByText('default')).toBeInTheDocument()
@@ -125,8 +144,8 @@ describe('DetailsDialog request body', () => {
       other: JSON.stringify({ request_path: '/v1/chat/completions' }),
     })
 
-    expect(getLogRequestBody).not.toHaveBeenCalled()
-    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+    expect(getLogRequestSnapshots).not.toHaveBeenCalled()
+    expect(screen.queryByText('Request Snapshots')).not.toBeInTheDocument()
   })
 
   test('shows an embedded request body to administrators when task submission fails', async () => {
@@ -140,16 +159,16 @@ describe('DetailsDialog request body', () => {
       }),
     })
 
-    expect(getLogRequestBody).not.toHaveBeenCalled()
+    expect(getLogRequestSnapshots).not.toHaveBeenCalled()
     expect((await screen.findByTestId('request-json')).textContent).toBe(`{
   "prompt": "failed request"
 }`)
   })
 
   test('loads an archived legacy error body by request ID when no task ID exists', async () => {
-    vi.mocked(getLogRequestBody).mockResolvedValue({
+    vi.mocked(getLogRequestSnapshots).mockResolvedValue({
       success: true,
-      data: { prompt: 'archived failure' },
+      data: { original: { prompt: 'archived failure' } },
     })
     renderDialog(true, {
       ...videoUsageLog,
@@ -162,7 +181,7 @@ describe('DetailsDialog request body', () => {
     })
 
     await waitFor(() =>
-      expect(getLogRequestBody).toHaveBeenCalledWith(
+      expect(getLogRequestSnapshots).toHaveBeenCalledWith(
         undefined,
         'request_orphan'
       )
@@ -183,8 +202,8 @@ describe('DetailsDialog request body', () => {
       }),
     })
 
-    expect(getLogRequestBody).not.toHaveBeenCalled()
-    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+    expect(getLogRequestSnapshots).not.toHaveBeenCalled()
+    expect(screen.queryByText('Request Snapshots')).not.toBeInTheDocument()
   })
 
   test('shows the temporary media conversion marker without exposing the body', () => {
@@ -196,11 +215,11 @@ describe('DetailsDialog request body', () => {
     expect(
       screen.getByText('Temporarily stored and converted')
     ).toBeInTheDocument()
-    expect(screen.queryByText('Request Body')).not.toBeInTheDocument()
+    expect(screen.queryByText('Request Snapshots')).not.toBeInTheDocument()
   })
 
   test('shows the unavailable state when the request body lookup fails', async () => {
-    vi.mocked(getLogRequestBody).mockResolvedValue({
+    vi.mocked(getLogRequestSnapshots).mockResolvedValue({
       success: false,
       message: 'not found',
     })

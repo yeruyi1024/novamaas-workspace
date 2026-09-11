@@ -17,66 +17,55 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { AlertCircle } from 'lucide-react'
-import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Spinner } from '@/components/ui/spinner'
 
-const RequestJsonViewer = lazy(() => import('./request-json-viewer'))
+import type { TaskRequestSnapshots } from '../../task-content-api'
+import { RequestSnapshotsViewer } from './request-snapshots-viewer'
 
 interface RequestBodyDialogProps {
   error: boolean
-  json: string | null
   loading: boolean
   onOpenChange: (open: boolean) => void
   open: boolean
+  snapshots: TaskRequestSnapshots | null
 }
 
-export function RequestBodyDialog({
-  error,
-  json,
-  loading,
-  onOpenChange,
-  open,
-}: RequestBodyDialogProps) {
+export function RequestBodyDialog(props: RequestBodyDialogProps) {
   const { t } = useTranslation()
 
   return (
     <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={t('Request Body')}
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      title={t('Request Snapshots')}
       description={t(
-        'Formatted JSON submitted by the user for this video task.'
+        'Original client request and actual upstream request snapshots for this video task.'
       )}
       contentClassName='sm:max-w-3xl'
       contentHeight='min(70vh, 42rem)'
     >
-      {loading ? (
+      {props.loading ? (
         <div className='text-muted-foreground flex min-h-40 items-center justify-center gap-2 text-sm'>
           <Spinner />
           <span>{t('Loading request body...')}</span>
         </div>
       ) : null}
-      {!loading && error ? (
+      {!props.loading && props.error ? (
         <Alert variant='destructive'>
           <AlertCircle />
           <AlertTitle>{t('Request body unavailable')}</AlertTitle>
           <AlertDescription>{t('Request failed')}</AlertDescription>
         </Alert>
       ) : null}
-      {!loading && !error && json !== null ? (
-        <Suspense
-          fallback={
-            <div className='flex min-h-40 items-center justify-center'>
-              <Spinner />
-            </div>
-          }
-        >
-          <RequestJsonViewer json={json} />
-        </Suspense>
+      {!props.loading && !props.error && props.snapshots !== null ? (
+        <RequestSnapshotsViewer
+          original={props.snapshots.original}
+          upstream={props.snapshots.upstream}
+        />
       ) : null}
     </Dialog>
   )

@@ -61,9 +61,9 @@ const (
 	ContextKeyFileSourcesToCleanup ContextKey = "file_sources_to_cleanup"
 
 	// Async video task request-body audit state. The original body is stored in
-	// the dedicated task request-body archive; hot task/log rows keep only the
-	// public task reference and availability marker. The upstream body remains
-	// transient context for provider-specific media staging diagnostics.
+	// the dedicated task request-body archive alongside the final upstream body;
+	// hot task/log rows keep only the public task reference and availability
+	// marker.
 	ContextKeyVideoTaskOriginalRequestBody ContextKey = "video_task_original_request_body"
 	ContextKeyVideoTaskUpstreamRequestBody ContextKey = "video_task_upstream_request_body"
 	ContextKeyVideoTaskRequestBodyStored   ContextKey = "video_task_request_body_stored"
