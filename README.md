@@ -100,27 +100,23 @@ NovaMaaS 将围绕供应聚合、商业运营和算力资源三个方向持续�
 
 CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充、内部重构、依赖升级、临时排障，以及未合并或已被替代的方案不进入本表，除非它们同时改变上述核心运行时边界。
 
-<!-- novamaas-pr-ledger:start -->
+| 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 |
+| --- | --- | --- | --- | --- | --- |
+| [#26](https://github.com/yeruyi1024/novamaas-workspace/pull/26) | 2026-09-11 | `feat` | 视频任务 / 请求审计 | 为 DoubaoVideo、火山原生和阿里百炼分别归档客户端原始请求与实际上游请求，并在管理员日志详情中对照展示；Base64 暂存场景记录转换后的地址。 | NovaMaaS 下游专属；上游当前没有视频任务双请求快照、暂存后正文审计与管理员对照查看的等价实现。 |
+| [#25](https://github.com/yeruyi1024/novamaas-workspace/pull/25) | 2026-09-10 | `feat` | 用户 / 登录认证 | 为用户增加可维护且全局唯一的手机号，并支持手机号密码登录与认证版本失效；同步管理界面与登录文案。 | NovaMaaS 下游专属；上游当前没有等价的手机号身份字段、唯一性保护及密码登录组合能力。 |
+| [#23](https://github.com/yeruyi1024/novamaas-workspace/pull/23) | 2026-09-10 | `feat` | 对象存储 / 火山方舟视频 | 将 Base64 暂存接入 DoubaoVideo，并把火山原生与 DoubaoVideo 的暂存范围从图片扩展到 MP4、WebM、MOV 视频输入；保留签名 URL、重试复用、任务清理和请求审计边界。 | NovaMaaS 下游专属；上游当前没有等价的 DoubaoVideo Base64 暂存及双渠道视频 Data URI 对象存储转换能力。 |
+| [#22](https://github.com/yeruyi1024/novamaas-workspace/pull/22) | 2026-09-10 | `feat/perf` | 计费 / 客户对账 / 永久凭证 | 新增持久钱包结算与小时账本、正式记账起点及企业主体、管理员下发和客户确认、受控历史核验导入；以私有 OSS 固化明细、版本化 PDF 与清单，禁止清理使用日志。 | NovaMaaS 下游专属；上游当前没有等价的正式消费账本、历史导入确认与不可变月度凭证组合能力。 |
+| [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) | 2026-09-09 | `feat/fix/perf` | 视频任务 / 日志 / 登录与审计 | 为阿里百炼增加任务详情实时拉取；公开视频默认直连资源方并保留 `/content` 代理兼容模式；登录会话调整为 24 小时；新增系统公告、视频生成与违规统计、强制知晓及设备指纹审计；修复普通用户使用日志字段丢失。 | NovaMaaS 下游专属；其中用量统计修复同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e)。 |
+| [#20](https://github.com/yeruyi1024/novamaas-workspace/pull/20) | 2026-09-08 | `perf` | 日志 / 任务审计 | 将任务请求体从 `logs.other` 与 `tasks.properties` 迁移至独立归档表，保留管理员按需查看，并通过可恢复批处理清理历史热表载荷。 | NovaMaaS 下游专属；上游当前没有独立请求体归档、按需审计读取与历史迁移组合能力。 |
+| [#19](https://github.com/yeruyi1024/novamaas-workspace/pull/19) | 2026-09-08 | `feat` | 视频任务 / 计费 | 为 Doubao Seedance 2.0 增加稳定公开模型名，使其可映射到不同上游模型 ID，同时复用 720p、1080p、4K 与视频输入计费倍率。 | NovaMaaS 下游专属；上游当前没有该稳定公开别名及其参数计费映射。 |
+| [#18](https://github.com/yeruyi1024/novamaas-workspace/pull/18) | 2026-09-08 | `fix` | 对象存储 / 数据兼容 | 使用 GORM 方言感知条件引用存储策略 `key` 列，修复 MySQL 1064 错误，并增加 SQLite、MySQL、PostgreSQL 查询回归测试。 | NovaMaaS 下游专属；属于 #17 对象存储能力的兼容性修复，上游当前没有等价的存储策略实现。 |
+| [#17](https://github.com/yeruyi1024/novamaas-workspace/pull/17) | 2026-09-08 | `feat` | 对象存储 / 火山方舟 | 新增系统级存储 Profile 与用途 Policy，以私有阿里云 OSS 签名地址兼容火山原生 Base64 媒体请求，并实现任务终态清理、请求审计分流及管理员访问控制。 | NovaMaaS 下游专属；上游当前没有等价的火山 Base64 暂存、通用对象存储策略与审计分流组合实现。 |
+| [#14](https://github.com/yeruyi1024/novamaas-workspace/pull/14) | 2026-09-07 | `feat` | 视频任务 / 使用日志 | 为 DoubaoVideo 增加 302 重定向与 600 秒服务端代理模式，记录 DoubaoVideo、原生 Ark、阿里百炼视频任务请求体，并在鉴权日志详情中按数据可用性提供视频下载和格式化 JSON 查看入口。 | NovaMaaS 下游专属；上游当前没有等价的视频交付模式与任务请求审计组合实现。 |
+| [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 |
+| [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 |
+| [#1](https://github.com/yeruyi1024/novamaas-workspace/pull/1) | 2026-09-05 | `feat/fix` | 火山方舟 | 选择性引入 Volc Native 渠道，并补齐任务凭据延续、取消状态、响应关闭、路由隔离、权限约束和多语言支持。 | 来源为仍未合并的上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) / [#4705](https://github.com/QuantumNous/new-api/issues/4705)，NovaMaaS 追加安全与兼容加固。 |
 
-| 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 | 状态 |
-| --- | --- | --- | --- | --- | --- | --- |
-| [#26](https://github.com/yeruyi1024/novamaas-workspace/pull/26) | 2026-09-11 | `feat` | 视频任务 / 请求审计 | 为 DoubaoVideo、火山原生和阿里百炼分别归档客户端原始请求与实际上游请求，并在管理员日志详情中对照展示；Base64 暂存场景记录转换后的地址。 | NovaMaaS 下游专属；上游当前没有视频任务双请求快照、暂存后正文审计与管理员对照查看的等价实现。 | PR 审核中 |
-| [#25](https://github.com/yeruyi1024/novamaas-workspace/pull/25) | 2026-09-10 | `feat` | 用户 / 登录认证 | 为用户增加可维护且全局唯一的手机号，并支持手机号密码登录与认证版本失效；同步管理界面与登录文案。 | NovaMaaS 下游专属；上游当前没有等价的手机号身份字段、唯一性保护及密码登录组合能力。 | PR 审核中 |
-| [#23](https://github.com/yeruyi1024/novamaas-workspace/pull/23) | 2026-09-10 | `feat` | 对象存储 / 火山方舟视频 | 将 Base64 暂存接入 DoubaoVideo，并把火山原生与 DoubaoVideo 的暂存范围从图片扩展到 MP4、WebM、MOV 视频输入；保留签名 URL、重试复用、任务清理和请求审计边界。 | NovaMaaS 下游专属；上游当前没有等价的 DoubaoVideo Base64 暂存及双渠道视频 Data URI 对象存储转换能力。 | PR 审核中 |
-| [#22](https://github.com/yeruyi1024/novamaas-workspace/pull/22) | 2026-09-10 | `feat/perf` | 计费 / 客户对账 / 永久凭证 | 新增持久钱包结算与小时账本、正式记账起点及企业主体、管理员下发和客户确认、受控历史核验导入；以私有 OSS 固化明细、版本化 PDF 与清单，禁止清理使用日志。 | NovaMaaS 下游专属；上游当前没有等价的正式消费账本、历史导入确认与不可变月度凭证组合能力。 | PR 审核中 |
-| [#21](https://github.com/yeruyi1024/novamaas-workspace/pull/21) | 2026-09-09 | `feat/fix/perf` | 视频任务 / 日志 / 登录与审计 | 为阿里百炼增加任务详情实时拉取；公开视频默认直连资源方并保留 `/content` 代理兼容模式；登录会话调整为 24 小时；新增系统公告、视频生成与违规统计、强制知晓及设备指纹审计；修复普通用户使用日志字段丢失。 | NovaMaaS 下游专属；其中用量统计修复同步上游提交 [`8c8c4153d`](https://github.com/QuantumNous/new-api/commit/8c8c4153d4b80d54352d21593de41aa9a6178f7e)。 | PR 审核中 |
-| [#20](https://github.com/yeruyi1024/novamaas-workspace/pull/20) | 2026-09-08 | `perf` | 日志 / 任务审计 | 将任务请求体从 `logs.other` 与 `tasks.properties` 迁移至独立归档表，保留管理员按需查看，并通过可恢复批处理清理历史热表载荷。 | NovaMaaS 下游专属；上游当前没有独立请求体归档、按需审计读取与历史迁移组合能力。 | PR 审核中 |
-| [#19](https://github.com/yeruyi1024/novamaas-workspace/pull/19) | 2026-09-08 | `feat` | 视频任务 / 计费 | 为 Doubao Seedance 2.0 增加稳定公开模型名，使其可映射到不同上游模型 ID，同时复用 720p、1080p、4K 与视频输入计费倍率。 | NovaMaaS 下游专属；上游当前没有该稳定公开别名及其参数计费映射。 | PR 审核中 |
-| [#18](https://github.com/yeruyi1024/novamaas-workspace/pull/18) | 2026-09-08 | `fix` | 对象存储 / 数据兼容 | 使用 GORM 方言感知条件引用存储策略 `key` 列，修复 MySQL 1064 错误，并增加 SQLite、MySQL、PostgreSQL 查询回归测试。 | NovaMaaS 下游专属；属于 #17 对象存储能力的兼容性修复，上游当前没有等价的存储策略实现。 | PR 审核中 |
-| [#17](https://github.com/yeruyi1024/novamaas-workspace/pull/17) | 2026-09-08 | `feat` | 对象存储 / 火山方舟 | 新增系统级存储 Profile 与用途 Policy，以私有阿里云 OSS 签名地址兼容火山原生 Base64 媒体请求，并实现任务终态清理、请求审计分流及管理员访问控制。 | NovaMaaS 下游专属；上游当前没有等价的火山 Base64 暂存、通用对象存储策略与审计分流组合实现。 | PR 审核中 |
-| [#14](https://github.com/yeruyi1024/novamaas-workspace/pull/14) | 2026-09-07 | `feat` | 视频任务 / 使用日志 | 为 DoubaoVideo 增加 302 重定向与 600 秒服务端代理模式，记录 DoubaoVideo、原生 Ark、阿里百炼视频任务请求体，并在鉴权日志详情中按数据可用性提供视频下载和格式化 JSON 查看入口。 | NovaMaaS 下游专属；上游当前没有等价的视频交付模式与任务请求审计组合实现。 | PR 审核中 |
-| [#11](https://github.com/yeruyi1024/novamaas-workspace/pull/11) | 2026-09-06 | `fix` | 阿里百炼 | 兼容 Wan3 任务结果中的整数、小数和数字字符串时长，恢复异步任务状态更新并增加适配器回归测试。 | 对齐上游 [#6166](https://github.com/QuantumNous/new-api/issues/6166) / [#6174](https://github.com/QuantumNous/new-api/pull/6174)，并增加非法值和溢出保护。 | PR 审核中 |
-| [#8](https://github.com/yeruyi1024/novamaas-workspace/pull/8) | 2026-09-06 | `feat` | 火山方舟 | 为 Volc Native 增加仅改写顶层 `model` 的模型映射，平台侧继续使用公开别名完成权限、计费和日志。 | #1 的下游增强；上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) 尚未覆盖该映射能力。 | 已合并 |
-| [#1](https://github.com/yeruyi1024/novamaas-workspace/pull/1) | 2026-09-05 | `feat/fix` | 火山方舟 | 选择性引入 Volc Native 渠道，并补齐任务凭据延续、取消状态、响应关闭、路由隔离、权限约束和多语言支持。 | 来源为仍未合并的上游 [#6653](https://github.com/QuantumNous/new-api/pull/6653) / [#4705](https://github.com/QuantumNous/new-api/issues/4705)，NovaMaaS 追加安全与兼容加固。 | 已合并 |
-
-<!-- novamaas-pr-ledger:end -->
-
-维护约束：每个面向 `main` 的 PR 都必须在 PR 描述中二选一标记“关键差异”或“常规变更”，并说明判断理由。只有符合上述三个条件的“关键差异”PR 才在标记区域新增一行，使用真实 PR 编号和链接，说明类型、影响领域、关键变化、与上游的关系及当前状态；“常规变更”不得为自身新增账本行。上游同步类 PR 还必须同步更新 [UPSTREAM.md](UPSTREAM.md)。`.github/workflows/build.yml` 会校验分类是否唯一，并对“关键差异”验证当前 PR 的账本行。
+维护方式：台账由作者和评审按长期运行时差异标准人工维护，不作为 PR 或 CI 的合并门禁。记录使用真实 PR 链接，不再维护容易过期的审核状态；上游同步类 PR 仍需更新 [UPSTREAM.md](UPSTREAM.md)。
 
 ## 版本与上游维护
 
@@ -131,8 +127,6 @@ NovaMaaS 采用“固定基线、定期评估、选择性合并、完整记录�
 3. 通过独立分支和 Pull Request 合并上游改动，并完成 Go、前端、数据库与容器构建验证。
 4. 每次上游同步都在 [UPSTREAM.md](UPSTREAM.md) 中记录来源提交、合并原因、适配内容和验证结果。
 5. 正式能力随 NovaMaaS 版本统一发布，在版本说明中建立“上游提交—NovaMaaS 版本—构建产物”的对应关系。
-
-当前 PR 合并 CI 使用 `build_<UTC 合并时间>_<架构>` 标识单架构镜像，并使用 `build_<UTC 合并时间>_multiarch` 标识 GHCR 多架构镜像。产品版本由 [VERSION](VERSION) 管理；发布时应确保源码版本、发布说明、安装包和容器镜像之间可以相互追溯。
 
 ## 快速开始
 
@@ -177,14 +171,6 @@ docker run --rm -p 3000:3000 -v novamaas-data:/data novamaas:local
 | [LICENSE](LICENSE) | AGPL-3.0 许可证与适用条款 |
 | [NOTICE](NOTICE) | 上游声明、署名和附加许可说明 |
 | [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) | 第三方依赖许可证信息 |
-
-## 构建与发布
-
-- 普通 PR 和手动工作流只执行源码检查，不发布镜像。
-- PR 合并到 `main` 后构建 Linux amd64/arm64 安装包和容器镜像。
-- GitHub-hosted runner 将 amd64/arm64 多架构镜像发布至 [GitHub Container Registry](https://github.com/yeruyi1024/novamaas-workspace/pkgs/container/novamaas-workspace)；self-hosted runner 将 Linux amd64 镜像发布至 `ccr.ccs.tencentyun.com/nova-proj/nova-maas`。
-- PR 合并构建使用 `build_<UTC 合并时间>_<架构>` 标签；发布 Release 或推送 Git Tag 不触发此工作流，正式 Release 应使用独立的版本标签方案。
-- GHCR 使用 GitHub 自动提供的 `GITHUB_TOKEN`；腾讯云凭据仅保存在 GitHub Actions Secrets 中，不得写入源码、文档或普通 Variables。
 
 ## 许可与合规
 
