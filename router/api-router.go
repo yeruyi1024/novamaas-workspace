@@ -312,6 +312,7 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/self", middleware.UserAuth(), controller.GetUserLogs)
 		logRoute.GET("/self/search", middleware.UserAuth(), middleware.SearchRateLimit(), controller.SearchUserLogs)
 		logRoute.GET("/request-body", middleware.AdminAuth(), controller.GetLogRequestBody)
+		logRoute.GET("/request-snapshots", middleware.AdminAuth(), controller.GetLogRequestSnapshots)
 
 		systemTaskRoute := apiRouter.Group("/system-task")
 		systemTaskRoute.Use(middleware.RootAuth())
@@ -365,6 +366,7 @@ func SetApiRouter(router *gin.Engine) {
 			taskRoute.GET("/self", middleware.UserAuth(), controller.GetUserTask)
 			taskRoute.GET("/", middleware.AdminAuth(), controller.GetAllTask)
 			taskRoute.GET("/:task_id/request-body", middleware.AdminAuth(), controller.GetTaskRequestBody)
+			taskRoute.GET("/:task_id/request-snapshots", middleware.AdminAuth(), controller.GetTaskRequestSnapshots)
 		}
 
 		vendorRoute := apiRouter.Group("/vendors")

@@ -145,6 +145,10 @@ func GetTaskRequestBody(c *gin.Context) {
 	respondTaskRequestBody(c, task, exists, err)
 }
 
+func GetTaskRequestSnapshots(c *gin.Context) {
+	respondTaskRequestSnapshots(c, c.Param("task_id"), "")
+}
+
 func GetLogRequestBody(c *gin.Context) {
 	taskID := c.Query("task_id")
 	requestID := c.Query("request_id")
@@ -167,6 +171,40 @@ func GetLogRequestBody(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, body)
+}
+
+func GetLogRequestSnapshots(c *gin.Context) {
+	taskID := c.Query("task_id")
+	requestID := c.Query("request_id")
+	if taskID == "" && requestID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Task id or request id is required"})
+		return
+	}
+	respondTaskRequestSnapshots(c, taskID, requestID)
+}
+
+func respondTaskRequestSnapshots(c *gin.Context, taskID string, requestID string) {
+	snapshots, exists, err := model.GetArchivedRequestSnapshots(taskID, requestID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to query request snapshots"})
+		return
+	}
+	if len(snapshots.Original) == 0 && taskID != "" {
+		task, taskExists, taskErr := model.GetByTaskIdForAdmin(taskID)
+		if taskErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to query request snapshots"})
+			return
+		}
+		if taskExists && task != nil && len(task.Properties.RequestBody) > 0 {
+			snapshots.Original = task.Properties.RequestBody
+			exists = true
+		}
+	}
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Request snapshots not found"})
+		return
+	}
+	common.ApiSuccess(c, snapshots)
 }
 
 func respondTaskRequestBody(c *gin.Context, task *model.Task, exists bool, err error) {

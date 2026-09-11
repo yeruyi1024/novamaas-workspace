@@ -26,11 +26,32 @@ export interface TaskRequestBodyResponse {
   data?: unknown
 }
 
+export interface TaskRequestSnapshots {
+  original?: unknown
+  upstream?: unknown
+}
+
+export interface TaskRequestSnapshotsResponse {
+  success: boolean
+  message?: string
+  data?: TaskRequestSnapshots
+}
+
 export async function getTaskRequestBody(
   taskId: string
 ): Promise<TaskRequestBodyResponse> {
   const res = await api.get<TaskRequestBodyResponse>(
     `/api/task/${encodeURIComponent(taskId)}/request-body`,
+    { disableDuplicate: true }
+  )
+  return res.data
+}
+
+export async function getTaskRequestSnapshots(
+  taskId: string
+): Promise<TaskRequestSnapshotsResponse> {
+  const res = await api.get<TaskRequestSnapshotsResponse>(
+    `/api/task/${encodeURIComponent(taskId)}/request-snapshots`,
     { disableDuplicate: true }
   )
   return res.data
@@ -44,6 +65,20 @@ export async function getLogRequestBody(
     params: { task_id: taskId, request_id: requestId },
     disableDuplicate: true,
   })
+  return res.data
+}
+
+export async function getLogRequestSnapshots(
+  taskId: string | undefined,
+  requestId: string | undefined
+): Promise<TaskRequestSnapshotsResponse> {
+  const res = await api.get<TaskRequestSnapshotsResponse>(
+    '/api/log/request-snapshots',
+    {
+      params: { task_id: taskId, request_id: requestId },
+      disableDuplicate: true,
+    }
+  )
   return res.data
 }
 

@@ -23,7 +23,9 @@ import { api } from '@/lib/api'
 import {
   canGetTaskInformation,
   getLogRequestBody,
+  getLogRequestSnapshots,
   getTaskInformation,
+  getTaskRequestSnapshots,
 } from '../task-content-api'
 
 vi.mock('@/lib/api', () => ({
@@ -64,6 +66,24 @@ describe('task information API', () => {
     await getLogRequestBody('task/1', 'request-1')
 
     expect(api.get).toHaveBeenCalledWith('/api/log/request-body', {
+      params: { task_id: 'task/1', request_id: 'request-1' },
+      disableDuplicate: true,
+    })
+  })
+
+  test('looks up task request snapshots by encoded task identifier', async () => {
+    await getTaskRequestSnapshots('task/1')
+
+    expect(api.get).toHaveBeenCalledWith(
+      '/api/task/task%2F1/request-snapshots',
+      { disableDuplicate: true }
+    )
+  })
+
+  test('looks up log request snapshots by task and request identifiers', async () => {
+    await getLogRequestSnapshots('task/1', 'request-1')
+
+    expect(api.get).toHaveBeenCalledWith('/api/log/request-snapshots', {
       params: { task_id: 'task/1', request_id: 'request-1' },
       disableDuplicate: true,
     })

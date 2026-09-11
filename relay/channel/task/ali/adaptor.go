@@ -163,6 +163,9 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal_ali_request_failed")
 	}
+	if err = relaycommon.RecordVideoTaskUpstreamRequestBody(c, bodyBytes); err != nil {
+		return nil, err
+	}
 	return bytes.NewReader(bodyBytes), nil
 }
 

@@ -34,19 +34,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Keep persisted request JSON below MySQL 5.7's common 4 MiB packet default,
-// leaving room for the task row and protocol overhead. Larger media inputs
-// should use URLs instead of embedding base64 data in the request body.
-const maxStoredVideoTaskRequestBodyBytes = 2 * 1024 * 1024
-
-var errVideoTaskRequestBodyTooLarge = errors.New("video task request body exceeds the 2 MiB persistence limit")
-
 func captureVideoTaskRequestBody(channelType int, storage common.BodyStorage) ([]byte, error) {
 	if !constant.ShouldStoreVideoTaskRequestBody(channelType) {
 		return nil, nil
 	}
-	if storage.Size() > maxStoredVideoTaskRequestBodyBytes {
-		return nil, errVideoTaskRequestBodyTooLarge
+	if storage.Size() > model.MaxTaskRequestBodyBytes {
+		return nil, model.ErrTaskRequestBodyTooLarge
 	}
 	body, err := storage.Bytes()
 	if err != nil {
@@ -596,7 +589,7 @@ func RelayTask(c *gin.Context) {
 		requestBodyToStore, bodyErr = captureVideoTaskRequestBody(channel.Type, bodyStorage)
 		if bodyErr != nil {
 			statusCode := http.StatusBadRequest
-			if errors.Is(bodyErr, errVideoTaskRequestBodyTooLarge) {
+			if errors.Is(bodyErr, model.ErrTaskRequestBodyTooLarge) {
 				statusCode = http.StatusRequestEntityTooLarge
 			}
 			taskErr = service.TaskErrorWrapperLocal(bodyErr, "persist_request_body_failed", statusCode)
@@ -612,8 +605,9 @@ func RelayTask(c *gin.Context) {
 		if relayInfo.PublicTaskID != "" {
 			common.SetContextKey(c, constant.ContextKeyVideoTaskPublicID, relayInfo.PublicTaskID)
 		}
-		if !requestBodyStored && relayInfo.PublicTaskID != "" && len(requestBodyToStore) > 0 {
-			if storeErr := model.SaveTaskRequestBody(relayInfo.PublicTaskID, c.GetString(common.RequestIdKey), requestBodyToStore); storeErr != nil {
+		if relayInfo.PublicTaskID != "" && len(requestBodyToStore) > 0 {
+			upstreamRequestBody := []byte(common.GetContextKeyString(c, constant.ContextKeyVideoTaskUpstreamRequestBody))
+			if storeErr := model.SaveTaskRequestSnapshots(relayInfo.PublicTaskID, c.GetString(common.RequestIdKey), requestBodyToStore, upstreamRequestBody); storeErr != nil {
 				logger.LogError(c, "failed to store task request body: "+storeErr.Error())
 			} else {
 				requestBodyStored = true

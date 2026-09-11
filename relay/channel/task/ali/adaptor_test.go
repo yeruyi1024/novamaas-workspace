@@ -1,12 +1,16 @@
 package ali
 
 import (
+	"io"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -171,6 +175,24 @@ func TestConvertToAliRequestWan25I2VKeepsLegacyImgURL(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(body), `"img_url"`)
 	require.NotContains(t, string(body), `"media"`)
+}
+
+func TestBuildRequestBodyRecordsAliUpstreamSnapshot(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Set("task_request", relaycommon.TaskSubmitReq{
+		Model:  "wan2.5-i2v-preview",
+		Prompt: "animate the first frame",
+		Image:  "https://example.com/first.png",
+	})
+	info := testRelayInfo()
+	info.OriginModelName = "wan2.5-i2v-preview"
+
+	body, err := (&TaskAdaptor{}).BuildRequestBody(c, info)
+	require.NoError(t, err)
+	upstreamBody, err := io.ReadAll(body)
+	require.NoError(t, err)
+
+	assert.JSONEq(t, string(upstreamBody), common.GetContextKeyString(c, constant.ContextKeyVideoTaskUpstreamRequestBody))
 }
 
 func TestTaskAdaptorParseTaskResultAcceptsWan3FractionalUsage(t *testing.T) {

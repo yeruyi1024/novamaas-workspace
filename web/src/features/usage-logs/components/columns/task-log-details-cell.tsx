@@ -26,11 +26,12 @@ import { Spinner } from '@/components/ui/spinner'
 
 import { TASK_ACTIONS, TASK_STATUS } from '../../constants'
 import {
-  downloadTaskVideo,
   canGetTaskInformation,
+  downloadTaskVideo,
   getTaskInformation,
-  getTaskRequestBody,
+  getTaskRequestSnapshots,
   getTaskVideoContentInfo,
+  type TaskRequestSnapshots,
 } from '../../task-content-api'
 import type { TaskLog } from '../../types'
 import { FailReasonDialog } from '../dialogs/fail-reason-dialog'
@@ -73,7 +74,8 @@ export function TaskLogDetailsCell({
   const { t } = useTranslation()
   const [failReasonOpen, setFailReasonOpen] = useState(false)
   const [requestBodyOpen, setRequestBodyOpen] = useState(false)
-  const [requestBodyJson, setRequestBodyJson] = useState<string | null>(null)
+  const [requestSnapshots, setRequestSnapshots] =
+    useState<TaskRequestSnapshots | null>(null)
   const [requestBodyLoading, setRequestBodyLoading] = useState(false)
   const [requestBodyError, setRequestBodyError] = useState(false)
   const [videoDownloading, setVideoDownloading] = useState(false)
@@ -91,16 +93,16 @@ export function TaskLogDetailsCell({
 
   const handleRequestBody = async () => {
     setRequestBodyOpen(true)
-    if (requestBodyJson !== null || requestBodyLoading) return
+    if (requestSnapshots !== null || requestBodyLoading) return
 
     setRequestBodyLoading(true)
     setRequestBodyError(false)
     try {
-      const response = await getTaskRequestBody(log.task_id)
+      const response = await getTaskRequestSnapshots(log.task_id)
       if (!response.success || response.data === undefined) {
         throw new Error(response.message || 'request body unavailable')
       }
-      setRequestBodyJson(formatJson(response.data))
+      setRequestSnapshots(response.data)
     } catch {
       setRequestBodyError(true)
     } finally {
@@ -237,10 +239,10 @@ export function TaskLogDetailsCell({
       />
       <RequestBodyDialog
         error={requestBodyError}
-        json={requestBodyJson}
         loading={requestBodyLoading}
         open={requestBodyOpen}
         onOpenChange={setRequestBodyOpen}
+        snapshots={requestSnapshots}
       />
       <TaskInformationDialog
         error={taskInformationError}

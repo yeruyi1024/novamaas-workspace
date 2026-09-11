@@ -7,6 +7,11 @@ const (
 	TaskPlatformMidjourney              = "mj"
 )
 
+// MaxVideoTaskRequestBodyBytes bounds each independently persisted request
+// snapshot. Keeping the limit in constant avoids coupling provider adaptors to
+// the model package, which imports relay/common for task utilities.
+const MaxVideoTaskRequestBodyBytes = 2 * 1024 * 1024
+
 const (
 	SunoActionMusic  = "MUSIC"
 	SunoActionLyrics = "LYRICS"

@@ -8,10 +8,21 @@ import (
 	"fmt"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// MaxTaskRequestBodyBytes keeps each archived snapshot below MySQL 5.7's
+// common 4 MiB packet default with room for statement and row overhead. The
+// original and upstream snapshots are persisted as separate rows so their
+// payload sizes are never combined into one database write.
+const MaxTaskRequestBodyBytes = constant.MaxVideoTaskRequestBodyBytes
+
+var ErrTaskRequestBodyTooLarge = errors.New("request body snapshot exceeds the 2 MiB persistence limit")
+
+const upstreamRequestBodyReferencePrefix = "upstream:"
 
 // TaskRequestBody keeps large administrator-only request payloads out of the
 // hot task and log rows. ReferenceID is a task ID for normal task requests and
@@ -27,6 +38,13 @@ type TaskRequestBody struct {
 	RequestCreatedAt int64           `json:"request_created_at" gorm:"bigint;index"`
 	CreatedAt        int64           `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt        int64           `json:"updated_at" gorm:"bigint"`
+}
+
+// TaskRequestSnapshots is the administrator-only audit representation of a
+// client request and the exact JSON body built for the upstream provider.
+type TaskRequestSnapshots struct {
+	Original json.RawMessage `json:"original,omitempty"`
+	Upstream json.RawMessage `json:"upstream,omitempty"`
 }
 
 func (body *TaskRequestBody) BeforeCreate(_ *gorm.DB) error {
@@ -50,17 +68,30 @@ func taskRequestBodyReference(taskID string, requestID string) (string, error) {
 	return "", errors.New("task id or request id is required")
 }
 
+func upstreamRequestBodyReference(taskID string, requestID string) (string, error) {
+	referenceID, err := taskRequestBodyReference(taskID, requestID)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256([]byte(referenceID))
+	return upstreamRequestBodyReferencePrefix + fmt.Sprintf("%x", digest), nil
+}
+
 func saveTaskRequestBody(db *gorm.DB, taskID string, requestID string, body []byte, requestCreatedAt int64) error {
+	referenceID, err := taskRequestBodyReference(taskID, requestID)
+	if err != nil {
+		return err
+	}
+	return saveTaskRequestBodyAtReference(db, referenceID, taskID, requestID, body, requestCreatedAt)
+}
+
+func saveTaskRequestBodyAtReference(db *gorm.DB, referenceID string, taskID string, requestID string, body []byte, requestCreatedAt int64) error {
 	if len(body) == 0 {
 		return errors.New("request body is required")
 	}
 	var decoded any
 	if err := common.Unmarshal(body, &decoded); err != nil {
 		return fmt.Errorf("invalid request body JSON: %w", err)
-	}
-	referenceID, err := taskRequestBodyReference(taskID, requestID)
-	if err != nil {
-		return err
 	}
 	digest := sha256.Sum256(body)
 	record := TaskRequestBody{
@@ -83,6 +114,31 @@ func saveTaskRequestBody(db *gorm.DB, taskID string, requestID string, body []by
 
 func SaveTaskRequestBody(taskID string, requestID string, body []byte) error {
 	return saveTaskRequestBody(DB, taskID, requestID, body, common.GetTimestamp())
+}
+
+// SaveTaskRequestSnapshots stores the original and upstream JSON bodies in
+// separate rows. Keeping the legacy reference for the original body preserves
+// compatibility with existing readers and archive jobs; the reserved upstream
+// reference is a bounded SHA-256-derived key, adding the second snapshot
+// without a cross-database index migration or exceeding varchar(191).
+func SaveTaskRequestSnapshots(taskID string, requestID string, originalBody []byte, upstreamBody []byte) error {
+	if len(originalBody) > MaxTaskRequestBodyBytes || len(upstreamBody) > MaxTaskRequestBodyBytes {
+		return ErrTaskRequestBodyTooLarge
+	}
+	upstreamReference, err := upstreamRequestBodyReference(taskID, requestID)
+	if err != nil {
+		return err
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		requestCreatedAt := common.GetTimestamp()
+		if err := saveTaskRequestBody(tx, taskID, requestID, originalBody, requestCreatedAt); err != nil {
+			return err
+		}
+		if len(upstreamBody) == 0 {
+			return nil
+		}
+		return saveTaskRequestBodyAtReference(tx, upstreamReference, taskID, requestID, upstreamBody, requestCreatedAt)
+	})
 }
 
 func SaveTaskRequestBodyAt(ctx context.Context, taskID string, requestID string, body []byte, requestCreatedAt int64) error {
@@ -110,6 +166,34 @@ func GetArchivedRequestBody(taskID string, requestID string) (json.RawMessage, b
 		return nil, false, err
 	}
 	return record.Body, true, nil
+}
+
+func GetArchivedRequestSnapshots(taskID string, requestID string) (TaskRequestSnapshots, bool, error) {
+	originalReference, err := taskRequestBodyReference(taskID, requestID)
+	if err != nil {
+		return TaskRequestSnapshots{}, false, err
+	}
+	upstreamReference, err := upstreamRequestBodyReference(taskID, requestID)
+	if err != nil {
+		return TaskRequestSnapshots{}, false, err
+	}
+	var records []TaskRequestBody
+	if err := DB.Select("reference_id", "body").
+		Where("reference_id IN ?", []string{originalReference, upstreamReference}).
+		Find(&records).Error; err != nil {
+		return TaskRequestSnapshots{}, false, err
+	}
+	snapshots := TaskRequestSnapshots{}
+	for _, record := range records {
+		if record.ReferenceID == upstreamReference {
+			snapshots.Upstream = record.Body
+			continue
+		}
+		if record.ReferenceID == originalReference {
+			snapshots.Original = record.Body
+		}
+	}
+	return snapshots, len(records) > 0, nil
 }
 
 type LegacyTaskRequestBodyRow struct {
