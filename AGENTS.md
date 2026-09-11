@@ -140,16 +140,14 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 
 ### Project Governance
 
-**Downstream difference classification:** Every pull request targeting `main` MUST select exactly one classification in the PR template: `关键差异` or `常规变更`.
+**Downstream difference ledger:** `README.md` keeps a reviewer-maintained list of long-lived runtime differences from upstream.
 
-- Classify a PR as `关键差异` only when all three conditions hold: it changes a core product runtime capability (for example provider integration, protocol behavior, model routing, billing, authorization, data compatibility, or tenancy); upstream main has no equivalent implementation or this repository deliberately retains additional behavior; and future upstream synchronization must explicitly preserve or reassess it to avoid a functional or business-semantic regression.
-- CI/CD, image publishing, build environments, homepage presentation, documentation organization, tests, internal refactors, dependency updates, temporary troubleshooting, and unmerged or superseded experiments are normally `常规变更`, unless they also change a core runtime boundary described above.
-- A `关键差异` PR MUST add exactly one row to the `NovaMaaS 与上游差异` ledger between `<!-- novamaas-pr-ledger:start -->` and `<!-- novamaas-pr-ledger:end -->` in `README.md`, using its real `#number` link, date, change type, affected area, concise runtime impact, upstream relationship, and status.
-- A `常规变更` PR MUST NOT add a ledger row for itself. Explain the exclusion reason in the PR template instead.
-- Replace provisional work-item text with the real PR link after the PR is opened. `TBD`, `待定`, `待提交`, and similar placeholders are not valid ledger entries.
-- For a key difference, classify the upstream relationship explicitly: synchronized from an upstream Issue/PR/commit, downstream extension of an upstream change, downstream-only behavior, or removal of a former difference.
+- Add an entry when all three conditions hold: the change affects a core product runtime capability (for example provider integration, protocol behavior, model routing, billing, authorization, data compatibility, or tenancy); upstream main has no equivalent implementation or this repository deliberately retains additional behavior; and future upstream synchronization must explicitly preserve or reassess it to avoid a functional or business-semantic regression.
+- CI/CD, image publishing, build environments, homepage presentation, documentation organization, tests, internal refactors, dependency updates, temporary troubleshooting, and unmerged or superseded experiments normally stay out of the ledger unless they also change a core runtime boundary described above.
+- Ledger rows use the real PR link, date, change type, affected area, concise runtime impact, and upstream relationship. Do not add mutable PR status fields or provisional entries such as `TBD`, `待定`, or `待提交`.
+- The PR template and CI do not enforce ledger classification or row creation. Authors and reviewers decide whether a durable runtime difference should be recorded.
+- For a recorded difference, describe the upstream relationship explicitly: synchronized from an upstream Issue/PR/commit, downstream extension of an upstream change, downstream-only behavior, or removal of a former difference.
 - When the PR synchronizes or cherry-picks upstream work, update `UPSTREAM.md` in the same PR with the source reference and verification result.
-- Before declaring a PR ready, run `.github/scripts/check-readme-pr-ledger.sh`. CI supplies the PR body and commit context, verifies that exactly one classification is selected, and requires the current PR row only for `关键差异`.
 
 **Protected project information:** The following project-related information is strictly protected and MUST NOT be modified, deleted, replaced, or removed under any circumstances:
 
