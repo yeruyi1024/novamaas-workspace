@@ -16,17 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/// <reference types="@rsbuild/core/types" />
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-interface ImportMetaEnv {
-  readonly VITE_REACT_APP_SERVER_URL?: string
-}
+import { SupplierTest } from '@/features/supplier-test'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
-declare module '*.txt?raw' {
-  const content: string
-  export default content
-}
-
-declare module '@visactor/react-vchart' {
-  export const VChart: React.ComponentType<Record<string, unknown>>
-}
+export const Route = createFileRoute('/_authenticated/supplier-test/')({
+  beforeLoad: () => {
+    const { auth } = useAuthStore.getState()
+    if (!auth.user || auth.user.role < ROLE.ADMIN) {
+      throw redirect({
+        to: '/403',
+      })
+    }
+  },
+  component: SupplierTest,
+})

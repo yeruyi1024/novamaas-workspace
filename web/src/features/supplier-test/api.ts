@@ -16,17 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/// <reference types="@rsbuild/core/types" />
+import { api } from '@/lib/api'
 
-interface ImportMetaEnv {
-  readonly VITE_REACT_APP_SERVER_URL?: string
-}
+import { API_ENDPOINTS } from './constants'
 
-declare module '*.txt?raw' {
-  const content: string
-  export default content
-}
-
-declare module '@visactor/react-vchart' {
-  export const VChart: React.ComponentType<Record<string, unknown>>
+export async function fetchSupplierModels(payload: {
+  base_url: string
+  api_key: string
+}): Promise<string[]> {
+  const res = await api.post(API_ENDPOINTS.MODELS, payload, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
+  if (!res.data?.success) {
+    throw new Error(String(res.data?.message || 'Failed to fetch models'))
+  }
+  return (res.data?.data ?? []) as string[]
 }

@@ -21,6 +21,7 @@ import {
   Box,
   CreditCard,
   FileText,
+  ClipboardCheck,
   FlaskConical,
   Key,
   LayoutDashboard,
@@ -128,6 +129,12 @@ export function useSidebarData(): SidebarData {
             title: t('Channels'),
             url: '/channels',
             icon: Radio,
+          },
+          {
+            title: t('Supplier Test'),
+            url: '/supplier-test',
+            icon: ClipboardCheck,
+            requiredRole: ROLE.ADMIN,
           },
           {
             title: t('Models'),

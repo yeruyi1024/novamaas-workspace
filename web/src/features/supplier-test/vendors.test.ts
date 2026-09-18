@@ -16,17 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/// <reference types="@rsbuild/core/types" />
+import { expect, test } from 'vitest'
 
-interface ImportMetaEnv {
-  readonly VITE_REACT_APP_SERVER_URL?: string
-}
+import { vendorHintKey } from './vendors'
 
-declare module '*.txt?raw' {
-  const content: string
-  export default content
-}
-
-declare module '@visactor/react-vchart' {
-  export const VChart: React.ComponentType<Record<string, unknown>>
-}
+test('hint follows the vendor the tester picked', () => {
+  expect(vendorHintKey('glm')).toContain('GLM fields')
+  expect(vendorHintKey('kimi')).toContain('Kimi fields')
+  expect(vendorHintKey('deepseek')).toContain('DeepSeek fields')
+  expect(vendorHintKey('generic')).toContain('generic OpenAI-compatible')
+})

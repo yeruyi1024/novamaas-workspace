@@ -14,7 +14,10 @@ import (
 func SetApiRouter(router *gin.Engine) {
 	apiRouter := router.Group("/api")
 	apiRouter.Use(middleware.RouteTag("api"))
-	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
+	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{
+		"/api/supplier-test/runs",
+		"/supplier-test/runs",
+	})))
 	apiRouter.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	anonymousRequestBodyLimit := middleware.AnonymousRequestBodyLimit()
@@ -267,6 +270,12 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		registerChannelRoutes(apiRouter)
 		registerAuthzRoutes(apiRouter)
+		supplierTestRoute := apiRouter.Group("/supplier-test")
+		supplierTestRoute.Use(middleware.AdminAuth(), middleware.DisableCache())
+		{
+			supplierTestRoute.POST("/models", controller.ListSupplierTestModels)
+			supplierTestRoute.POST("/runs", controller.RunSupplierTest)
+		}
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())
 		{
