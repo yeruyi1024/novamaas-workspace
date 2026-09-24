@@ -65,7 +65,7 @@ NovaMaaS 的核心目标不是增加孤立功能，而是将供应、产品、�
 
 ### 素材库与下游 Action API
 
-平台素材库支持控制台直传、私有对象存储、渠道副本同步和请求时素材 ID 映射。下游客户还可使用平台签发并加密保存的 AK/SK，通过火山方舟同形态的 `POST /?Action=...&Version=2024-01-01` 管理素材组与素材；`CreateAsset` 会安全导入公网 URL，返回的平台素材 ID 可继续用于视频生成。素材列表采用服务端检索和每页 40 条分页，预览签名地址按可视区域延迟获取，并展示上传者和上传时间。完整接口、签名、部署与容量边界见[素材库与火山 Action API 兼容说明](docs/ASSET_LIBRARY_API.zh_CN.md)。
+平台素材库支持控制台直传、私有对象存储、渠道副本同步和请求时素材 ID 映射。下游客户还可使用平台签发并加密保存的 AK/SK，通过火山方舟同形态的 `POST /?Action=...&Version=2024-01-01` 管理素材组与素材；`CreateAsset` 会安全导入公网 URL，返回的平台素材 ID 可继续用于视频生成。素材列表采用服务端检索和每页 40 条分页，预览签名地址按可视区域延迟获取，并展示上传时间和不可用状态。完整接口、签名、部署与容量边界见[素材库与火山 Action API 兼容说明](docs/ASSET_LIBRARY_API.zh_CN.md)。
 
 ### 客户消费对账（一期）
 
@@ -107,6 +107,7 @@ CI/CD、镜像发布、构建环境、首页展示、文档整理、测试补充
 <!-- novamaas-pr-ledger:start -->
 | 关键差异 PR | 日期 | 类型 | 领域 | 关键变化 | 与上游关系 |
 | --- | --- | --- | --- | --- | --- |
+| [#39](https://github.com/yeruyi1024/novamaas-workspace/pull/39) | 2026-09-24 | `feat` | 素材库 / 渠道请求日志 / 任务日志 | 素材组搜索分页、素材预览下载和上游审核拒绝后的不可用状态及视频请求反馈；渠道测试与同步请求采用有界异步 MySQL 日志及脱敏详情，任务日志支持用户名和模型检索。 | NovaMaaS 下游专属；上游当前没有等价的素材审核状态联动、渠道请求诊断及此任务日志检索组合实现。 |
 | [#37](https://github.com/yeruyi1024/novamaas-workspace/pull/37) | 2026-09-23 | `feat` | 素材库 / 下游兼容 API | 新增平台签发并加密保存的用户级素材库 AK/SK，在根路径和 `/api/v3/` 提供火山方舟同形态的 HMAC-SHA256 V4 Action API；支持公网 URL 安全导入、租户隔离、下游密钥自助管理和大规模素材分页检索。 | NovaMaaS 下游专属；上游当前没有面向下游客户的平台素材库 AK/SK、同路径 Action API、URL 导入与租户隔离组合实现。 |
 | [#36](https://github.com/yeruyi1024/novamaas-workspace/pull/36) | 2026-09-22 | `feat` | 素材库 / 对象存储 / 视频渠道 | 新增网关自有永久素材库、租户权限与签名预览，按渠道维护上游副本和同步任务；支持 Volcengine Action AK/SK、Bearer 及 YooFang REST Bearer SK，并在 DoubaoVideo 和火山原生请求中将我方素材 ID 实时翻译为对应渠道 ID。 | NovaMaaS 下游专属；上游当前没有等价的自有素材库、多渠道副本同步、加密渠道凭据与请求时 ID 映射组合实现。 |
 | [#35](https://github.com/yeruyi1024/novamaas-workspace/pull/35) | 2026-09-21 | `feat` | 渠道诊断 / 视频任务可观测性 | 新增复用渠道代理与 HTTP 配置的分阶段网络探测，并为 Doubao Video、火山原生和阿里百炼持久化请求体读取、请求准备、临时存储转换、上游请求及总耗时，在任务日志中分开展示。 | NovaMaaS 下游专属；上游当前没有等价的渠道 DNS/TCP/TLS/TTFB 探测与视频请求全链路指标组合实现。 |
