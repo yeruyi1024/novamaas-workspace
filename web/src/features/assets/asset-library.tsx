@@ -116,6 +116,11 @@ export function AssetLibrary() {
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null)
   const [deleteGroupDialogOpen, setDeleteGroupDialogOpen] = useState(false)
   const deferredSearch = useDeferredValue(search.trim())
+  const openReupload = (target: MediaAsset) => {
+    setPreviewTarget(null)
+    setReuploadTarget(target)
+    setUploadDialogOpen(true)
+  }
 
   const groupsQuery = useQuery({
     queryKey: [...GROUPS_QUERY_KEY, 'upload', currentUserId],
@@ -403,10 +408,7 @@ export function AssetLibrary() {
                     }
                     onReupload={
                       asset.owner_user_id === currentUserId
-                        ? (target) => {
-                            setReuploadTarget(target)
-                            setUploadDialogOpen(true)
-                          }
+                        ? openReupload
                         : undefined
                     }
                   />
@@ -464,6 +466,11 @@ export function AssetLibrary() {
           asset={previewTarget}
           onOpenChange={(open) => !open && setPreviewTarget(null)}
           onDownload={(target) => downloadMutation.mutate(target)}
+          onReupload={
+            previewTarget.owner_user_id === currentUserId
+              ? openReupload
+              : undefined
+          }
           downloading={
             downloadMutation.isPending &&
             downloadMutation.variables?.id === previewTarget.id

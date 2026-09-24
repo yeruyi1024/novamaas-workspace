@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
@@ -89,7 +89,92 @@ beforeEach(() => {
 
 afterEach(() => queryClient.clear())
 
-test('rejected asset shows a reason and opens a revised upload instead of copying its old ID', async () => {
+test('a rejected asset in a mixed row keeps its reason out of the card and reveals it from the thumbnail status', async () => {
+  vi.mocked(listMediaAssets).mockResolvedValue({
+    success: true,
+    data: {
+      items: [
+        rejectedAsset,
+        {
+          ...rejectedAsset,
+          id: 'asset-20260922120001-ready',
+          name: 'Ready image',
+          status: 'ready',
+          unavailable_reason: undefined,
+        },
+      ],
+      total: 2,
+      page: 1,
+      page_size: 40,
+    },
+  })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AssetLibrary />
+    </QueryClientProvider>
+  )
+  const user = userEvent.setup()
+
+  expect(await screen.findByText('Ready image')).toBeVisible()
+  const grid = screen.getByTestId('asset-grid')
+  expect(grid.querySelectorAll('[data-slot="card"]')).toHaveLength(2)
+  expect(within(grid).queryByText(/Sensitive content was rejected/)).toBeNull()
+  expect(grid.querySelector('[data-slot="alert"]')).toBeNull()
+  const status = within(grid).getByRole('button', {
+    name: 'Asset unavailable: View details',
+  })
+  expect(status).toHaveClass('absolute')
+
+  await user.click(status)
+  const dialog = screen.getByRole('dialog', { name: 'Hero image' })
+  expect(
+    within(dialog).getByText(/Sensitive content was rejected/)
+  ).toBeVisible()
+  expect(
+    within(dialog).getByText(/Upload revised material and use its new asset ID/)
+  ).toBeVisible()
+  await user.click(
+    within(dialog).getByRole('button', { name: 'Re-upload revised file' })
+  )
+  expect(
+    screen.getByRole('dialog', { name: 'Re-upload revised file' })
+  ).toBeVisible()
+})
+
+test('a non-owner can inspect the rejection reason but cannot re-upload the asset', async () => {
+  vi.mocked(listMediaAssets).mockResolvedValue({
+    success: true,
+    data: {
+      items: [{ ...rejectedAsset, owner_user_id: 2 }],
+      total: 1,
+      page: 1,
+      page_size: 40,
+    },
+  })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AssetLibrary />
+    </QueryClientProvider>
+  )
+  const user = userEvent.setup()
+
+  const status = await screen.findByRole('button', {
+    name: 'Asset unavailable: View details',
+  })
+  await user.click(status)
+  const dialog = screen.getByRole('dialog', { name: 'Hero image' })
+  expect(
+    within(dialog).getByText(/Sensitive content was rejected/)
+  ).toBeVisible()
+  expect(
+    within(dialog).queryByRole('button', { name: 'Re-upload revised file' })
+  ).toBeNull()
+  expect(
+    screen.queryByRole('button', { name: 'Re-upload revised file' })
+  ).toBeNull()
+})
+
+test('rejected asset offers compact re-upload without copying its old ID', async () => {
   vi.mocked(uploadMediaAsset).mockResolvedValue({
     success: true,
     data: {
@@ -108,14 +193,13 @@ test('rejected asset shows a reason and opens a revised upload instead of copyin
 
   expect(await screen.findByText('Hero image')).toBeVisible()
   expect(
-    screen.getByText(/Sensitive content was rejected by the upstream provider/)
-  ).toBeVisible()
-  expect(
     screen.queryByRole('button', { name: 'Copy asset reference' })
   ).not.toBeInTheDocument()
-  await user.click(
-    screen.getByRole('button', { name: 'Re-upload revised file' })
-  )
+  const reupload = screen.getByRole('button', {
+    name: 'Re-upload revised file',
+  })
+  expect(reupload).toHaveTextContent('Re-upload')
+  await user.click(reupload)
   expect(
     screen.getByRole('dialog', { name: 'Re-upload revised file' })
   ).toBeVisible()
