@@ -222,17 +222,21 @@ func listVolcAssetGroups(ownerUserID int, input volcAssetActionRequest) (gin.H, 
 
 func listVolcAssets(c *gin.Context, ownerUserID int, input volcAssetActionRequest) (gin.H, error) {
 	page, pageSize := volcAssetPage(input)
+	statuses := make([]string, 0, 2)
 	if len(input.Filter.Statuses) > 0 {
-		activeRequested := false
 		for _, status := range input.Filter.Statuses {
-			activeRequested = activeRequested || strings.EqualFold(status, "Active")
+			if strings.EqualFold(status, "Active") {
+				statuses = append(statuses, model.AssetStatusReady)
+			} else if strings.EqualFold(status, "Failed") || strings.EqualFold(status, "Rejected") {
+				statuses = append(statuses, model.AssetStatusUnavailable)
+			}
 		}
-		if !activeRequested {
+		if len(statuses) == 0 {
 			return gin.H{"Items": []any{}, "TotalCount": 0, "PageNumber": page, "PageSize": pageSize}, nil
 		}
 	}
 	assets, err := assetService.ListAssets(assetService.AssetListInput{
-		OwnerUserID: ownerUserID, GroupPublicIDs: input.Filter.GroupIDs, Search: input.Filter.Name,
+		OwnerUserID: ownerUserID, GroupPublicIDs: input.Filter.GroupIDs, Statuses: statuses, Search: input.Filter.Name,
 		Page: page, PageSize: pageSize, SortBy: input.SortBy, SortOrder: input.SortOrder,
 	})
 	if err != nil {
@@ -294,12 +298,21 @@ func volcAsset(c *gin.Context, asset *assetService.AssetView) (gin.H, error) {
 	if err != nil {
 		return nil, err
 	}
-	return gin.H{
+	return volcAssetResponse(asset, previewURL), nil
+}
+
+func volcAssetResponse(asset *assetService.AssetView, previewURL string) gin.H {
+	result := gin.H{
 		"Id": asset.ID, "Name": asset.Name, "URL": previewURL, "GroupId": asset.GroupID,
 		"AssetType": strings.ToUpper(asset.Type[:1]) + strings.ToLower(asset.Type[1:]), "Status": "Active",
 		"Moderation": gin.H{"Strategy": "Default"}, "ProjectName": "default",
 		"CreateTime": volcAssetTime(asset.CreatedAt), "UpdateTime": volcAssetTime(asset.UpdatedAt),
-	}, nil
+	}
+	if asset.Status == model.AssetStatusUnavailable {
+		result["Status"] = "Failed"
+		result["FailureReason"] = asset.UnavailableReason
+	}
+	return result
 }
 
 func volcAssetTime(timestamp int64) string {

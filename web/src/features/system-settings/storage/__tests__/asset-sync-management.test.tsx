@@ -27,6 +27,10 @@ import { AssetSyncManagement } from '../asset-sync-management'
 vi.mock('@/features/assets/api', () => ({
   listAssetSyncJobs: vi.fn(),
   retryAssetSyncJob: vi.fn(),
+  listAssetRequestLogs: vi.fn(async () => ({
+    success: true,
+    data: { items: [], next_cursor: '', dropped_on_this_node: 0 },
+  })),
 }))
 vi.mock('../api', () => ({
   listAssetChannelConfigs: vi.fn(async () => ({
@@ -130,5 +134,56 @@ describe('asset synchronization management', () => {
     for (const cell of screen.getAllByRole('cell')) {
       expect(cell).toHaveClass('align-middle')
     }
+  })
+
+  test('opens request logs for the selected synchronization job', async () => {
+    renderManagement()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View logs' }))
+    expect(
+      await screen.findByRole('dialog', { name: 'Request logs' })
+    ).toBeVisible()
+    expect(screen.getByText('Channel ID · 7 · Task ID 91')).toBeVisible()
+  })
+
+  test('terminal content rejection shows a localized reason without offering retry', async () => {
+    vi.mocked(listAssetSyncJobs).mockResolvedValue({
+      success: true,
+      data: {
+        items: [
+          {
+            id: 92,
+            asset_id: 'asset-rejected',
+            asset_name: 'Rejected hero',
+            asset_type: 'image',
+            group_id: 'group-1',
+            group_name: 'Campaign',
+            owner_user_id: 42,
+            owner_name: 'Asset Owner',
+            channel_id: 7,
+            channel_name: 'YooFang production',
+            operation: 'sync',
+            status: 'rejected',
+            progress: 50,
+            attempts: 0,
+            last_error: 'real_person',
+            last_synced_at: 1,
+            updated_at: 1,
+          },
+        ],
+        total: 1,
+        page: 1,
+        page_size: 20,
+        summary: { total: 1, pending: 0, processing: 0, active: 0, failed: 1 },
+      },
+    })
+    renderManagement()
+
+    expect(await screen.findByText('Rejected hero')).toBeVisible()
+    expect(screen.getAllByText('Asset rejected by upstream').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Real-person content was rejected/)).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Retry' })
+    ).not.toBeInTheDocument()
   })
 })

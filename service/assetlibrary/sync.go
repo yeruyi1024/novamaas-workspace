@@ -57,9 +57,16 @@ func runSyncPass(runnerID string) {
 func syncReplica(runnerID string, replica *model.AssetReplica) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
+	ctx = withRequestLogContext(ctx, "sync", replica.ID, replica.AssetID)
 	var asset model.MediaAsset
 	if err := model.DB.First(&asset, replica.AssetID).Error; err != nil {
 		failReplica(runnerID, replica, err)
+		return
+	}
+	if asset.Status == model.AssetStatusUnavailable && replica.Operation != model.AssetReplicaOperationDelete {
+		if err := model.FinishAssetReplica(replica.ID, runnerID, model.AssetReplicaStatusRejected, replica.Progress, replica.UpstreamAssetID, 0, asset.UnavailableReason); err != nil {
+			logger.LogWarn(ctx, fmt.Sprintf("finish unavailable asset replica failed: replica_id=%d error=%v", replica.ID, err))
+		}
 		return
 	}
 	var config model.AssetChannelConfig
@@ -105,13 +112,17 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 		upstreamGroupID = groupReplica.UpstreamGroupID
 	}
 	if replica.UpstreamAssetID == "" {
-		sourceURL, err := storageService.PresignAssetObject(ctx, asset.StorageObjectID, 24*time.Hour)
+		sourceURL, err := storageService.PresignAssetObject(ctx, asset.StorageObjectID, 24*time.Hour, storageService.AssetObjectURLOriginal, "")
 		if err != nil {
 			failReplica(runnerID, replica, err)
 			return
 		}
 		upstreamID, err := client.createAsset(ctx, upstreamGroupID, asset.Name, asset.AssetType, sourceURL)
 		if err != nil {
+			if reason := upstreamContentRejectionReason(err); reason != "" {
+				rejectReplica(runnerID, replica, reason)
+				return
+			}
 			failReplica(runnerID, replica, err)
 			return
 		}
@@ -120,6 +131,10 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 	}
 	result, err := client.getAsset(ctx, replica.UpstreamAssetID)
 	if err != nil {
+		if reason := upstreamContentRejectionReason(err); reason != "" {
+			rejectReplica(runnerID, replica, reason)
+			return
+		}
 		failReplica(runnerID, replica, err)
 		return
 	}
@@ -129,6 +144,10 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 			logger.LogWarn(context.Background(), fmt.Sprintf("finish active asset replica failed: replica_id=%d error=%v", replica.ID, err))
 		}
 	case "failed", "error", "rejected":
+		if reason := processingContentRejectionReason(result); reason != "" {
+			rejectReplica(runnerID, replica, reason)
+			return
+		}
 		message := result.Message
 		if message == "" {
 			message = "upstream asset processing failed"
@@ -137,6 +156,14 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 	default:
 		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 75, replica.UpstreamAssetID, 15*time.Second, "")
 	}
+}
+
+func rejectReplica(runnerID string, replica *model.AssetReplica, reason string) {
+	if err := model.RejectAssetReplica(replica.ID, runnerID, reason, replica.UpstreamAssetID); err != nil {
+		logger.LogWarn(context.Background(), fmt.Sprintf("record asset content rejection failed: replica_id=%d error=%v", replica.ID, err))
+		return
+	}
+	logger.LogWarn(context.Background(), fmt.Sprintf("asset content rejected by upstream: replica_id=%d channel_id=%d reason=%s", replica.ID, replica.ChannelID, reason))
 }
 
 func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.AssetGroup, channelID int) (*model.AssetGroupReplica, error) {

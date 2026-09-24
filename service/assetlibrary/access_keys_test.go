@@ -118,3 +118,34 @@ func TestListGroupsScopesMembersAndHydratesCreatorsForAdmins(t *testing.T) {
 		"group-bob":   "bob-groups",
 	}, creators)
 }
+
+func TestListGroupsPageSortsByNameAndScopesSearchBeforePagination(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	owner := model.User{Username: "group-page-owner", Password: "password", Status: common.UserStatusEnabled, AffCode: "group-page-owner"}
+	other := model.User{Username: "group-page-other", Password: "password", Status: common.UserStatusEnabled, AffCode: "group-page-other"}
+	require.NoError(t, db.Create(&owner).Error)
+	require.NoError(t, db.Create(&other).Error)
+	require.NoError(t, db.Create(&[]model.AssetGroup{
+		{PublicID: "group-zeta", OwnerUserID: owner.Id, Name: "Zeta", Status: model.AssetStatusReady},
+		{PublicID: "group-alpha", OwnerUserID: owner.Id, Name: "Alpha", Status: model.AssetStatusReady},
+		{PublicID: "group-alpine", OwnerUserID: owner.Id, Name: "Alpine", Status: model.AssetStatusReady},
+		{PublicID: "group-other", OwnerUserID: other.Id, Name: "Albatross", Status: model.AssetStatusReady},
+	}).Error)
+
+	first, err := ListGroupsPage(GroupListInput{OwnerUserID: owner.Id, Search: "al", Page: 1, PageSize: 1, SortBy: "Name", SortOrder: "Asc"})
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, first.Total)
+	require.Len(t, first.Items, 1)
+	assert.Equal(t, "Alpha", first.Items[0].Name)
+
+	second, err := ListGroupsPage(GroupListInput{OwnerUserID: owner.Id, Search: "al", Page: 2, PageSize: 1, SortBy: "Name", SortOrder: "Asc"})
+	require.NoError(t, err)
+	require.Len(t, second.Items, 1)
+	assert.Equal(t, "Alpine", second.Items[0].Name)
+
+	admin, err := ListGroupsPage(GroupListInput{OwnerUserID: owner.Id, IncludeAllOwners: true, Search: "al", Page: 1, PageSize: 10, SortBy: "Name", SortOrder: "Asc"})
+	require.NoError(t, err)
+	assert.EqualValues(t, 3, admin.Total)
+	require.Len(t, admin.Items, 3)
+	assert.Equal(t, "Albatross", admin.Items[0].Name)
+}

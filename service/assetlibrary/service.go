@@ -21,6 +21,7 @@ import (
 
 type RequestError struct {
 	StatusCode int
+	Code       string
 	Err        error
 }
 
@@ -38,6 +39,13 @@ func (err *RequestError) HTTPStatusCode() int {
 		return http.StatusInternalServerError
 	}
 	return err.StatusCode
+}
+
+func (err *RequestError) ErrorCode() string {
+	if err == nil {
+		return ""
+	}
+	return err.Code
 }
 
 type GroupInput struct {
@@ -67,18 +75,20 @@ type AssetInput struct {
 }
 
 type AssetView struct {
-	ID          string `json:"id"`
-	GroupID     string `json:"group_id"`
-	OwnerUserID int    `json:"owner_user_id"`
-	OwnerName   string `json:"owner_name"`
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	ContentType string `json:"content_type"`
-	Size        int64  `json:"size"`
-	SHA256      string `json:"sha256"`
-	Status      string `json:"status"`
-	CreatedAt   int64  `json:"created_at"`
-	UpdatedAt   int64  `json:"updated_at"`
+	ID                string `json:"id"`
+	GroupID           string `json:"group_id"`
+	GroupName         string `json:"group_name"`
+	OwnerUserID       int    `json:"owner_user_id"`
+	OwnerName         string `json:"owner_name"`
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	ContentType       string `json:"content_type"`
+	Size              int64  `json:"size"`
+	SHA256            string `json:"sha256"`
+	Status            string `json:"status"`
+	UnavailableReason string `json:"unavailable_reason,omitempty"`
+	CreatedAt         int64  `json:"created_at"`
+	UpdatedAt         int64  `json:"updated_at"`
 }
 
 type AssetListInput struct {
@@ -86,6 +96,7 @@ type AssetListInput struct {
 	IncludeAllOwners bool
 	GroupPublicID    string
 	GroupPublicIDs   []string
+	Statuses         []string
 	Search           string
 	Page             int
 	PageSize         int
@@ -318,6 +329,7 @@ func CreateAsset(ctx context.Context, ownerUserID int, input AssetInput) (*Asset
 		return nil, err
 	}
 	views := assetViews([]model.MediaAsset{*asset}, map[int64]string{group.ID: group.PublicID})
+	views[0].GroupName = group.Name
 	return &views[0], nil
 }
 
@@ -332,6 +344,9 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 		input.PageSize = 100
 	}
 	query := model.DB.Model(&model.MediaAsset{}).Where("status <> ?", model.AssetStatusDeleted)
+	if len(input.Statuses) > 0 {
+		query = query.Where("status IN ?", input.Statuses)
+	}
 	if !input.IncludeAllOwners {
 		query = query.Where("owner_user_id = ?", input.OwnerUserID)
 	}
@@ -390,6 +405,7 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 		ownerIDs = append(ownerIDs, asset.OwnerUserID)
 	}
 	groups := make(map[int64]string)
+	groupNames := make(map[int64]string)
 	if len(groupIDs) > 0 {
 		var values []model.AssetGroup
 		if err := model.DB.Where("id IN ?", groupIDs).Find(&values).Error; err != nil {
@@ -397,18 +413,35 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 		}
 		for _, group := range values {
 			groups[group.ID] = group.PublicID
+			groupNames[group.ID] = group.Name
 		}
 	}
 	ownerNames, err := model.GetUsernamesByIDs(ownerIDs)
 	if err != nil {
 		return nil, err
 	}
-	return &AssetListView{
-		Items: assetViews(assets, groups, ownerNames), Total: total, Page: input.Page, PageSize: input.PageSize,
-	}, nil
+	views := assetViews(assets, groups, ownerNames)
+	for index := range views {
+		views[index].GroupName = groupNames[assets[index].GroupID]
+	}
+	return &AssetListView{Items: views, Total: total, Page: input.Page, PageSize: input.PageSize}, nil
 }
 
 func PreviewURL(ctx context.Context, publicID string, ownerUserID int, isAdmin bool) (string, int64, error) {
+	return PreviewURLVariant(ctx, publicID, ownerUserID, isAdmin, "original")
+}
+
+func PreviewURLVariant(ctx context.Context, publicID string, ownerUserID int, isAdmin bool, variant string) (string, int64, error) {
+	mode := storageService.AssetObjectURLOriginal
+	switch variant {
+	case "original":
+	case "thumbnail":
+		mode = storageService.AssetObjectURLThumbnail
+	case "download":
+		mode = storageService.AssetObjectURLDownload
+	default:
+		return "", 0, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset preview variant")}
+	}
 	asset, err := model.FindMediaAsset(publicID, ownerUserID, isAdmin)
 	if err != nil {
 		return "", 0, err
@@ -418,7 +451,7 @@ func PreviewURL(ctx context.Context, publicID string, ownerUserID int, isAdmin b
 		return "", 0, err
 	}
 	ttl := time.Duration(policy.SignedURLTTLSeconds) * time.Second
-	value, err := storageService.PresignAssetObject(ctx, asset.StorageObjectID, ttl)
+	value, err := storageService.PresignAssetObject(ctx, asset.StorageObjectID, ttl, mode, asset.PublicID)
 	return value, common.GetTimestamp() + policy.SignedURLTTLSeconds, err
 }
 
@@ -582,7 +615,7 @@ func TestChannelConfig(ctx context.Context, channelID int, input *ChannelConfigI
 	if err != nil {
 		return err
 	}
-	return client.test(ctx)
+	return client.test(withRequestLogContext(ctx, "test", 0, 0))
 }
 
 func QueueChannelSync(channelID int) error {
@@ -659,7 +692,7 @@ func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJo
 			summary.Processing += value.Count
 		case model.AssetReplicaStatusActive:
 			summary.Active += value.Count
-		case model.AssetReplicaStatusFailed:
+		case model.AssetReplicaStatusFailed, model.AssetReplicaStatusRejected:
 			summary.Failed += value.Count
 		}
 	}
@@ -734,8 +767,9 @@ func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJo
 }
 
 func RetrySyncJob(replicaID int64) error {
+	readyAssets := model.DB.Model(&model.MediaAsset{}).Select("id").Where("status = ?", model.AssetStatusReady)
 	result := model.DB.Model(&model.AssetReplica{}).
-		Where("id = ? AND status = ?", replicaID, model.AssetReplicaStatusFailed).
+		Where("id = ? AND status = ? AND asset_id IN (?)", replicaID, model.AssetReplicaStatusFailed, readyAssets).
 		Updates(map[string]any{
 			"status":       model.AssetReplicaStatusPending,
 			"attempts":     0,
@@ -757,7 +791,7 @@ func RetrySyncJob(replicaID int64) error {
 func validReplicaStatus(status string) bool {
 	switch status {
 	case model.AssetReplicaStatusPending, model.AssetReplicaStatusSyncing, model.AssetReplicaStatusProcessing,
-		model.AssetReplicaStatusActive, model.AssetReplicaStatusFailed, model.AssetReplicaStatusDeleting,
+		model.AssetReplicaStatusActive, model.AssetReplicaStatusFailed, model.AssetReplicaStatusRejected, model.AssetReplicaStatusDeleting,
 		model.AssetReplicaStatusDeleted:
 		return true
 	default:
@@ -783,7 +817,8 @@ func assetViews(assets []model.MediaAsset, groups map[int64]string, ownerNames .
 		views = append(views, AssetView{
 			ID: asset.PublicID, GroupID: groups[asset.GroupID], OwnerUserID: asset.OwnerUserID, OwnerName: names[asset.OwnerUserID], Name: asset.Name, Type: asset.AssetType,
 			ContentType: asset.ContentType, Size: asset.Size, SHA256: asset.SHA256, Status: asset.Status,
-			CreatedAt: asset.CreatedAt, UpdatedAt: asset.UpdatedAt,
+			UnavailableReason: asset.UnavailableReason,
+			CreatedAt:         asset.CreatedAt, UpdatedAt: asset.UpdatedAt,
 		})
 	}
 	return views

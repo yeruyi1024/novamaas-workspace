@@ -72,3 +72,14 @@ func TestAKSKAssetUploadAppearsInUserUsageLogs(t *testing.T) {
 	assert.Equal(t, "AKNMEXAMPLE", params["accessKeyId"])
 	assert.Equal(t, "production uploader", params["accessKeyName"])
 }
+
+func TestAKSKAssetResponseExposesContentRejectionWithoutRawProviderMessage(t *testing.T) {
+	asset := &assetService.AssetView{
+		ID: "asset-rejected", Name: "portrait", Type: model.AssetTypeImage,
+		Status: model.AssetStatusUnavailable, UnavailableReason: model.AssetUnavailableRealPerson,
+	}
+	response := volcAssetResponse(asset, "https://example.com/preview")
+	assert.Equal(t, "Failed", response["Status"])
+	assert.Equal(t, model.AssetUnavailableRealPerson, response["FailureReason"])
+	assert.NotContains(t, response, "LastError")
+}

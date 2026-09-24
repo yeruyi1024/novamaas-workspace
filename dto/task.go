@@ -53,6 +53,7 @@ type TaskDto struct {
 	RequestBodyAvailable bool                      `json:"request_body_available"`
 	RequestMetrics       *types.TaskRequestMetrics `json:"request_metrics,omitempty"`
 	Username             string                    `json:"username,omitempty"`
+	ModelName            string                    `json:"model_name"`
 	Data                 json.RawMessage           `json:"data"`
 }
 

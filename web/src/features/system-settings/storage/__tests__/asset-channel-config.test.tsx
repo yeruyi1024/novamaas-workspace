@@ -22,6 +22,12 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { AssetLibrarySettings } from '../asset-library-settings'
 
+vi.mock('@/features/assets/api', () => ({
+  listAssetRequestLogs: vi.fn(async () => ({
+    success: true,
+    data: { items: [], next_cursor: '', dropped_on_this_node: 0 },
+  })),
+}))
 vi.mock('../api', () => ({
   getAssetLibraryStoragePolicy: vi.fn(async () => ({
     success: true,
@@ -114,6 +120,16 @@ describe('asset channel protocol configuration', () => {
 
     expect(await screen.findByText('Seedance upstream')).toBeVisible()
     expect(screen.getByText('ID 7')).toBeVisible()
+  })
+
+  test('opens request logs scoped to the selected asset channel', async () => {
+    renderSettings()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View logs' }))
+    expect(
+      await screen.findByRole('dialog', { name: 'Request logs' })
+    ).toBeVisible()
+    expect(screen.getByText('Channel ID · 7')).toBeVisible()
   })
 
   test('switching to YooFang REST selects Bearer sk authentication and hides Action fields', async () => {

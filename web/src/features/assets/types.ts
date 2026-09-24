@@ -27,9 +27,17 @@ export type AssetGroup = {
   updated_at: number
 }
 
+export type AssetGroupList = {
+  items: AssetGroup[]
+  total: number
+  page: number
+  page_size: number
+}
+
 export type MediaAsset = {
   id: string
   group_id: string
+  group_name?: string
   owner_user_id: number
   owner_name: string
   name: string
@@ -38,6 +46,7 @@ export type MediaAsset = {
   size: number
   sha256: string
   status: string
+  unavailable_reason?: 'real_person' | 'sensitive_content' | 'policy_rejected'
   created_at: number
   updated_at: number
 }
@@ -97,6 +106,46 @@ export type AssetSyncJobList = {
   page: number
   page_size: number
   summary: AssetSyncSummary
+}
+
+export type AssetRequestLog = {
+  id: number
+  created_at: number
+  channel_id: number
+  replica_id: number
+  asset_id: number
+  request_id: string
+  source: 'test' | 'sync'
+  protocol: string
+  operation: string
+  method: string
+  path_template: string
+  http_status: number
+  duration_ms: number
+  request_bytes: number
+  response_bytes: number
+  result: 'success' | 'failure'
+  error_kind: string
+}
+
+export type AssetRequestLogList = {
+  items: AssetRequestLog[]
+  next_cursor: string
+  dropped_on_this_node: number
+}
+
+export type AssetRequestLogDetail = {
+  log_id: number
+  request_url: string
+  request_body: string
+  response_body: string
+  request_body_omitted: boolean
+  response_body_omitted: boolean
+}
+
+export type AssetRequestLogWithDetail = {
+  log: AssetRequestLog
+  detail: AssetRequestLogDetail | null
 }
 
 export type AssetLibraryResponse<T = undefined> = {

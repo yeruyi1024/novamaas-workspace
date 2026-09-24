@@ -12,6 +12,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
 	assetService "github.com/QuantumNous/new-api/service/assetlibrary"
 	storageService "github.com/QuantumNous/new-api/service/storage"
 
@@ -20,6 +21,40 @@ import (
 )
 
 func ListAssetGroups(c *gin.Context) {
+	if c.Query("p") != "" || c.Query("page_size") != "" || c.Query("search") != "" {
+		pageInfo := common.GetPageQuery(c)
+		groups, err := assetService.ListGroupsPage(assetService.GroupListInput{
+			OwnerUserID:      c.GetInt("id"),
+			IncludeAllOwners: c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all",
+			Search:           c.Query("search"), Page: pageInfo.GetPage(), PageSize: pageInfo.GetPageSize(),
+			SortBy: "Name", SortOrder: "Asc",
+		})
+		if err != nil {
+			assetLibraryError(c, err)
+			return
+		}
+		ownerIDs := make([]int, 0, len(groups.Items))
+		for _, group := range groups.Items {
+			ownerIDs = append(ownerIDs, group.OwnerUserID)
+		}
+		ownerNames, err := model.GetUsernamesByIDs(ownerIDs)
+		if err != nil {
+			assetLibraryError(c, err)
+			return
+		}
+		items := make([]assetService.GroupView, 0, len(groups.Items))
+		for _, group := range groups.Items {
+			items = append(items, assetService.GroupView{
+				ID: group.PublicID, OwnerUserID: group.OwnerUserID, OwnerName: ownerNames[group.OwnerUserID],
+				Name: group.Name, Description: group.Description, Status: group.Status,
+				CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt,
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+			"items": items, "total": groups.Total, "page": groups.Page, "page_size": groups.PageSize,
+		}})
+		return
+	}
 	groups, err := assetService.ListGroups(c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all")
 	if err != nil {
 		assetLibraryError(c, err)
@@ -141,7 +176,7 @@ func UploadMediaAsset(c *gin.Context) {
 }
 
 func GetMediaAssetPreview(c *gin.Context) {
-	value, expiresAt, err := assetService.PreviewURL(c.Request.Context(), c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser)
+	value, expiresAt, err := assetService.PreviewURLVariant(c.Request.Context(), c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, c.DefaultQuery("variant", "original"))
 	if err != nil {
 		assetLibraryError(c, err)
 		return

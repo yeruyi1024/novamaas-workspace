@@ -16,34 +16,38 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { ChevronsUpDown } from 'lucide-react'
+import { useDeferredValue, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Separator } from '@/components/ui/separator'
 
+import { listAssetGroupsPage } from '../api'
+import { assertAssetSuccess, assetErrorMessage } from '../asset-utils'
 import type { AssetGroup } from '../types'
 
+const GROUP_PAGE_SIZE = 20
+
 type AssetGroupSelectProps = {
-  groups: AssetGroup[]
   value: string
+  selectedGroup?: AssetGroup
   isAdmin: boolean
-  onValueChange: (value: string) => void
+  onValueChange: (value: string, group?: AssetGroup) => void
 }
 
-type AssetGroupOptionLabelProps = {
+function AssetGroupOptionLabel(props: {
   group: AssetGroup
   isAdmin: boolean
   selected?: boolean
-}
-
-function AssetGroupOptionLabel(props: AssetGroupOptionLabelProps) {
+}) {
   const { t } = useTranslation()
   const creator = props.group.owner_name || `#${props.group.owner_user_id}`
   const metadata = props.isAdmin
@@ -87,55 +91,157 @@ function AssetGroupOptionLabel(props: AssetGroupOptionLabelProps) {
 
 export function AssetGroupSelect(props: AssetGroupSelectProps) {
   const { t } = useTranslation()
-  const items = useMemo(
-    () => [
-      { value: null, label: t('All groups') },
-      ...props.groups.map((group) => ({
-        value: group.id,
-        label: (
-          <AssetGroupOptionLabel
-            group={group}
-            isAdmin={props.isAdmin}
-            selected
-          />
-        ),
-      })),
-    ],
-    [props.groups, props.isAdmin, t]
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const deferredSearch = useDeferredValue(search.trim())
+  const searchPending = search.trim() !== deferredSearch
+  const groupsQuery = useQuery({
+    queryKey: ['asset-library', 'groups', props.isAdmin, page, deferredSearch],
+    queryFn: async () =>
+      assertAssetSuccess(
+        await listAssetGroupsPage({
+          includeAllOwners: props.isAdmin,
+          page,
+          pageSize: GROUP_PAGE_SIZE,
+          search: deferredSearch,
+        })
+      ),
+    enabled: open,
+  })
+  const groups = groupsQuery.data?.items ?? []
+  const totalPages = Math.max(
+    1,
+    Math.ceil((groupsQuery.data?.total ?? 0) / GROUP_PAGE_SIZE)
   )
 
   return (
-    <Select
-      items={items}
-      value={props.value || null}
-      onValueChange={(value) => props.onValueChange(value ?? '')}
-    >
-      <SelectTrigger
-        aria-label={t('Asset group')}
-        className='min-h-12 w-full data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:min-w-0'
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type='button'
+            variant='outline'
+            role='combobox'
+            aria-label={t('Asset group')}
+            aria-expanded={open}
+            className='min-h-12 w-full justify-between gap-2 px-3 py-2'
+          />
+        }
       >
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent
+        {props.value && props.selectedGroup ? (
+          <AssetGroupOptionLabel
+            group={props.selectedGroup}
+            isAdmin={props.isAdmin}
+            selected
+          />
+        ) : (
+          <span className='truncate'>{t('All groups')}</span>
+        )}
+        <ChevronsUpDown
+          className='size-4 shrink-0 opacity-50'
+          aria-hidden='true'
+        />
+      </PopoverTrigger>
+      <PopoverContent
         align='start'
-        alignItemWithTrigger={false}
-        className='sm:min-w-96'
+        className='w-[var(--anchor-width)] min-w-80 gap-2 p-2'
       >
-        <SelectGroup>
-          <SelectItem value={null} className='py-2'>
+        <Input
+          autoFocus
+          aria-label={t('Search groups...')}
+          placeholder={t('Search groups...')}
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value)
+            setPage(1)
+          }}
+        />
+        <div
+          role='listbox'
+          aria-label={t('Asset group')}
+          className='max-h-72 space-y-0.5 overflow-y-auto'
+        >
+          <button
+            type='button'
+            role='option'
+            aria-selected={!props.value}
+            className='hover:bg-accent w-full rounded-md px-2 py-2 text-left text-sm'
+            onClick={() => {
+              props.onValueChange('')
+              setOpen(false)
+            }}
+          >
             {t('All groups')}
-          </SelectItem>
-          {props.groups.map((group) => (
-            <SelectItem
-              key={group.id}
-              value={group.id}
-              className='items-start py-2'
-            >
-              <AssetGroupOptionLabel group={group} isAdmin={props.isAdmin} />
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+          </button>
+          {(groupsQuery.isLoading || searchPending) && (
+            <p className='text-muted-foreground px-2 py-3 text-sm'>
+              {t('Loading...')}
+            </p>
+          )}
+          {groupsQuery.isError && (
+            <p role='alert' className='text-destructive px-2 py-3 text-sm'>
+              {assetErrorMessage(groupsQuery.error)}
+            </p>
+          )}
+          {!groupsQuery.isLoading &&
+            !searchPending &&
+            !groupsQuery.isError &&
+            groups.length === 0 && (
+              <p className='text-muted-foreground px-2 py-3 text-sm'>
+                {t('No groups match your search')}
+              </p>
+            )}
+          {!searchPending &&
+            groups.map((group) => (
+              <button
+                key={group.id}
+                type='button'
+                role='option'
+                aria-selected={props.value === group.id}
+                aria-label={`${group.name} · ${t('ID')}: ${group.id}${props.isAdmin ? ` · ${t('Creator')}: ${group.owner_name || `#${group.owner_user_id}`}` : ''}`}
+                className='hover:bg-accent w-full rounded-md px-2 py-2'
+                onClick={() => {
+                  props.onValueChange(group.id, group)
+                  setOpen(false)
+                }}
+              >
+                <AssetGroupOptionLabel group={group} isAdmin={props.isAdmin} />
+              </button>
+            ))}
+        </div>
+        {totalPages > 1 && (
+          <>
+            <Separator />
+            <div className='flex items-center justify-between pt-1'>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                disabled={page <= 1 || groupsQuery.isFetching}
+                onClick={() => setPage((current) => current - 1)}
+              >
+                {t('Previous')}
+              </Button>
+              <span
+                className='text-muted-foreground text-xs tabular-nums'
+                aria-live='polite'
+              >
+                {t('Page {{page}} of {{total}}', { page, total: totalPages })}
+              </span>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                disabled={page >= totalPages || groupsQuery.isFetching}
+                onClick={() => setPage((current) => current + 1)}
+              >
+                {t('Next')}
+              </Button>
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }

@@ -69,6 +69,8 @@ export function AssetUploadDialog(props: {
   onOpenChange: (open: boolean) => void
   groups: AssetGroup[]
   selectedGroup: string
+  initialName?: string
+  replacing?: boolean
   onSubmit: (formData: FormData) => void
   pending: boolean
   progress: number
@@ -92,7 +94,7 @@ export function AssetUploadDialog(props: {
     resolver: zodResolver(schema),
     defaultValues: {
       group_id: props.selectedGroup,
-      name: '',
+      name: props.initialName || '',
       type: 'image',
     },
   })
@@ -102,11 +104,11 @@ export function AssetUploadDialog(props: {
     if (!props.open) return
     form.reset({
       group_id: props.selectedGroup || props.groups[0]?.id || '',
-      name: '',
+      name: props.initialName || '',
       type: 'image',
       file: undefined,
     })
-  }, [form, props.groups, props.open, props.selectedGroup])
+  }, [form, props.groups, props.initialName, props.open, props.selectedGroup])
 
   useEffect(() => {
     if (!selectedFile || !selectedFile.type.startsWith('image/')) {
@@ -155,11 +157,17 @@ export function AssetUploadDialog(props: {
     >
       <DialogContent className='sm:max-w-xl'>
         <DialogHeader>
-          <DialogTitle>{t('Upload asset')}</DialogTitle>
+          <DialogTitle>
+            {props.replacing ? t('Re-upload revised file') : t('Upload asset')}
+          </DialogTitle>
           <DialogDescription>
-            {t(
-              'Your file is saved to permanent object storage. Channel delivery runs automatically in the background.'
-            )}
+            {props.replacing
+              ? t(
+                  'A new asset ID will be created. The rejected asset remains unavailable; update your video requests to use the new ID.'
+                )
+              : t(
+                  'Your file is saved to permanent object storage. Channel delivery runs automatically in the background.'
+                )}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -213,6 +221,7 @@ export function AssetUploadDialog(props: {
                       <input
                         ref={fileInputRef}
                         type='file'
+                        aria-label={t('File')}
                         className='sr-only'
                         accept='image/*,video/*,audio/*'
                         onChange={(event) =>

@@ -67,6 +67,7 @@ import {
   updateAssetChannelConfig,
   updateAssetLibraryStoragePolicy,
 } from './api'
+import { AssetRequestLogDialog } from './asset-request-log-dialog'
 import {
   assetChannelConfigToForm,
   assetChannelConfigToInput,
@@ -604,6 +605,7 @@ export function AssetLibrarySettings() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<AssetChannelConfig | null>(null)
+  const [logChannelId, setLogChannelId] = useState<number | null>(null)
   const settingsQuery = useQuery({
     queryKey: SETTINGS_QUERY_KEY,
     queryFn: async () => {
@@ -760,6 +762,15 @@ export function AssetLibrarySettings() {
                           <CardFooter className='justify-end gap-2'>
                             <Button
                               size='sm'
+                              variant='outline'
+                              onClick={() =>
+                                setLogChannelId(channel.channel_id)
+                              }
+                            >
+                              {t('View logs')}
+                            </Button>
+                            <Button
+                              size='sm'
                               onClick={() => setEditing(channel)}
                             >
                               <HugeiconsIcon
@@ -788,6 +799,13 @@ export function AssetLibrarySettings() {
         saving={saveChannelMutation.isPending}
         testing={testMutation.isPending}
       />
+      {logChannelId !== null && (
+        <AssetRequestLogDialog
+          open
+          channelId={logChannelId}
+          onOpenChange={(open) => !open && setLogChannelId(null)}
+        />
+      )}
     </>
   )
 }

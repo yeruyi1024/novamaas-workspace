@@ -74,7 +74,9 @@ import {
   createAssetGroup,
   deleteAssetGroup,
   deleteMediaAsset,
+  getMediaAssetPreview,
   listAssetGroups,
+  listAssetGroupsPage,
   listMediaAssets,
   uploadMediaAsset,
 } from './api'
@@ -86,8 +88,9 @@ import {
   type AssetGroupFormValues,
 } from './components/asset-group-dialog'
 import { AssetGroupSelect } from './components/asset-group-select'
+import { AssetPreviewDialog } from './components/asset-preview-dialog'
 import { AssetUploadDialog } from './components/asset-upload-dialog'
-import type { MediaAsset } from './types'
+import type { AssetGroup, MediaAsset } from './types'
 
 const GROUPS_QUERY_KEY = ['asset-library', 'groups'] as const
 const ASSETS_QUERY_KEY = ['asset-library', 'assets'] as const
@@ -99,19 +102,37 @@ export function AssetLibrary() {
   const currentUserId = useAuthStore((state) => state.auth.user?.id ?? 0)
   const queryClient = useQueryClient()
   const [selectedGroup, setSelectedGroup] = useState('')
+  const [selectedGroupInfo, setSelectedGroupInfo] = useState<
+    AssetGroup | undefined
+  >()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [apiAccessDialogOpen, setApiAccessDialogOpen] = useState(false)
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [reuploadTarget, setReuploadTarget] = useState<MediaAsset | null>(null)
+  const [previewTarget, setPreviewTarget] = useState<MediaAsset | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null)
   const [deleteGroupDialogOpen, setDeleteGroupDialogOpen] = useState(false)
   const deferredSearch = useDeferredValue(search.trim())
 
   const groupsQuery = useQuery({
-    queryKey: [...GROUPS_QUERY_KEY, isAdmin],
-    queryFn: async () => assertAssetSuccess(await listAssetGroups(isAdmin)),
+    queryKey: [...GROUPS_QUERY_KEY, 'upload', currentUserId],
+    queryFn: async () => assertAssetSuccess(await listAssetGroups(false)),
+    enabled: uploadDialogOpen,
+  })
+  const ownGroupsQuery = useQuery({
+    queryKey: [...GROUPS_QUERY_KEY, 'own-count', currentUserId],
+    queryFn: async () =>
+      assertAssetSuccess(
+        await listAssetGroupsPage({
+          includeAllOwners: false,
+          page: 1,
+          pageSize: 1,
+          search: '',
+        })
+      ),
   })
   const assetsQuery = useQuery({
     queryKey: [
@@ -132,27 +153,13 @@ export function AssetLibrary() {
         })
       ),
     placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
   })
-  const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data])
-  const uploadGroups = useMemo(
-    () => groups.filter((group) => group.owner_user_id === currentUserId),
-    [currentUserId, groups]
-  )
+  const uploadGroups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data])
+  const hasOwnGroups = (ownGroupsQuery.data?.total ?? 0) > 0
   const assets = assetsQuery.data?.items ?? []
   const totalAssets = assetsQuery.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalAssets / ASSET_PAGE_SIZE))
-  const groupLabels = useMemo(() => {
-    const labels = new Map<string, string>()
-    for (const group of groups) {
-      let label = `${group.name} · ${t('ID')}: ${group.id}`
-      if (isAdmin) {
-        label += ` · ${t('Creator')}: ${group.owner_name || `#${group.owner_user_id}`}`
-      }
-      labels.set(group.id, label)
-    }
-    return labels
-  }, [groups, isAdmin, t])
-  const selectedGroupInfo = groups.find((group) => group.id === selectedGroup)
   const selectedUploadGroup = uploadGroups.some(
     (group) => group.id === selectedGroup
   )
@@ -180,16 +187,35 @@ export function AssetLibrary() {
       )
     },
     onSuccess: async () => {
+      const wasReupload = reuploadTarget !== null
       setPage(1)
       await invalidateAssets()
       setUploadDialogOpen(false)
+      setReuploadTarget(null)
       setUploadProgress(0)
-      toast.success(t('Asset uploaded'))
+      toast.success(
+        wasReupload
+          ? t('Replacement uploaded. Use its new asset ID in future requests.')
+          : t('Asset uploaded')
+      )
     },
     onError: (error) => {
       setUploadProgress(0)
       toast.error(assetErrorMessage(error))
     },
+  })
+  const downloadMutation = useMutation({
+    mutationFn: async (asset: MediaAsset) =>
+      assertAssetSuccess(await getMediaAssetPreview(asset.id, 'download')),
+    onSuccess: (signedURL) => {
+      const link = document.createElement('a')
+      link.href = signedURL.url
+      link.rel = 'noopener'
+      document.body.append(link)
+      link.click()
+      link.remove()
+    },
+    onError: (error) => toast.error(assetErrorMessage(error)),
   })
   const deleteMutation = useMutation({
     mutationFn: async (id: string) =>
@@ -207,6 +233,7 @@ export function AssetLibrary() {
       assertAssetSuccess(await deleteAssetGroup(id)),
     onSuccess: async () => {
       setSelectedGroup('')
+      setSelectedGroupInfo(undefined)
       setDeleteGroupDialogOpen(false)
       await Promise.all([invalidateGroups(), invalidateAssets()])
       toast.success(t('Asset group deleted'))
@@ -214,8 +241,8 @@ export function AssetLibrary() {
     onError: (error) => toast.error(assetErrorMessage(error)),
   })
 
-  const loading = groupsQuery.isLoading || assetsQuery.isLoading
-  const error = groupsQuery.error || assetsQuery.error
+  const loading = assetsQuery.isLoading
+  const error = assetsQuery.error
   const canDeleteSelectedGroup = Boolean(
     selectedGroupInfo &&
     !deferredSearch &&
@@ -258,7 +285,7 @@ export function AssetLibrary() {
           </Button>
           <Button
             size='sm'
-            disabled={uploadGroups.length === 0}
+            disabled={!hasOwnGroups}
             onClick={() => setUploadDialogOpen(true)}
           >
             <HugeiconsIcon icon={Upload01Icon} data-icon='inline-start' />
@@ -270,11 +297,12 @@ export function AssetLibrary() {
             <Card size='sm'>
               <CardContent className='grid gap-3 py-3 md:grid-cols-[minmax(260px,380px)_minmax(220px,1fr)_auto] md:items-center'>
                 <AssetGroupSelect
-                  groups={groups}
                   value={selectedGroup}
+                  selectedGroup={selectedGroupInfo}
                   isAdmin={isAdmin}
-                  onValueChange={(value) => {
+                  onValueChange={(value, group) => {
                     setSelectedGroup(value)
+                    setSelectedGroupInfo(group)
                     setPage(1)
                   }}
                 />
@@ -332,14 +360,12 @@ export function AssetLibrary() {
                 <EmptyContent>
                   <Button
                     onClick={() =>
-                      groups.length
+                      hasOwnGroups
                         ? setUploadDialogOpen(true)
                         : setGroupDialogOpen(true)
                     }
                   >
-                    {groups.length
-                      ? t('Upload asset')
-                      : t('Create asset group')}
+                    {hasOwnGroups ? t('Upload asset') : t('Create asset group')}
                   </Button>
                 </EmptyContent>
               </Empty>
@@ -367,10 +393,22 @@ export function AssetLibrary() {
                   <AssetCard
                     key={asset.id}
                     asset={asset}
-                    groupName={
-                      groupLabels.get(asset.group_id) || t('Unknown group')
-                    }
+                    groupName={`${asset.group_name || t('Unknown group')} · ${t('ID')}: ${asset.group_id}`}
                     onDelete={setDeleteTarget}
+                    onPreview={setPreviewTarget}
+                    onDownload={(target) => downloadMutation.mutate(target)}
+                    downloading={
+                      downloadMutation.isPending &&
+                      downloadMutation.variables?.id === asset.id
+                    }
+                    onReupload={
+                      asset.owner_user_id === currentUserId
+                        ? (target) => {
+                            setReuploadTarget(target)
+                            setUploadDialogOpen(true)
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -421,6 +459,17 @@ export function AssetLibrary() {
         open={apiAccessDialogOpen}
         onOpenChange={setApiAccessDialogOpen}
       />
+      {previewTarget && (
+        <AssetPreviewDialog
+          asset={previewTarget}
+          onOpenChange={(open) => !open && setPreviewTarget(null)}
+          onDownload={(target) => downloadMutation.mutate(target)}
+          downloading={
+            downloadMutation.isPending &&
+            downloadMutation.variables?.id === previewTarget.id
+          }
+        />
+      )}
       <AssetGroupDialog
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
@@ -429,9 +478,14 @@ export function AssetLibrary() {
       />
       <AssetUploadDialog
         open={uploadDialogOpen}
-        onOpenChange={setUploadDialogOpen}
+        onOpenChange={(open) => {
+          setUploadDialogOpen(open)
+          if (!open) setReuploadTarget(null)
+        }}
         groups={uploadGroups}
-        selectedGroup={selectedUploadGroup}
+        selectedGroup={reuploadTarget?.group_id || selectedUploadGroup}
+        initialName={reuploadTarget?.name}
+        replacing={reuploadTarget !== null}
         onSubmit={(values) => uploadMutation.mutate(values)}
         pending={uploadMutation.isPending}
         progress={uploadProgress}
