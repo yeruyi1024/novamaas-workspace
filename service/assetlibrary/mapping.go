@@ -60,6 +60,19 @@ func ResolveRequestAssetIDs(body []byte, ownerUserID int, channelID int) ([]byte
 		if asset.OwnerUserID != ownerUserID || asset.Status == model.AssetStatusDeleted {
 			return nil, 0, &RequestError{StatusCode: http.StatusNotFound, Err: fmt.Errorf("asset %s does not exist or is not accessible", publicID)}
 		}
+		if asset.Status == model.AssetStatusUnavailable {
+			reason := "upstream rejected this material"
+			switch asset.UnavailableReason {
+			case model.AssetUnavailableRealPerson:
+				reason = "upstream rejected real-person content"
+			case model.AssetUnavailableSensitiveContent:
+				reason = "upstream rejected sensitive content"
+			}
+			return nil, 0, &RequestError{
+				StatusCode: http.StatusUnprocessableEntity, Code: "asset_unavailable",
+				Err: fmt.Errorf("asset %s is unavailable: %s; upload revised material and use its new asset ID", publicID, reason),
+			}
+		}
 		resolved[publicID] = ""
 		localAssets[publicID] = asset
 	}

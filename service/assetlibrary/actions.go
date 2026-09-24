@@ -10,13 +10,14 @@ import (
 )
 
 type GroupListInput struct {
-	OwnerUserID int
-	GroupIDs    []string
-	Search      string
-	Page        int
-	PageSize    int
-	SortBy      string
-	SortOrder   string
+	OwnerUserID      int
+	IncludeAllOwners bool
+	GroupIDs         []string
+	Search           string
+	Page             int
+	PageSize         int
+	SortBy           string
+	SortOrder        string
 }
 
 type GroupListView struct {
@@ -40,8 +41,10 @@ func ListGroupsPage(input GroupListInput) (*GroupListView, error) {
 	if input.PageSize > 100 {
 		input.PageSize = 100
 	}
-	query := model.DB.Model(&model.AssetGroup{}).
-		Where("owner_user_id = ? AND status <> ?", input.OwnerUserID, model.AssetStatusDeleted)
+	query := model.DB.Model(&model.AssetGroup{}).Where("status <> ?", model.AssetStatusDeleted)
+	if !input.IncludeAllOwners {
+		query = query.Where("owner_user_id = ?", input.OwnerUserID)
+	}
 	if len(input.GroupIDs) > 0 {
 		query = query.Where("public_id IN ?", input.GroupIDs)
 	}
@@ -59,13 +62,19 @@ func ListGroupsPage(input GroupListInput) (*GroupListView, error) {
 	orderColumn := "created_at"
 	if strings.EqualFold(input.SortBy, "UpdateTime") {
 		orderColumn = "updated_at"
+	} else if strings.EqualFold(input.SortBy, "Name") {
+		orderColumn = "LOWER(name)"
 	}
 	orderDirection := "desc"
 	if strings.EqualFold(input.SortOrder, "Asc") {
 		orderDirection = "asc"
 	}
 	var groups []model.AssetGroup
-	if err := query.Order(orderColumn + " " + orderDirection).Order("id desc").
+	secondaryOrder := "id desc"
+	if orderColumn == "LOWER(name)" {
+		secondaryOrder = "id asc"
+	}
+	if err := query.Order(orderColumn + " " + orderDirection).Order(secondaryOrder).
 		Limit(input.PageSize).Offset((input.Page - 1) * input.PageSize).Find(&groups).Error; err != nil {
 		return nil, err
 	}
@@ -86,6 +95,7 @@ func GetAsset(publicID string, ownerUserID int) (*AssetView, error) {
 		return nil, err
 	}
 	views := assetViews([]model.MediaAsset{*asset}, map[int64]string{asset.GroupID: group.PublicID}, map[int]string{asset.OwnerUserID: ownerName})
+	views[0].GroupName = group.Name
 	return &views[0], nil
 }
 

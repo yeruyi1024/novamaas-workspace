@@ -88,7 +88,15 @@ func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID strin
 	return object, nil
 }
 
-func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration) (string, error) {
+type AssetObjectURLMode string
+
+const (
+	AssetObjectURLOriginal  AssetObjectURLMode = "original"
+	AssetObjectURLThumbnail AssetObjectURLMode = "thumbnail"
+	AssetObjectURLDownload  AssetObjectURLMode = "download"
+)
+
+func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, mode AssetObjectURLMode, downloadName string) (string, error) {
 	var object model.StorageObject
 	if err := model.DB.Where("id = ? AND purpose = ? AND status = ?", objectID, model.StorageObjectPurposeAssetLibrary, model.StorageObjectStatusUploaded).First(&object).Error; err != nil {
 		return "", err
@@ -112,7 +120,29 @@ func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration) 
 		}
 		ttl = policySignedURLTTL(policy)
 	}
-	return driver.PresignGet(ctx, object.ObjectKey, ttl)
+	options := ObjectGetOptions{}
+	switch mode {
+	case AssetObjectURLOriginal:
+	case AssetObjectURLThumbnail:
+		if strings.HasPrefix(object.ContentType, "image/") {
+			options.Process = "image/resize,m_lfit,w_640,h_360"
+			if object.ContentType == "image/jpeg" || object.ContentType == "image/webp" {
+				options.Process += "/quality,q_80"
+			}
+		}
+	case AssetObjectURLDownload:
+		if downloadName == "" || strings.ContainsAny(downloadName, "\"\\\r\n/") {
+			return "", errors.New("invalid asset download name")
+		}
+		extension := assetExtension(object.ContentType)
+		if extension == "" {
+			extension = "bin"
+		}
+		options.ResponseContentDisposition = fmt.Sprintf("attachment; filename=\"%s.%s\"", downloadName, extension)
+	default:
+		return "", errors.New("invalid asset object URL mode")
+	}
+	return driver.PresignGet(ctx, object.ObjectKey, ttl, options)
 }
 
 func DeleteAssetObject(objectID int64, reason string) error {

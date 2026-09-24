@@ -236,11 +236,16 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	}
 	if err != nil {
 		statusCode := http.StatusInternalServerError
+		code := "build_request_failed"
 		var statusError interface{ HTTPStatusCode() int }
 		if errors.As(err, &statusError) {
 			statusCode = statusError.HTTPStatusCode()
 		}
-		return nil, service.TaskErrorWrapperLocal(err, "build_request_failed", statusCode)
+		var codedError interface{ ErrorCode() string }
+		if errors.As(err, &codedError) && codedError.ErrorCode() != "" {
+			code = codedError.ErrorCode()
+		}
+		return nil, service.TaskErrorWrapperLocal(err, code, statusCode)
 	}
 	// 9. 发送请求
 	upstreamStartedAt := time.Now()
@@ -609,6 +614,10 @@ func mapTaskStatusToSimple(status model.TaskStatus) string {
 func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 	properties := task.Properties
 	properties.RequestBody = nil
+	modelName := properties.OriginModelName
+	if modelName == "" {
+		modelName = properties.UpstreamModelName
+	}
 	return &dto.TaskDto{
 		ID:                   task.ID,
 		CreatedAt:            task.CreatedAt,
@@ -631,6 +640,7 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		RequestBodyAvailable: task.RequestBodyAvailable || len(task.Properties.RequestBody) > 0,
 		RequestMetrics:       task.Properties.RequestMetrics,
 		Username:             task.Username,
+		ModelName:            modelName,
 		Data:                 task.Data,
 	}
 }

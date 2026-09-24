@@ -13,8 +13,13 @@ import (
 
 type ObjectDriver interface {
 	PutObject(ctx context.Context, objectKey string, contentType string, size int64, body io.Reader) (string, error)
-	PresignGet(ctx context.Context, objectKey string, ttl time.Duration) (string, error)
+	PresignGet(ctx context.Context, objectKey string, ttl time.Duration, options ...ObjectGetOptions) (string, error)
 	DeleteObject(ctx context.Context, objectKey string) error
+}
+
+type ObjectGetOptions struct {
+	Process                    string
+	ResponseContentDisposition string
 }
 
 func driverForProfile(profile *model.StorageProfile, credential *model.StorageCredential) (ObjectDriver, error) {

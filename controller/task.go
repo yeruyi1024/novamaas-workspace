@@ -28,6 +28,8 @@ func GetAllTask(c *gin.Context) {
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
 		ChannelID:      c.Query("channel_id"),
+		Username:       c.Query("username"),
+		ModelName:      c.Query("model_name"),
 	}
 
 	type listResult struct {
@@ -85,6 +87,7 @@ func GetUserTask(c *gin.Context) {
 		Action:         c.Query("action"),
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
+		ModelName:      c.Query("model_name"),
 	}
 
 	type listResult struct {

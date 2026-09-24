@@ -103,11 +103,20 @@ func (driver *aliyunOSSDriver) PutObject(ctx context.Context, objectKey string, 
 	return strings.Trim(*result.ETag, `"`), nil
 }
 
-func (driver *aliyunOSSDriver) PresignGet(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
-	result, err := driver.client.Presign(ctx, &oss.GetObjectRequest{
+func (driver *aliyunOSSDriver) PresignGet(ctx context.Context, objectKey string, ttl time.Duration, options ...ObjectGetOptions) (string, error) {
+	request := &oss.GetObjectRequest{
 		Bucket: oss.Ptr(driver.bucket),
 		Key:    oss.Ptr(objectKey),
-	}, oss.PresignExpires(ttl))
+	}
+	if len(options) > 0 {
+		if options[0].Process != "" {
+			request.Process = oss.Ptr(options[0].Process)
+		}
+		if options[0].ResponseContentDisposition != "" {
+			request.ResponseContentDisposition = oss.Ptr(options[0].ResponseContentDisposition)
+		}
+	}
+	result, err := driver.client.Presign(ctx, request, oss.PresignExpires(ttl))
 	if err != nil {
 		return "", err
 	}

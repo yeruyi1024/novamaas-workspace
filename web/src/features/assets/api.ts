@@ -21,7 +21,10 @@ import { api } from '@/lib/api'
 import type {
   AssetAccessKey,
   AssetGroup,
+  AssetGroupList,
   AssetLibraryResponse,
+  AssetRequestLogList,
+  AssetRequestLogWithDetail,
   AssetSyncJobList,
   CreatedAssetAccessKey,
   MediaAsset,
@@ -56,6 +59,26 @@ export async function listAssetGroups(includeAllOwners = false) {
   const response = await api.get<AssetLibraryResponse<AssetGroup[]>>(
     '/api/asset-library/groups',
     { params: includeAllOwners ? { scope: 'all' } : undefined }
+  )
+  return response.data
+}
+
+export async function listAssetGroupsPage(params: {
+  includeAllOwners: boolean
+  page: number
+  pageSize: number
+  search: string
+}) {
+  const response = await api.get<AssetLibraryResponse<AssetGroupList>>(
+    '/api/asset-library/groups',
+    {
+      params: {
+        p: params.page,
+        page_size: params.pageSize,
+        search: params.search || undefined,
+        scope: params.includeAllOwners ? 'all' : undefined,
+      },
+    }
   )
   return response.data
 }
@@ -123,10 +146,15 @@ export async function uploadMediaAsset(
   return response.data
 }
 
-export async function getMediaAssetPreview(id: string) {
+export async function getMediaAssetPreview(
+  id: string,
+  variant: 'thumbnail' | 'original' | 'download' = 'original'
+) {
   const response = await api.get<
     AssetLibraryResponse<{ url: string; expires_at: number }>
-  >(`/api/asset-library/assets/${encodeURIComponent(id)}/preview`)
+  >(`/api/asset-library/assets/${encodeURIComponent(id)}/preview`, {
+    params: { variant },
+  })
   return response.data
 }
 
@@ -164,5 +192,42 @@ export async function retryAssetSyncJob(id: number) {
     undefined,
     { skipBusinessError: true, skipErrorHandler: true }
   )
+  return response.data
+}
+
+export async function listAssetRequestLogs(params: {
+  channelId?: number
+  replicaId?: number
+  source?: string
+  result?: string
+  requestId?: string
+  cursor?: string
+  pageSize?: number
+  startMS?: number
+  endMS?: number
+}) {
+  const response = await api.get<AssetLibraryResponse<AssetRequestLogList>>(
+    '/api/asset-library/admin/request-logs',
+    {
+      params: {
+        channel_id: params.channelId || undefined,
+        replica_id: params.replicaId || undefined,
+        source: params.source || undefined,
+        result: params.result || undefined,
+        request_id: params.requestId || undefined,
+        cursor: params.cursor || undefined,
+        page_size: params.pageSize || 50,
+        start_ms: params.startMS,
+        end_ms: params.endMS,
+      },
+    }
+  )
+  return response.data
+}
+
+export async function getAssetRequestLogDetail(id: number) {
+  const response = await api.get<
+    AssetLibraryResponse<AssetRequestLogWithDetail>
+  >(`/api/asset-library/admin/request-logs/${id}`)
   return response.data
 }

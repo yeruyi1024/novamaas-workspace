@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 
 	"github.com/stretchr/testify/assert"
@@ -118,6 +119,21 @@ func TestVolcActionClientSupportsDocumentedAKSKProviderPaths(t *testing.T) {
 				assert.Equal(t, DefaultAPIVersion, request.URL.Query().Get("Version"))
 				assert.Contains(t, request.Header.Get("Authorization"), "Credential=provider-ak/")
 				assert.Contains(t, request.Header.Get("Authorization"), "/cn-beijing/ark/request")
+				body, err := io.ReadAll(request.Body)
+				require.NoError(t, err)
+				var payload struct {
+					Filter struct {
+						GroupType string `json:"GroupType"`
+					} `json:"Filter"`
+					PageNumber int `json:"PageNumber"`
+					PageSize   int `json:"PageSize"`
+				}
+				require.NoError(t, common.Unmarshal(body, &payload))
+				assert.Equal(t, "AIGC", payload.Filter.GroupType)
+				assert.Equal(t, 1, payload.PageNumber)
+				assert.Equal(t, 1, payload.PageSize)
+				digest := sha256.Sum256(body)
+				assert.Equal(t, hex.EncodeToString(digest[:]), request.Header.Get("X-Content-Sha256"))
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     make(http.Header),

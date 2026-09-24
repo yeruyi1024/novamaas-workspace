@@ -217,7 +217,10 @@ func InitLogDB() (err error) {
 		LOG_DB = DB
 		common.SetLogDatabaseType(common.MainDatabaseType())
 		initCol()
-		return
+		if common.IsMasterNode {
+			return MigrateAssetRequestLogs()
+		}
+		return nil
 	}
 	db, dbType, err := chooseDB("LOG_SQL_DSN", true)
 	if err == nil {
@@ -245,8 +248,10 @@ func InitLogDB() (err error) {
 			return nil
 		}
 		common.SysLog("database migration started")
-		err = migrateLOGDB()
-		return err
+		if err := migrateLOGDB(); err != nil {
+			return err
+		}
+		return MigrateAssetRequestLogs()
 	} else {
 		common.FatalLog(err)
 	}

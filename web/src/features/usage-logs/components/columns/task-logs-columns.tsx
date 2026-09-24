@@ -165,6 +165,19 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
 
   columns.push(
     {
+      accessorKey: 'model_name',
+      header: t('Model'),
+      cell: ({ row }) => (
+        <span
+          className='block max-w-[180px] truncate text-xs'
+          title={row.original.model_name || undefined}
+        >
+          {row.original.model_name || '-'}
+        </span>
+      ),
+      size: 180,
+    },
+    {
       accessorKey: 'task_id',
       header: t('Task ID'),
       cell: ({ row }) => {

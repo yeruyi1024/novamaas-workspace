@@ -15,14 +15,20 @@ const (
 	AssetTypeVideo = "video"
 	AssetTypeAudio = "audio"
 
-	AssetStatusReady   = "ready"
-	AssetStatusDeleted = "deleted"
+	AssetStatusReady       = "ready"
+	AssetStatusUnavailable = "unavailable"
+	AssetStatusDeleted     = "deleted"
+
+	AssetUnavailableRealPerson       = "real_person"
+	AssetUnavailableSensitiveContent = "sensitive_content"
+	AssetUnavailablePolicyRejected   = "policy_rejected"
 
 	AssetReplicaStatusPending    = "pending"
 	AssetReplicaStatusSyncing    = "syncing"
 	AssetReplicaStatusProcessing = "processing"
 	AssetReplicaStatusActive     = "active"
 	AssetReplicaStatusFailed     = "failed"
+	AssetReplicaStatusRejected   = "rejected"
 	AssetReplicaStatusDeleting   = "deleting"
 	AssetReplicaStatusDeleted    = "deleted"
 
@@ -55,20 +61,21 @@ type AssetGroup struct {
 // MediaAsset owns a permanent StorageObject. PublicID is the only identifier
 // accepted from clients; upstream identifiers never leave replica records.
 type MediaAsset struct {
-	ID              int64  `json:"-" gorm:"primaryKey"`
-	PublicID        string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
-	OwnerUserID     int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1"`
-	GroupID         int64  `json:"-" gorm:"index"`
-	GroupPublicID   string `json:"group_id" gorm:"-"`
-	StorageObjectID int64  `json:"-" gorm:"uniqueIndex"`
-	Name            string `json:"name" gorm:"type:varchar(255)"`
-	AssetType       string `json:"type" gorm:"type:varchar(16);index"`
-	ContentType     string `json:"content_type" gorm:"type:varchar(128)"`
-	Size            int64  `json:"size" gorm:"bigint"`
-	SHA256          string `json:"sha256" gorm:"type:char(64);index"`
-	Status          string `json:"status" gorm:"type:varchar(32);index:idx_media_assets_owner_status,priority:2"`
-	CreatedAt       int64  `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt       int64  `json:"updated_at" gorm:"bigint"`
+	ID                int64  `json:"-" gorm:"primaryKey"`
+	PublicID          string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
+	OwnerUserID       int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1"`
+	GroupID           int64  `json:"-" gorm:"index"`
+	GroupPublicID     string `json:"group_id" gorm:"-"`
+	StorageObjectID   int64  `json:"-" gorm:"uniqueIndex"`
+	Name              string `json:"name" gorm:"type:varchar(255)"`
+	AssetType         string `json:"type" gorm:"type:varchar(16);index"`
+	ContentType       string `json:"content_type" gorm:"type:varchar(128)"`
+	Size              int64  `json:"size" gorm:"bigint"`
+	SHA256            string `json:"sha256" gorm:"type:char(64);index"`
+	Status            string `json:"status" gorm:"type:varchar(32);index:idx_media_assets_owner_status,priority:2"`
+	UnavailableReason string `json:"unavailable_reason,omitempty" gorm:"type:varchar(32)"`
+	CreatedAt         int64  `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt         int64  `json:"updated_at" gorm:"bigint"`
 }
 
 // AssetChannelConfig is a channel-scoped integration configuration. Secrets
@@ -306,6 +313,53 @@ func FinishAssetReplica(id int64, lockedBy string, status string, progress int, 
 		return errors.New("asset replica synchronization lease was lost")
 	}
 	return nil
+}
+
+// RejectAssetReplica makes a content-policy rejection terminal for this asset.
+// The replica lease and asset state are changed atomically, so mapping cannot
+// observe a rejected replica while the asset still appears usable.
+func RejectAssetReplica(id int64, lockedBy string, reason string, upstreamAssetID string) error {
+	if reason != AssetUnavailableRealPerson && reason != AssetUnavailableSensitiveContent && reason != AssetUnavailablePolicyRejected {
+		return errors.New("invalid asset rejection reason")
+	}
+	now := common.GetTimestamp()
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var replica AssetReplica
+		if err := tx.Select("asset_id").First(&replica, id).Error; err != nil {
+			return err
+		}
+		var asset MediaAsset
+		if err := lockForUpdate(tx).Select("id", "status").First(&asset, replica.AssetID).Error; err != nil {
+			return err
+		}
+		if asset.Status != AssetStatusReady && asset.Status != AssetStatusUnavailable {
+			return errors.New("asset is no longer available for synchronization")
+		}
+		if err := lockForUpdate(tx).Where("id = ? AND status = ? AND locked_by = ?", id, AssetReplicaStatusSyncing, lockedBy).First(&replica).Error; err != nil {
+			return err
+		}
+		if asset.Status == AssetStatusReady {
+			if err := tx.Model(&MediaAsset{}).Where("id = ?", replica.AssetID).
+				Updates(map[string]any{"status": AssetStatusUnavailable, "unavailable_reason": reason, "updated_at": now}).Error; err != nil {
+				return err
+			}
+		}
+		result := tx.Model(&AssetReplica{}).
+			Where("id = ? AND status = ? AND locked_by = ?", id, AssetReplicaStatusSyncing, lockedBy).
+			Updates(map[string]any{
+				"status": AssetReplicaStatusRejected, "progress": replica.Progress,
+				"upstream_asset_id": upstreamAssetID, "next_sync_at": 0,
+				"locked_by": "", "lease_until": 0, "last_error": reason,
+				"last_synced_at": now, "updated_at": now,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return errors.New("asset replica synchronization lease was lost")
+		}
+		return nil
+	})
 }
 
 func AssetReplicaBackoff(attempts int) time.Duration {

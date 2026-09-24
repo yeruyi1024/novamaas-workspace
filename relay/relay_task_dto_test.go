@@ -45,6 +45,13 @@ func TestTaskModel2DtoReportsRequestBodyWithoutIncludingItInListPayload(t *testi
 	assert.Equal(t, int64(240), result.RequestMetrics.UpstreamRequestMilliseconds)
 }
 
+func TestTaskModel2DtoDisplaysRequestedModelWithUpstreamFallback(t *testing.T) {
+	task := &model.Task{Properties: model.Properties{OriginModelName: "requested-model", UpstreamModelName: "provider-model"}}
+	assert.Equal(t, "requested-model", TaskModel2Dto(task).ModelName)
+	task.Properties.OriginModelName = ""
+	assert.Equal(t, "provider-model", TaskModel2Dto(task).ModelName)
+}
+
 func TestVideoFetchByIDAllowsAdministratorTaskLogLookup(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)

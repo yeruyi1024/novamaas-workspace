@@ -62,13 +62,18 @@ import {
 import type { AssetSyncJob } from '@/features/assets/types'
 
 import { listAssetChannelConfigs } from './api'
+import { AssetRequestLogDialog } from './asset-request-log-dialog'
 
 const PAGE_SIZE = 20
 const JOBS_QUERY_KEY = ['asset-library', 'admin', 'sync-jobs'] as const
 
 function statusVariant(status: string) {
-  if (status === 'active') return 'default' as const
-  if (status === 'failed') return 'destructive' as const
+  if (status === 'active') {
+    return 'default' as const
+  }
+  if (status === 'failed' || status === 'rejected') {
+    return 'destructive' as const
+  }
   return 'secondary' as const
 }
 
@@ -89,6 +94,8 @@ function syncStatusLabel(t: TFunction, status: string) {
       return t('Synchronized')
     case 'failed':
       return t('Synchronization failed')
+    case 'rejected':
+      return t('Asset rejected by upstream')
     case 'deleting':
       return t('Deleting upstream copy')
     default:
@@ -127,11 +134,22 @@ function SyncStatusCell(props: {
   job: AssetSyncJob
   retrying: boolean
   onRetry: (id: number) => void
+  onViewLogs: (channelId: number, replicaId: number) => void
 }) {
   const { t } = useTranslation()
   const inProgress = ['pending', 'syncing', 'processing', 'deleting'].includes(
     props.job.status
   )
+  let rejectionMessage = t('The upstream provider rejected this asset.')
+  if (props.job.last_error === 'real_person') {
+    rejectionMessage = t(
+      'Real-person content was rejected by the upstream provider.'
+    )
+  } else if (props.job.last_error === 'sensitive_content') {
+    rejectionMessage = t(
+      'Sensitive content was rejected by the upstream provider.'
+    )
+  }
   return (
     <div className='flex min-w-0 flex-col gap-2 whitespace-normal'>
       <div className='flex flex-wrap items-center gap-2'>
@@ -141,11 +159,18 @@ function SyncStatusCell(props: {
         <span className='text-muted-foreground text-xs tabular-nums'>
           {props.job.progress}%
         </span>
+        <Button
+          size='xs'
+          variant='outline'
+          className='ml-auto'
+          onClick={() => props.onViewLogs(props.job.channel_id, props.job.id)}
+        >
+          {t('View logs')}
+        </Button>
         {props.job.status === 'failed' ? (
           <Button
             size='xs'
             variant='outline'
-            className='ml-auto'
             disabled={props.retrying}
             onClick={() => props.onRetry(props.job.id)}
           >
@@ -155,14 +180,20 @@ function SyncStatusCell(props: {
         ) : null}
       </div>
       {inProgress ? <Progress value={props.job.progress} /> : null}
-      {props.job.last_error ? (
+      {props.job.status === 'rejected' && (
+        <span className='text-destructive text-xs leading-relaxed'>
+          {rejectionMessage}{' '}
+          {t('Upload revised material and use its new asset ID.')}
+        </span>
+      )}
+      {props.job.status !== 'rejected' && props.job.last_error && (
         <span
           className='text-destructive line-clamp-2 text-xs leading-relaxed'
           title={props.job.last_error}
         >
           {props.job.last_error}
         </span>
-      ) : null}
+      )}
     </div>
   )
 }
@@ -201,6 +232,10 @@ export function AssetSyncManagement() {
   const [page, setPage] = useState(1)
   const [channelId, setChannelId] = useState(0)
   const [status, setStatus] = useState('')
+  const [logTarget, setLogTarget] = useState<{
+    channelId: number
+    replicaId: number
+  } | null>(null)
   const channelsQuery = useQuery({
     queryKey: ['asset-library', 'admin', 'channels'],
     queryFn: async () => assertAssetSuccess(await listAssetChannelConfigs()),
@@ -326,6 +361,7 @@ export function AssetSyncManagement() {
                   'processing',
                   'active',
                   'failed',
+                  'rejected',
                   'deleting',
                 ].map((value) => (
                   <NativeSelectOption key={value} value={value}>
@@ -424,6 +460,12 @@ export function AssetSyncManagement() {
                           job={job}
                           retrying={retryMutation.isPending}
                           onRetry={(id) => retryMutation.mutate(id)}
+                          onViewLogs={(selectedChannelId, replicaId) =>
+                            setLogTarget({
+                              channelId: selectedChannelId,
+                              replicaId,
+                            })
+                          }
                         />
                       </TableCell>
                       <TableCell className='py-3 align-middle whitespace-normal'>
@@ -480,6 +522,14 @@ export function AssetSyncManagement() {
                 </Button>
               </div>
             </div>
+          )}
+          {logTarget !== null && (
+            <AssetRequestLogDialog
+              open
+              channelId={logTarget.channelId}
+              replicaId={logTarget.replicaId}
+              onOpenChange={(open) => !open && setLogTarget(null)}
+            />
           )}
         </div>
       </SectionPageLayout.Content>

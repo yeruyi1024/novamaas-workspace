@@ -27,6 +27,7 @@ import {
   deleteAssetGroup,
   getMediaAssetPreview,
   listAssetGroups,
+  listAssetGroupsPage,
   listMediaAssets,
 } from '../api'
 import { AssetLibrary } from '../asset-library'
@@ -41,6 +42,7 @@ vi.mock('../api', () => ({
   getMediaAssetPreview: vi.fn(),
   listAssetAccessKeys: vi.fn(),
   listAssetGroups: vi.fn(),
+  listAssetGroupsPage: vi.fn(),
   listMediaAssets: vi.fn(),
   uploadMediaAsset: vi.fn(),
 }))
@@ -89,6 +91,26 @@ beforeEach(() => {
       },
     ],
   })
+  vi.mocked(listAssetGroupsPage).mockResolvedValue({
+    success: true,
+    data: {
+      items: [
+        {
+          id: 'group-1',
+          owner_user_id: 1,
+          owner_name: 'member',
+          name: 'Campaign assets',
+          description: '',
+          status: 'ready',
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+    },
+  })
   vi.mocked(listMediaAssets).mockResolvedValue({
     success: true,
     data: {
@@ -96,6 +118,7 @@ beforeEach(() => {
         {
           id: 'asset-20260922120000-abcde',
           group_id: 'group-1',
+          group_name: 'Campaign assets',
           owner_user_id: 1,
           owner_name: 'asset-owner',
           name: 'Hero image',
@@ -125,6 +148,18 @@ afterEach(() => {
 })
 
 describe('asset library business layout', () => {
+  test('admin asset cards show group name and ID without creator metadata', async () => {
+    useAuthStore
+      .getState()
+      .auth.setUser({ id: 99, username: 'admin', role: 10 })
+    renderLibrary()
+
+    const groupLine = await screen.findByText(/Campaign assets · ID: group-1/)
+    expect(groupLine).toBeVisible()
+    expect(groupLine).not.toHaveTextContent('Creator')
+    expect(groupLine).not.toHaveTextContent('KiB')
+  })
+
   test('uses a compact asset grid without exposing synchronization controls', async () => {
     renderLibrary()
 
@@ -142,6 +177,11 @@ describe('asset library business layout', () => {
     expect(screen.getByText(/asset-owner/)).toBeVisible()
     expect(screen.getByText(/Uploaded at/)).toBeVisible()
     expect(screen.getByRole('button', { name: 'AK/SK access' })).toBeVisible()
+    expect(
+      screen
+        .getByRole('button', { name: 'Download asset' })
+        .closest('[data-slot="card-footer"]')
+    ).toHaveClass('flex-wrap')
     const groupSelect = screen.getByRole('combobox', { name: 'Asset group' })
     expect(groupSelect).toHaveTextContent('All groups')
     await userEvent.setup().click(groupSelect)
@@ -150,7 +190,13 @@ describe('asset library business layout', () => {
         name: /Campaign assets.*ID: group-1/,
       })
     ).toBeVisible()
-    expect(listAssetGroups).toHaveBeenCalledWith(false)
+    expect(listAssetGroupsPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeAllOwners: false,
+        page: 1,
+        pageSize: 20,
+      })
+    )
     expect(listMediaAssets).toHaveBeenCalledWith(
       expect.objectContaining({ includeAllOwners: false })
     )
@@ -160,31 +206,54 @@ describe('asset library business layout', () => {
     useAuthStore
       .getState()
       .auth.setUser({ id: 99, username: 'admin', role: 10 })
-    vi.mocked(listAssetGroups).mockResolvedValueOnce({
+    vi.mocked(listAssetGroupsPage).mockImplementation(async (params) => ({
       success: true,
-      data: [
-        {
-          id: 'group-1',
-          owner_user_id: 1,
-          owner_name: 'alice',
-          name: 'Campaign assets',
-          description: '',
-          status: 'ready',
-          created_at: 2,
-          updated_at: 2,
-        },
-        {
-          id: 'group-20260922095429-zkvzd',
-          owner_user_id: 2,
-          owner_name: 'admin',
-          name: 'Campaign assets',
-          description: '',
-          status: 'ready',
-          created_at: 1,
-          updated_at: 1,
-        },
-      ],
-    })
+      data: params.includeAllOwners
+        ? {
+            items: [
+              {
+                id: 'group-1',
+                owner_user_id: 1,
+                owner_name: 'alice',
+                name: 'Campaign assets',
+                description: '',
+                status: 'ready',
+                created_at: 2,
+                updated_at: 2,
+              },
+              {
+                id: 'group-20260922095429-zkvzd',
+                owner_user_id: 2,
+                owner_name: 'admin',
+                name: 'Campaign assets',
+                description: '',
+                status: 'ready',
+                created_at: 1,
+                updated_at: 1,
+              },
+            ],
+            total: 2,
+            page: 1,
+            page_size: 20,
+          }
+        : {
+            items: [
+              {
+                id: 'group-20260922095429-zkvzd',
+                owner_user_id: 2,
+                owner_name: 'admin',
+                name: 'Campaign assets',
+                description: '',
+                status: 'ready',
+                created_at: 1,
+                updated_at: 1,
+              },
+            ],
+            total: 1,
+            page: 1,
+            page_size: 1,
+          },
+    }))
     renderLibrary()
 
     const groupSelect = await screen.findByRole('combobox', {
@@ -233,7 +302,56 @@ describe('asset library business layout', () => {
         })
       )
     )
-    expect(listAssetGroups).toHaveBeenCalledWith(true)
+    expect(listAssetGroupsPage).toHaveBeenCalledWith(
+      expect.objectContaining({ includeAllOwners: true })
+    )
+  })
+
+  test('searches paginated groups and preserves a selection across pages', async () => {
+    vi.mocked(listAssetGroupsPage).mockImplementation(async (params) => ({
+      success: true,
+      data: {
+        items: [
+          {
+            id: params.search ? 'group-beta' : `group-page-${params.page}`,
+            owner_user_id: 1,
+            owner_name: 'member',
+            name: params.search ? 'Beta' : `Group page ${params.page}`,
+            description: '',
+            status: 'ready',
+            created_at: params.page,
+            updated_at: params.page,
+          },
+        ],
+        total: params.search ? 1 : 21,
+        page: params.page,
+        page_size: 20,
+      },
+    }))
+    renderLibrary()
+
+    const user = userEvent.setup()
+    const groupSelect = screen.getByRole('combobox', { name: 'Asset group' })
+    await user.click(groupSelect)
+    await user.click(await screen.findByRole('button', { name: 'Next' }))
+    expect(
+      await screen.findByRole('option', { name: /Group page 2/ })
+    ).toBeVisible()
+    await user.click(screen.getByRole('option', { name: /Group page 2/ }))
+    expect(groupSelect).toHaveTextContent('Group page 2')
+
+    await user.click(groupSelect)
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search groups...' }),
+      'Be'
+    )
+    await waitFor(() =>
+      expect(listAssetGroupsPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, search: 'Be' })
+      )
+    )
+    expect(await screen.findByRole('option', { name: /Beta/ })).toBeVisible()
+    expect(groupSelect).toHaveTextContent('Group page 2')
   })
 
   test('places empty-group deletion in the page actions and confirms it', async () => {

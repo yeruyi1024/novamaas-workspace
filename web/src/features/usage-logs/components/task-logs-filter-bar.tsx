@@ -96,6 +96,10 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
         : {
             ...baseFilters,
             ...(searchParams.filter ? { taskId: searchParams.filter } : {}),
+            ...(searchParams.model ? { model: searchParams.model } : {}),
+            ...(isAdmin && searchParams.username
+              ? { username: searchParams.username }
+              : {}),
           }
 
     setFilters(next)
@@ -105,6 +109,9 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
     searchParams.endTime,
     searchParams.channel,
     searchParams.filter,
+    searchParams.model,
+    searchParams.username,
+    isAdmin,
   ])
 
   const handleChange = useCallback(
@@ -161,7 +168,12 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
     props.logCategory === 'drawing'
       ? t('Filter by MjProxy task ID')
       : t('Filter by task ID')
-  const hasAdditionalFilters = !!filterValue || !!filters.channel
+  const taskFilters = filters as TaskLogFilters
+  const hasAdditionalFilters =
+    !!filterValue ||
+    !!filters.channel ||
+    (props.logCategory === 'task' &&
+      (!!taskFilters.model || !!taskFilters.username))
   const dateRangeFilter = (
     <LogsFilterField wide>
       <CompactDateTimeRangePicker
@@ -195,6 +207,40 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
       />
     </LogsFilterField>
   ) : null
+  const modelFilter =
+    props.logCategory === 'task' ? (
+      <LogsFilterField>
+        <LogsFilterInput
+          aria-label={t('Model name')}
+          placeholder={t('Model name')}
+          value={taskFilters.model || ''}
+          onChange={(event) =>
+            setFilters((previous) => ({
+              ...previous,
+              model: event.target.value,
+            }))
+          }
+          onKeyDown={handleKeyDown}
+        />
+      </LogsFilterField>
+    ) : null
+  const usernameFilter =
+    props.logCategory === 'task' && isAdmin ? (
+      <LogsFilterField>
+        <LogsFilterInput
+          aria-label={t('Username')}
+          placeholder={t('Filter by username')}
+          value={taskFilters.username || ''}
+          onChange={(event) =>
+            setFilters((previous) => ({
+              ...previous,
+              username: event.target.value,
+            }))
+          }
+          onKeyDown={handleKeyDown}
+        />
+      </LogsFilterField>
+    ) : null
 
   return (
     <LogsFilterToolbar
@@ -203,6 +249,8 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
         <>
           {dateRangeFilter}
           {taskIdFilter}
+          {modelFilter}
+          {usernameFilter}
           {channelFilter}
         </>
       }
@@ -210,10 +258,21 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
       mobileFilters={
         <>
           {taskIdFilter}
+          {modelFilter}
+          {usernameFilter}
           {channelFilter}
         </>
       }
-      mobileFilterCount={[filterValue, filters.channel].filter(Boolean).length}
+      mobileFilterCount={
+        [
+          filterValue,
+          filters.channel,
+          props.logCategory === 'task' ? taskFilters.model : undefined,
+          props.logCategory === 'task' && isAdmin
+            ? taskFilters.username
+            : undefined,
+        ].filter(Boolean).length
+      }
       hasActiveFilters={hasAdditionalFilters}
       onSearch={handleApply}
       searchLoading={fetchingLogs > 0}

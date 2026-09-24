@@ -307,6 +307,8 @@ func SetApiRouter(router *gin.Engine) {
 			assetLibraryAdminRoute.PUT("/channels/:channel_id", controller.UpdateAssetChannelConfig)
 			assetLibraryAdminRoute.POST("/channels/:channel_id/test", controller.TestAssetChannelConfig)
 			assetLibraryAdminRoute.POST("/channels/:channel_id/sync", controller.SyncAssetChannel)
+			assetLibraryAdminRoute.GET("/request-logs", controller.ListAssetRequestLogs)
+			assetLibraryAdminRoute.GET("/request-logs/:id", controller.GetAssetRequestLogDetail)
 			assetLibraryAdminRoute.GET("/sync-jobs", controller.ListAssetSyncJobs)
 			assetLibraryAdminRoute.POST("/sync-jobs/:id/retry", controller.RetryAssetSyncJob)
 		}

@@ -52,6 +52,7 @@ var channelRateState = struct {
 type providerResult struct {
 	ID      string
 	Status  string
+	Code    string
 	Message string
 }
 
@@ -143,7 +144,11 @@ func (client *volcActionClient) deleteAsset(ctx context.Context, id string) erro
 }
 
 func (client *volcActionClient) test(ctx context.Context) error {
-	payload := map[string]any{"PageNumber": 1, "PageSize": 1}
+	payload := map[string]any{
+		"Filter":     map[string]any{"GroupType": "AIGC"},
+		"PageNumber": 1,
+		"PageSize":   1,
+	}
 	if client.config.ProjectName != "" {
 		payload["ProjectName"] = client.config.ProjectName
 	}
@@ -151,24 +156,42 @@ func (client *volcActionClient) test(ctx context.Context) error {
 	return err
 }
 
-func (client *volcActionClient) call(ctx context.Context, action string, payload any) (providerResult, error) {
+func (client *volcActionClient) call(ctx context.Context, action string, payload any) (result providerResult, err error) {
+	started := time.Now()
+	status, requestBytes, responseBytes := 0, int64(0), int64(0)
+	errorKind := ""
+	var requestURL string
+	var requestBody, loggedResponseBody []byte
+	defer func() {
+		if err != nil && errorKind == "" {
+			errorKind = "unknown"
+		}
+		recordRequestAttempt(ctx, client.config.ChannelID, normalizeProtocol(client.config.Protocol), action, http.MethodPost, "/", status, time.Since(started), requestBytes, responseBytes, errorKind, requestURL, requestBody, loggedResponseBody)
+	}()
 	if err := waitForChannelRate(ctx, client.config.ChannelID, client.config.QPM); err != nil {
+		errorKind = "rate_limit"
 		return providerResult{}, err
 	}
 	body, err := common.Marshal(payload)
 	if err != nil {
+		errorKind = "prepare"
 		return providerResult{}, err
 	}
+	requestBytes = int64(len(body))
+	requestBody = body
 	endpoint, err := url.Parse(client.config.BaseURL)
 	if err != nil {
+		errorKind = "prepare"
 		return providerResult{}, err
 	}
 	query := endpoint.Query()
 	query.Set("Action", action)
 	query.Set("Version", client.config.APIVersion)
 	endpoint.RawQuery = query.Encode()
+	requestURL = endpoint.String()
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(body))
 	if err != nil {
+		errorKind = "prepare"
 		return providerResult{}, err
 	}
 	request.Header.Set("Content-Type", "application/json")
@@ -179,24 +202,32 @@ func (client *volcActionClient) call(ctx context.Context, action string, payload
 	case model.AssetChannelAuthAKSK:
 		client.sign(request, body)
 	default:
+		errorKind = "prepare"
 		return providerResult{}, errors.New("unsupported asset provider authentication type")
 	}
 	response, err := client.httpClient.Do(request)
 	if err != nil {
+		errorKind = "network"
 		return providerResult{}, fmt.Errorf("call asset provider %s: %w", action, err)
 	}
 	defer response.Body.Close()
+	status = response.StatusCode
 	responseBody, err := io.ReadAll(io.LimitReader(response.Body, 4*1024*1024))
 	if err != nil {
+		errorKind = "response_read"
 		return providerResult{}, fmt.Errorf("read asset provider response: %w", err)
 	}
+	responseBytes = int64(len(responseBody))
+	loggedResponseBody = responseBody
 	var envelope map[string]any
 	if len(responseBody) > 0 {
 		if err = common.Unmarshal(responseBody, &envelope); err != nil {
+			errorKind = "response_decode"
 			return providerResult{}, fmt.Errorf("decode asset provider response: %w", err)
 		}
 	}
 	if providerErr := providerResponseError(response.StatusCode, envelope); providerErr != nil {
+		errorKind = "upstream"
 		return providerResult{}, fmt.Errorf("asset provider %s failed: %w", action, providerErr)
 	}
 	resultMap := mapValue(envelope, "Result")
@@ -206,6 +237,7 @@ func (client *volcActionClient) call(ctx context.Context, action string, payload
 	return providerResult{
 		ID:      stringValue(resultMap, "Id", "AssetId", "GroupId"),
 		Status:  stringValue(resultMap, "Status"),
+		Code:    nestedErrorCode(resultMap),
 		Message: nestedErrorMessage(resultMap),
 	}, nil
 }
@@ -314,7 +346,7 @@ func providerResponseError(statusCode int, envelope map[string]any) error {
 	code := stringValue(errorMap, "Code")
 	message := stringValue(errorMap, "Message")
 	if code != "" || message != "" {
-		return fmt.Errorf("%s: %s", code, message)
+		return &upstreamAssetError{statusCode: statusCode, code: code, message: message}
 	}
 	for candidate, value := range envelope {
 		if !strings.EqualFold(candidate, "code") {
@@ -323,19 +355,16 @@ func providerResponseError(statusCode int, envelope map[string]any) error {
 		switch typed := value.(type) {
 		case float64:
 			if typed != 0 {
-				return fmt.Errorf("code %.0f: %s", typed, stringValue(envelope, "message", "msg"))
+				return &upstreamAssetError{statusCode: statusCode, code: fmt.Sprintf("code %.0f", typed), message: stringValue(envelope, "message", "msg")}
 			}
 		case string:
 			if typed != "" && typed != "0" && !strings.EqualFold(typed, "success") {
-				return fmt.Errorf("code %s: %s", typed, stringValue(envelope, "message", "msg"))
+				return &upstreamAssetError{statusCode: statusCode, code: "code " + typed, message: stringValue(envelope, "message", "msg")}
 			}
 		}
 	}
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
-		if message := stringValue(envelope, "message", "msg", "detail"); message != "" {
-			return fmt.Errorf("HTTP %d: %s", statusCode, message)
-		}
-		return fmt.Errorf("HTTP %d", statusCode)
+		return &upstreamAssetError{statusCode: statusCode, code: fmt.Sprintf("HTTP %d", statusCode), message: stringValue(envelope, "message", "msg", "detail")}
 	}
 	return nil
 }
@@ -365,5 +394,15 @@ func stringValue(source map[string]any, keys ...string) string {
 }
 
 func nestedErrorMessage(result map[string]any) string {
-	return stringValue(mapValue(result, "Error"), "Message", "Code")
+	if message := stringValue(mapValue(result, "Error"), "Message", "Code"); message != "" {
+		return message
+	}
+	return stringValue(result, "Message", "msg", "reason", "detail")
+}
+
+func nestedErrorCode(result map[string]any) string {
+	if code := stringValue(mapValue(result, "Error"), "Code"); code != "" {
+		return code
+	}
+	return stringValue(result, "Code")
 }
