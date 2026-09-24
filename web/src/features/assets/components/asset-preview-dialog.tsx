@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -38,9 +39,21 @@ export function AssetPreviewDialog(props: {
   asset: MediaAsset
   onOpenChange: (open: boolean) => void
   onDownload: (asset: MediaAsset) => void
+  onReupload?: (asset: MediaAsset) => void
   downloading: boolean
 }) {
   const { t } = useTranslation()
+  const unavailable = props.asset.status === 'unavailable'
+  let unavailableReason = t('The upstream provider rejected this asset.')
+  if (props.asset.unavailable_reason === 'real_person') {
+    unavailableReason = t(
+      'Real-person content was rejected by the upstream provider.'
+    )
+  } else if (props.asset.unavailable_reason === 'sensitive_content') {
+    unavailableReason = t(
+      'Sensitive content was rejected by the upstream provider.'
+    )
+  }
   const previewQuery = useQuery({
     queryKey: ['asset-library', 'preview', props.asset.id, 'original'],
     queryFn: async () =>
@@ -93,15 +106,33 @@ export function AssetPreviewDialog(props: {
             {t('Preview asset')} · {formatAssetBytes(props.asset.size)}
           </DialogDescription>
         </DialogHeader>
+        {unavailable && (
+          <Alert variant='destructive'>
+            <AlertTitle>{t('Asset unavailable')}</AlertTitle>
+            <AlertDescription>
+              {unavailableReason}{' '}
+              {t('Upload revised material and use its new asset ID.')}
+            </AlertDescription>
+          </Alert>
+        )}
         {previewContent}
         <DialogFooter>
           <Button
             type='button'
+            variant={unavailable ? 'outline' : 'default'}
             disabled={props.downloading}
             onClick={() => props.onDownload(props.asset)}
           >
             {t('Download')}
           </Button>
+          {unavailable && props.onReupload && (
+            <Button
+              type='button'
+              onClick={() => props.onReupload?.(props.asset)}
+            >
+              {t('Re-upload revised file')}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

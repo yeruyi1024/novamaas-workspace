@@ -30,7 +30,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -176,16 +175,6 @@ export function AssetCard(props: {
   const { t } = useTranslation()
   const reference = `asset://${props.asset.id}`
   const unavailable = props.asset.status === 'unavailable'
-  let unavailableReason = t('The upstream provider rejected this asset.')
-  if (props.asset.unavailable_reason === 'real_person') {
-    unavailableReason = t(
-      'Real-person content was rejected by the upstream provider.'
-    )
-  } else if (props.asset.unavailable_reason === 'sensitive_content') {
-    unavailableReason = t(
-      'Sensitive content was rejected by the upstream provider.'
-    )
-  }
   const deleteButton = (
     <Button
       type='button'
@@ -203,7 +192,24 @@ export function AssetCard(props: {
       size='sm'
       className='overflow-hidden [contain-intrinsic-size:320px] [content-visibility:auto]'
     >
-      <AssetPreview asset={props.asset} onPreview={props.onPreview} />
+      <div className='relative'>
+        <AssetPreview asset={props.asset} onPreview={props.onPreview} />
+        {unavailable && (
+          <Badge
+            variant='destructive'
+            className='absolute top-2 left-2 z-10 bg-card/95'
+            render={
+              <button
+                type='button'
+                aria-label={`${t('Asset unavailable')}: ${t('View details')}`}
+                onClick={() => props.onPreview(props.asset)}
+              />
+            }
+          >
+            {t('Asset unavailable')}
+          </Badge>
+        )}
+      </div>
       <CardHeader className='gap-1.5'>
         <div className='flex items-start justify-between gap-2'>
           <CardTitle className='min-w-0 truncate'>{props.asset.name}</CardTitle>
@@ -230,15 +236,6 @@ export function AssetCard(props: {
         </div>
       </CardHeader>
       <CardContent>
-        {unavailable && (
-          <Alert variant='destructive' className='mb-3'>
-            <AlertTitle>{t('Asset unavailable')}</AlertTitle>
-            <AlertDescription>
-              {unavailableReason}{' '}
-              {t('Upload revised material and use its new asset ID.')}
-            </AlertDescription>
-          </Alert>
-        )}
         <code className='bg-muted block truncate rounded-md px-2 py-1.5 text-[11px]'>
           {reference}
         </code>
@@ -266,11 +263,12 @@ export function AssetCard(props: {
         {unavailable && props.onReupload && (
           <Button
             type='button'
-            size='sm'
+            size='xs'
             variant='outline'
+            aria-label={t('Re-upload revised file')}
             onClick={() => props.onReupload?.(props.asset)}
           >
-            {t('Re-upload revised file')}
+            {t('Re-upload')}
           </Button>
         )}
         {!unavailable && (
