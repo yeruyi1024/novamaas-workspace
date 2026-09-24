@@ -1,0 +1,16 @@
+{
+  "Acceptance and stress tests for upstream suppliers.": "Acceptance and stress tests for upstream suppliers.",
+  "Adjust prompt and sampling, then inspect what this vendor actually returns. Missing fields are skipped.": "Adjust prompt and sampling, then inspect what this vendor actually returns. Missing fields are skipped.",
+  "Concurrency must be between 1 and {{max}}": "Concurrency must be between 1 and {{max}}",
+  "Connectivity, streaming, usage fields, JSON mode, tool calls, and error codes. Missing optional capabilities are skipped, not failed.": "Connectivity, streaming, usage fields, JSON mode, tool calls, and error codes. Missing optional capabilities are skipped, not failed.",
+  "Enter a base URL and API key first": "Enter a base URL and API key first",
+  "Enter any vendor Base URL and API key, fetch /v1/models, then pick a model to test.": "Enter any vendor Base URL and API key, fetch /v1/models, then pick a model to test.",
+  "Failed to parse stream": "Failed to parse stream",
+  "Failed to start test": "Failed to start test",
+  "Fetch the model list and select a model first": "Fetch the model list and select a model first",
+  "Fetch the model list first": "Fetch the model list first",
+  "Fire concurrent streaming completions and watch the live text. Set concurrency and rounds yourself.": "Fire concurrent streaming completions and watch the live text. Set concurrency and rounds yourself.",
+  "Leave empty to auto-generate a stable prefix": "Leave empty to auto-generate a stable prefix",
+  "Rounds must be between 1 and {{max}}": "Rounds must be between 1 and {{max}}",
+  "Warm a prefix, wait, then probe the same prefix. Vendors without cached_tokens are skipped.": "Warm a prefix, wait, then probe the same prefix. Vendors without cached_tokens are skipped."
+}
