@@ -53,9 +53,9 @@ export function CTA(props: CTAProps) {
             <p className='maas-section-kicker'>{t('Build on one gateway')}</p>
             <h2
               id='home-cta-title'
-              className='mt-4 text-3xl leading-tight font-semibold tracking-[-0.04em] text-balance md:text-6xl'
+              className='mt-4 text-[clamp(1.25rem,6.5vw,1.875rem)] leading-tight font-semibold tracking-[-0.04em] text-balance md:text-6xl'
             >
-              {t('Start with access. Grow into smarter sourcing')}
+              {t('Use safer compute tokens')}
             </h2>
             <p className='text-muted-foreground mx-auto mt-6 max-w-2xl text-base leading-7 text-pretty md:text-lg'>
               {t(

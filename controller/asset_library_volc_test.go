@@ -50,7 +50,7 @@ func TestAKSKAssetUploadAppearsInUserUsageLogs(t *testing.T) {
 		Type:    model.AssetTypeImage,
 	})
 
-	logs, total, err := model.GetUserLogs(user.Id, model.LogTypeManage, 0, 0, "", "", 0, 10, "", "", "")
+	logs, total, err := model.GetUserLogs(user.Id, model.LogTypeManage, 0, 0, "", "", 0, 10, "", "", "", false)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, total)
 	require.Len(t, logs, 1)

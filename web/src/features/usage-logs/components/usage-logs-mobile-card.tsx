@@ -359,6 +359,24 @@ function CommonLogsCard<TData>({
         ) : (
           <SummaryField cell={cells.get('prompt_tokens')} />
         )}
+        {cells.has('revenue_quota') && (
+          <SummaryField
+            label={t('Turnover')}
+            cell={cells.get('revenue_quota')}
+          />
+        )}
+        {cells.has('cost_quota') && (
+          <SummaryField
+            label={t('Cost amount')}
+            cell={cells.get('cost_quota')}
+          />
+        )}
+        {cells.has('profit_quota') && (
+          <SummaryField
+            label={t('Profit amount')}
+            cell={cells.get('profit_quota')}
+          />
+        )}
         <SummaryField
           label={t('Details')}
           cell={cells.get('content')}

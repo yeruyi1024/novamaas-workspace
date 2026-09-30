@@ -59,8 +59,9 @@ import {
   isTagAggregateRow,
   getChannelTypeIcon,
   getChannelTypeLabel,
+  getChannelSortParams,
 } from '../lib'
-import type { Channel, ChannelSortBy } from '../types'
+import type { Channel } from '../types'
 import { ChannelCard } from './channel-card'
 import { useChannelsColumns } from './channels-columns'
 import { useChannels } from './channels-provider'
@@ -71,15 +72,6 @@ const CHANNELS_COLUMN_VISIBILITY_STORAGE_KEY = 'channels:column-visibility'
 const CHANNELS_COLUMN_SIZING_STORAGE_KEY = 'channels:column-sizing'
 const CHANNELS_VIEW_MODE_STORAGE_KEY = 'channels:view-mode'
 const CHANNELS_STATUS_FILTER_STORAGE_KEY = 'channel-status-filter'
-
-const CHANNEL_SORTABLE_COLUMNS = new Set<ChannelSortBy>([
-  'id',
-  'name',
-  'priority',
-  'balance',
-  'response_time',
-  'test_time',
-])
 
 function isDisabledChannelRow(channel: Channel) {
   return (
@@ -178,20 +170,10 @@ export function ChannelsTable() {
   // Determine whether to use search or regular list API
   const shouldSearch = Boolean(globalFilter?.trim() || modelFilter.trim())
 
-  const sortParams = useMemo(() => {
-    const activeSort = sorting[0]
-    if (
-      !activeSort ||
-      !CHANNEL_SORTABLE_COLUMNS.has(activeSort.id as ChannelSortBy)
-    ) {
-      return {}
-    }
-
-    return {
-      sort_by: activeSort.id as ChannelSortBy,
-      sort_order: activeSort.desc ? 'desc' : 'asc',
-    } as const
-  }, [sorting])
+  const sortParams = useMemo(
+    () => getChannelSortParams(sorting[0], idSort),
+    [idSort, sorting]
+  )
 
   const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
     setSorting((previous) => {

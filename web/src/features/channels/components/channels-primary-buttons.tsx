@@ -96,7 +96,7 @@ export function ChannelsPrimaryButtons() {
   }
 
   const handleIdSortToggle = (checked: boolean) => {
-    localStorage.setItem('channels-id-sort', String(checked))
+    localStorage.setItem('channels-id-asc-sort', String(checked))
     setIdSort(checked)
   }
 

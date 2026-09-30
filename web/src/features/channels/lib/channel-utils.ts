@@ -28,7 +28,40 @@ import {
   RESPONSE_TIME_THRESHOLDS,
   TYPE_TO_KEY_PROMPT,
 } from '../constants'
-import type { Channel, ChannelSettings, ChannelOtherSettings } from '../types'
+import type {
+  Channel,
+  ChannelSettings,
+  ChannelOtherSettings,
+  ChannelSortBy,
+  ChannelSortOrder,
+} from '../types'
+
+const CHANNEL_SORTABLE_COLUMNS = new Set<ChannelSortBy>([
+  'id',
+  'name',
+  'priority',
+  'balance',
+  'response_time',
+  'test_time',
+])
+
+export function getChannelSortParams(
+  activeSort: { id: string; desc: boolean } | undefined,
+  idSort: boolean
+):
+  | { sort_by: ChannelSortBy; sort_order: ChannelSortOrder }
+  | Record<string, never> {
+  if (
+    activeSort &&
+    CHANNEL_SORTABLE_COLUMNS.has(activeSort.id as ChannelSortBy)
+  ) {
+    return {
+      sort_by: activeSort.id as ChannelSortBy,
+      sort_order: activeSort.desc ? 'desc' : 'asc',
+    }
+  }
+  return idSort ? { sort_by: 'id', sort_order: 'asc' } : {}
+}
 
 // ============================================================================
 // Channel Type Utilities

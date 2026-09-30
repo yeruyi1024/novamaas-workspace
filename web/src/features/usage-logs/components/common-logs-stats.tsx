@@ -22,6 +22,11 @@ import { useTranslation } from 'react-i18next'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   ADMIN_PERMISSION_ACTIONS,
   ADMIN_PERMISSION_RESOURCES,
   hasPermission,
@@ -36,6 +41,13 @@ import { buildApiParams } from '../lib/utils'
 import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
+
+function formatProfitRate(profit: number, base: number): string {
+  if (!Number.isFinite(profit) || !Number.isFinite(base) || base === 0) {
+    return '—'
+  }
+  return `${((profit / base) * 100).toFixed(2)}%`
+}
 
 function StatBadge(props: {
   label: string
@@ -97,6 +109,26 @@ export function CommonLogsStats() {
     )
   }
 
+  const profitDisplay = sensitiveVisible
+    ? formatLogQuota(stats?.profit_quota || 0)
+    : '••••'
+  const revenueProfitRate = formatProfitRate(
+    stats?.profit_quota || 0,
+    stats?.revenue_quota || 0
+  )
+  const costProfitRate = formatProfitRate(
+    stats?.profit_quota || 0,
+    stats?.cost_quota || 0
+  )
+
+  const profitBadge = (
+    <StatBadge
+      label={t('Profit amount')}
+      value={profitDisplay}
+      accent='bg-emerald-500/70'
+    />
+  )
+
   return (
     <div className='flex flex-wrap items-center gap-2'>
       <StatBadge
@@ -132,15 +164,36 @@ export function CommonLogsStats() {
             }
             accent='bg-amber-500/70'
           />
-          <StatBadge
-            label={t('Profit amount')}
-            value={
-              sensitiveVisible
-                ? formatLogQuota(stats?.profit_quota || 0)
-                : '••••'
-            }
-            accent='bg-emerald-500/70'
-          />
+          {sensitiveVisible ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type='button'
+                    className='focus-visible:outline-ring cursor-help rounded-md focus-visible:outline-2 focus-visible:outline-offset-2'
+                    aria-label={`${t('Profit amount')}: ${profitDisplay}. ${t('Revenue profit margin')}: ${revenueProfitRate}. ${t('Cost profit margin')}: ${costProfitRate}`}
+                  />
+                }
+              >
+                {profitBadge}
+              </TooltipTrigger>
+              <TooltipContent
+                side='bottom'
+                className='grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums'
+              >
+                <span>{t('Revenue profit margin')}</span>
+                <span className='text-right font-semibold'>
+                  {revenueProfitRate}
+                </span>
+                <span>{t('Cost profit margin')}</span>
+                <span className='text-right font-semibold'>
+                  {costProfitRate}
+                </span>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            profitBadge
+          )}
         </>
       ) : null}
     </div>

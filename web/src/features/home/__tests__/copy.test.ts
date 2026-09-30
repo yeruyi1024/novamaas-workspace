@@ -33,7 +33,7 @@ const homepageTitleKeys = [
   'Enterprise operations at every layer',
   'Make token supply visible before you buy',
   'One gateway to diverse AI supply',
-  'Start with access. Grow into smarter sourcing',
+  'Use safer compute tokens',
 ] as const
 
 const localeTranslations = [

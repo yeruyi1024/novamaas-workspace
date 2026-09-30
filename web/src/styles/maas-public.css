@@ -79,7 +79,7 @@ For commercial licensing, please contact support@quantumnous.com
 
   .maas-public .maas-hero-image {
     background-image:
-      linear-gradient(90deg, #f7f9fdfc 0%, #f7f9fdd9 32%, #f7f9fd00 72%),
+      linear-gradient(90deg, #f7f9fdfc 0%, #f7f9fdd9 24%, #f7f9fd00 62%),
       url('../assets/maas-hero-gateway.webp');
     background-position: center;
     background-size: cover;

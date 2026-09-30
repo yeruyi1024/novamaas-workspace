@@ -610,6 +610,91 @@ func ListCostAccountingSnapshots(filter CostAccountingFilter, offset, limit int)
 	return views, total, err
 }
 
+// AttachLogAccounting adds the effective cost of each linked snapshot to a
+// page of usage logs. It must only be called for a viewer with financial
+// accounting permission, before ClickHouse or self views replace log IDs.
+func AttachLogAccounting(logs []*Log) error {
+	logIDs := make([]int64, 0, len(logs))
+	requestIDs := make([]string, 0, len(logs))
+	for _, log := range logs {
+		if log.Type != LogTypeConsume && log.Type != LogTypeRefund {
+			continue
+		}
+		revenue := int64(log.Quota)
+		if log.Type == LogTypeRefund {
+			revenue = -revenue
+		}
+		log.RevenueQuota = &revenue
+		if log.Id > 0 {
+			logIDs = append(logIDs, int64(log.Id))
+		}
+		if log.RequestId != "" {
+			requestIDs = append(requestIDs, log.RequestId)
+		}
+	}
+	if len(logIDs) == 0 && len(requestIDs) == 0 {
+		return nil
+	}
+
+	query, err := costAccountingQuery(CostAccountingFilter{})
+	if err != nil {
+		return err
+	}
+	if len(logIDs) > 0 && len(requestIDs) > 0 {
+		query = query.Where("snapshots.source_log_id IN ? OR snapshots.request_id IN ?", logIDs, requestIDs)
+	} else if len(logIDs) > 0 {
+		query = query.Where("snapshots.source_log_id IN ?", logIDs)
+	} else {
+		query = query.Where("snapshots.request_id IN ?", requestIDs)
+	}
+	views := make([]CostAccountingSnapshotView, 0, len(logs))
+	if err := query.Select(`snapshots.*,
+		snapshots.cost_quota + COALESCE(adjustments.adjustment_quota, 0) AS effective_cost_quota`).
+		Scan(&views).Error; err != nil {
+		return err
+	}
+
+	byLogID := make(map[int64][]CostAccountingSnapshotView, len(views))
+	byRequestID := make(map[string][]CostAccountingSnapshotView, len(views))
+	for _, view := range views {
+		if view.SourceLogID > 0 {
+			byLogID[view.SourceLogID] = append(byLogID[view.SourceLogID], view)
+		}
+		if view.RequestID != "" {
+			byRequestID[view.RequestID] = append(byRequestID[view.RequestID], view)
+		}
+	}
+	usedSnapshots := make(map[int64]bool, len(views))
+	for _, log := range logs {
+		if log.RevenueQuota == nil {
+			continue
+		}
+		candidates := append(byLogID[int64(log.Id)], byRequestID[log.RequestId]...)
+		for _, view := range candidates {
+			if usedSnapshots[view.ID] || !matchesLogAccountingSnapshot(log, view) {
+				continue
+			}
+			cost := view.EffectiveCostQuota
+			profit := *log.RevenueQuota - cost
+			log.CostQuota = &cost
+			log.ProfitQuota = &profit
+			usedSnapshots[view.ID] = true
+			break
+		}
+	}
+	return nil
+}
+
+func matchesLogAccountingSnapshot(log *Log, view CostAccountingSnapshotView) bool {
+	return view.LogType == log.Type &&
+		view.UserID == log.UserId &&
+		view.OccurredAt == log.CreatedAt &&
+		view.RevenueQuota == *log.RevenueQuota &&
+		view.ChannelID == log.ChannelId &&
+		view.ModelName == log.ModelName &&
+		(view.RequestID == "" || view.RequestID == log.RequestId)
+}
+
 func AdjustCostAccountingSnapshots(targets []CostAccountingAdjustmentTarget, reason string, actorID int, batchID string) ([]CostAccountingAdjustment, error) {
 	reason = strings.TrimSpace(reason)
 	batchID = strings.TrimSpace(batchID)

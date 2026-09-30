@@ -119,6 +119,16 @@ test('empty administrator content presents the gateway and planned sourcing and 
   expect(miniProgram).toHaveTextContent('Coming soon')
   expect(miniProgram).toHaveTextContent('Generation results')
   expect(miniProgram).toHaveTextContent('Token usage')
+  expect(
+    within(main).getByRole('heading', {
+      level: 2,
+      name: 'Use safer compute tokens',
+    })
+  ).toBeVisible()
+  expect(
+    within(miniProgram).getByRole('img', { name: 'WeChat mini program' })
+  ).toBeVisible()
+  expect(within(miniProgram).queryByText('Mini program concept')).toBeNull()
   expect(sourcing.compareDocumentPosition(enterprise)).toBe(
     Node.DOCUMENT_POSITION_FOLLOWING
   )
@@ -153,10 +163,10 @@ test('default homepage keeps the primary value statement compact over the hero i
   )
   expect(heroTitle.closest('[data-testid="home-hero-layout"]')).toHaveClass(
     'max-w-7xl',
-    '2xl:max-w-[96rem]'
+    '2xl:max-w-[clamp(80rem,80vw,112rem)]'
   )
   expect(screen.getByRole('banner').firstElementChild).toHaveClass(
-    '2xl:max-w-[96rem]'
+    '2xl:max-w-[clamp(80rem,80vw,112rem)]'
   )
   expect(description).toHaveClass('text-base', 'max-w-lg')
 })

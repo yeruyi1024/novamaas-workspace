@@ -102,6 +102,7 @@ func TestGetUserLogsKeepsOwnerUsageDataWhileStrippingSensitiveMetadata(t *testin
 		"",
 		"",
 		"",
+		false,
 	)
 
 	require.NoError(t, err)

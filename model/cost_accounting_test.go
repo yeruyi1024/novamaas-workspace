@@ -42,6 +42,55 @@ func TestNormalizeCostDiscountPreservesExactSupportedPrecision(t *testing.T) {
 	}
 }
 
+func TestAttachLogAccountingUsesAdjustedSnapshotAndDoesNotMatchAnotherUsersRequest(t *testing.T) {
+	truncateTables(t)
+	log := &Log{
+		Id: 101, UserId: 7, Type: LogTypeConsume, CreatedAt: 123,
+		Quota: 1000, RequestId: "shared-request", ModelName: "model-a", ChannelId: 3,
+	}
+	snapshot, err := BuildCostAccountingSnapshot(log, &CostAccountingInput{
+		CostBasisQuota: "1000", CostDiscount: "0.5", CostQuota: 500,
+	})
+	require.NoError(t, err)
+	require.NoError(t, DB.Create(snapshot).Error)
+	require.NoError(t, DB.Create(&CostAccountingAdjustment{
+		SnapshotID: snapshot.ID, DeltaCostQuota: -100, NewCostQuota: 400,
+	}).Error)
+	otherUser := &Log{
+		Id: 202, UserId: 8, Type: LogTypeConsume, CreatedAt: 123,
+		Quota: 1000, RequestId: "shared-request", ModelName: "model-a", ChannelId: 3,
+	}
+	refund := &Log{
+		Id: 303, UserId: 7, Type: LogTypeRefund, CreatedAt: 124,
+		Quota: 100, RequestId: "refund-request", ModelName: "model-a", ChannelId: 3,
+	}
+
+	require.NoError(t, AttachLogAccounting([]*Log{log, otherUser, refund}))
+	require.NotNil(t, log.RevenueQuota)
+	require.NotNil(t, log.CostQuota)
+	require.NotNil(t, log.ProfitQuota)
+	assert.Equal(t, int64(1000), *log.RevenueQuota)
+	assert.Equal(t, int64(400), *log.CostQuota)
+	assert.Equal(t, int64(600), *log.ProfitQuota)
+	require.NotNil(t, otherUser.RevenueQuota)
+	assert.Equal(t, int64(1000), *otherUser.RevenueQuota)
+	assert.Nil(t, otherUser.CostQuota)
+	assert.Nil(t, otherUser.ProfitQuota)
+	require.NotNil(t, refund.RevenueQuota)
+	assert.Equal(t, int64(-100), *refund.RevenueQuota)
+	assert.Nil(t, refund.CostQuota)
+
+	// ClickHouse and imported logs can have display IDs that differ from the
+	// snapshot source ID. Match their accounting evidence by request metadata.
+	logByRequest := &Log{
+		Id: 999, UserId: 7, Type: LogTypeConsume, CreatedAt: 123,
+		Quota: 1000, RequestId: "shared-request", ModelName: "model-a", ChannelId: 3,
+	}
+	require.NoError(t, AttachLogAccounting([]*Log{logByRequest}))
+	require.NotNil(t, logByRequest.CostQuota)
+	assert.Equal(t, int64(400), *logByRequest.CostQuota)
+}
+
 func TestCostAccountingSnapshotsAggregateRevenueCostProfitAndAdjustments(t *testing.T) {
 	truncateTables(t)
 

@@ -131,7 +131,7 @@ export function Home() {
     <PublicLayout
       showMainContainer={false}
       appearance='maas'
-      headerProps={{ className: '2xl:max-w-[96rem]' }}
+      headerProps={{ className: '2xl:max-w-[clamp(80rem,80vw,112rem)]' }}
     >
       <main>
         <Hero isAuthenticated={isAuthenticated} />

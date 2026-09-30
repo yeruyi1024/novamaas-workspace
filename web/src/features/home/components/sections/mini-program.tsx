@@ -20,11 +20,11 @@ import {
   Building02Icon,
   ChartRelationshipIcon,
   CheckmarkCircle02Icon,
-  SmartPhone01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useTranslation } from 'react-i18next'
 
+import { IconWeChat } from '@/assets/brand-icons'
 import { AnimateInView } from '@/components/animate-in-view'
 import { Badge } from '@/components/ui/badge'
 
@@ -101,7 +101,7 @@ export function MiniProgram() {
           <div className='maas-mini-stage flex min-h-[27rem] items-center justify-center rounded-[2rem] p-8 sm:min-h-[32rem]'>
             <div
               role='img'
-              aria-label={t('Mini program concept')}
+              aria-label={t('WeChat mini program')}
               className='maas-mini-phone relative w-full max-w-[17rem] rounded-[2.4rem] p-3'
             >
               <div className='maas-mini-screen overflow-hidden rounded-[1.8rem] px-5 pt-7 pb-6'>
@@ -109,16 +109,12 @@ export function MiniProgram() {
                   className='bg-foreground/15 mx-auto mb-8 h-1.5 w-16 rounded-full'
                   aria-hidden='true'
                 />
-                <div className='flex items-center gap-2'>
-                  <span className='maas-node-icon flex size-8 items-center justify-center rounded-lg'>
-                    <HugeiconsIcon
-                      icon={SmartPhone01Icon}
-                      className='size-4'
-                      aria-hidden='true'
-                    />
-                  </span>
-                  <span className='text-xs font-semibold'>
-                    {t('Mini program concept')}
+                <div className='flex items-center justify-center'>
+                  <span
+                    className='flex size-11 items-center justify-center rounded-2xl bg-[#07c160]/10 text-[#07c160]'
+                    aria-hidden='true'
+                  >
+                    <IconWeChat className='size-7' aria-hidden='true' />
                   </span>
                 </div>
                 <div className='mt-8 space-y-3'>

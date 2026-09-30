@@ -53,7 +53,7 @@ export function Hero(props: HeroProps) {
       />
 
       <div
-        className='mx-auto w-full max-w-7xl 2xl:max-w-[96rem]'
+        className='mx-auto w-full max-w-7xl 2xl:max-w-[clamp(80rem,80vw,112rem)]'
         data-testid='home-hero-layout'
       >
         <div className='flex max-w-xl min-w-0 flex-col items-start text-left xl:max-w-[700px] 2xl:max-w-[780px]'>

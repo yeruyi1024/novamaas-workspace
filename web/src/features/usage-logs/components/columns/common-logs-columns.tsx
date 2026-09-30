@@ -35,10 +35,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  ADMIN_PERMISSION_ACTIONS,
+  ADMIN_PERMISSION_RESOURCES,
+  hasPermission,
+} from '@/lib/admin-permissions'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { LOG_TYPE_ALL_VALUE } from '../../constants'
 import type { UsageLog } from '../../data/schema'
@@ -285,6 +291,12 @@ function buildTypeDetailSegments(
 
 export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
   const { t } = useTranslation()
+  const user = useAuthStore((state) => state.auth.user)
+  const canViewFinancialAccounting = hasPermission(
+    user,
+    ADMIN_PERMISSION_RESOURCES.FINANCIAL_ACCOUNTING,
+    ADMIN_PERMISSION_ACTIONS.VIEW
+  )
   const columns: ColumnDef<UsageLog>[] = [
     {
       accessorKey: 'created_at',
@@ -700,8 +712,35 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         const other = parseLogOther(log.other)
         return <LogCostDisplay quota={quota} other={other} />
       },
-    },
+    }
+  )
 
+  if (canViewFinancialAccounting) {
+    for (const financialColumn of [
+      { key: 'revenue_quota', label: 'Turnover' },
+      { key: 'cost_quota', label: 'Cost amount' },
+      { key: 'profit_quota', label: 'Profit amount' },
+    ] as const) {
+      columns.push({
+        accessorKey: financialColumn.key,
+        header: t(financialColumn.label),
+        cell: function FinancialCell({ row }) {
+          const { sensitiveVisible } = useUsageLogsContext()
+          const value = row.original[financialColumn.key]
+          if (typeof value !== 'number') {
+            return <span className='text-muted-foreground'>—</span>
+          }
+          return (
+            <span className='font-mono text-xs tabular-nums'>
+              {sensitiveVisible ? formatLogQuota(value) : '••••'}
+            </span>
+          )
+        },
+      })
+    }
+  }
+
+  columns.push(
     {
       accessorKey: 'use_time',
       header: t('Timing'),
