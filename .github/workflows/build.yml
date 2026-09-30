@@ -90,6 +90,8 @@ jobs:
           go-version: '1.26.1'
           cache-dependency-path: go.sum
       - run: go test ./model -run '^TestBillingStatementKeepsCaseDistinctModelsUnderMySQLCICollation$' -count=1 -v
+      - name: Check shared asset webhook delivery leases
+        run: go test ./model -run '^TestAssetWebhookDeliveryClaimsAcrossSharedDatabase/mysql$' -count=1 -v
 
   frontend:
     name: Frontend checks

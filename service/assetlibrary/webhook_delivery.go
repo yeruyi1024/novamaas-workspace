@@ -21,6 +21,7 @@ import (
 
 const (
 	assetWebhookDeliveryLease  = time.Minute
+	assetWebhookLeaseMargin    = 5 * time.Second
 	assetWebhookDeliveryBatch  = 20
 	assetWebhookDeliveryMaxAge = 72 * time.Hour
 )
@@ -44,39 +45,55 @@ func runWebhookDeliveryPass(runnerID string) {
 }
 
 func deliverAssetWebhook(runnerID string, delivery *model.AssetWebhookDelivery) {
+	// Include database lookups in the lease budget. A paused worker must not
+	// resume with a fresh HTTP timeout after another node has taken over.
+	leaseDeadline := time.Unix(delivery.LeaseUntil, 0).Add(-assetWebhookLeaseMargin)
+	if !time.Now().Before(leaseDeadline) {
+		return
+	}
+	leaseCtx, cancelLease := context.WithDeadline(context.Background(), leaseDeadline)
+	defer cancelLease()
 	deadline := time.Unix(delivery.CreatedAt, 0).Add(assetWebhookDeliveryMaxAge)
 	if !time.Now().Before(deadline) {
-		finishWebhookDeliveryFailure(runnerID, delivery, 0, errors.New("webhook delivery expired after 72 hours"), true)
+		finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, errors.New("webhook delivery expired after 72 hours"), true)
 		return
 	}
 	if delivery.EventType == WebhookEventAssetActive && delivery.AssetID > 0 {
 		var asset model.MediaAsset
-		err := model.DB.Select("status").First(&asset, delivery.AssetID).Error
+		err := model.DB.WithContext(leaseCtx).Select("status").First(&asset, delivery.AssetID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && asset.Status != model.AssetStatusReady) {
-			if finishErr := model.SupersedeAssetWebhookDelivery(delivery.ID, runnerID, "superseded by current asset status"); finishErr != nil {
+			if finishErr := model.SupersedeAssetWebhookDelivery(leaseCtx, delivery.ID, runnerID, "superseded by current asset status"); finishErr != nil {
 				logger.LogWarn(context.Background(), fmt.Sprintf("supersede stale asset webhook delivery failed: delivery_id=%d error=%v", delivery.ID, finishErr))
 			}
 			return
 		}
 		if err != nil {
-			finishWebhookDeliveryFailure(runnerID, delivery, 0, err, false)
+			finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, err, false)
 			return
 		}
 	}
 	var endpoint model.AssetWebhookEndpoint
-	if err := model.DB.First(&endpoint, delivery.EndpointID).Error; err != nil {
-		finishWebhookDeliveryFailure(runnerID, delivery, 0, err, errors.Is(err, gorm.ErrRecordNotFound))
+	if err := model.DB.WithContext(leaseCtx).First(&endpoint, delivery.EndpointID).Error; err != nil {
+		finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, err, errors.Is(err, gorm.ErrRecordNotFound))
 		return
 	}
 	if endpoint.Status != model.AssetWebhookEndpointStatusEnabled {
-		finishWebhookDeliveryFailure(runnerID, delivery, 0, errors.New("webhook endpoint is disabled"), true)
+		finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, errors.New("webhook endpoint is disabled"), true)
+		return
+	}
+	owned, err := model.OwnsAssetWebhookDeliveryLease(leaseCtx, delivery.ID, runnerID, common.GetTimestamp())
+	if err != nil {
+		finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, err, false)
+		return
+	}
+	if !owned {
 		return
 	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	if requestDeadline := time.Now().Add(10 * time.Second); requestDeadline.Before(deadline) {
 		deadline = requestDeadline
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	ctx, cancel := context.WithDeadline(leaseCtx, deadline)
 	defer cancel()
 	headers := map[string]string{
 		"Content-Type":      "application/json",
@@ -85,7 +102,6 @@ func deliverAssetWebhook(runnerID string, delivery *model.AssetWebhookDelivery) 
 		"webhook-timestamp": timestamp,
 	}
 	var response *http.Response
-	var err error
 	if system_setting.EnableWorker() {
 		response, err = coreService.DoWorkerRequestWithContext(ctx, &coreService.WorkerRequest{
 			URL: endpoint.URL, Key: system_setting.WorkerValidKey, Method: http.MethodPost,
@@ -93,7 +109,7 @@ func deliverAssetWebhook(runnerID string, delivery *model.AssetWebhookDelivery) 
 		})
 	} else {
 		if err = coreService.ValidateSSRFProtectedFetchURL(endpoint.URL); err != nil {
-			finishWebhookDeliveryFailure(runnerID, delivery, 0, fmt.Errorf("webhook URL rejected: %w", err), false)
+			finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, fmt.Errorf("webhook URL rejected: %w", err), false)
 			return
 		}
 		var request *http.Request
@@ -108,21 +124,21 @@ func deliverAssetWebhook(runnerID string, delivery *model.AssetWebhookDelivery) 
 		}
 	}
 	if err != nil {
-		finishWebhookDeliveryFailure(runnerID, delivery, 0, err, false)
+		finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, 0, err, false)
 		return
 	}
 	defer response.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64*1024))
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		finishWebhookDeliveryFailure(runnerID, delivery, response.StatusCode, fmt.Errorf("webhook endpoint returned HTTP %d", response.StatusCode), false)
+		finishWebhookDeliveryFailure(leaseCtx, runnerID, delivery, response.StatusCode, fmt.Errorf("webhook endpoint returned HTTP %d", response.StatusCode), false)
 		return
 	}
-	if err = model.FinishAssetWebhookDelivery(delivery.ID, runnerID, model.AssetWebhookDeliveryStatusSucceeded, response.StatusCode, 0, ""); err != nil {
+	if err = model.FinishAssetWebhookDelivery(leaseCtx, delivery.ID, runnerID, model.AssetWebhookDeliveryStatusSucceeded, response.StatusCode, 0, ""); err != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("finish asset webhook delivery failed: delivery_id=%d error=%v", delivery.ID, err))
 	}
 }
 
-func finishWebhookDeliveryFailure(runnerID string, delivery *model.AssetWebhookDelivery, responseStatus int, deliveryErr error, permanent bool) {
+func finishWebhookDeliveryFailure(ctx context.Context, runnerID string, delivery *model.AssetWebhookDelivery, responseStatus int, deliveryErr error, permanent bool) {
 	now := common.GetTimestamp()
 	status := model.AssetWebhookDeliveryStatusFailed
 	nextAttemptAt := now + int64(assetWebhookRetryDelay(delivery.Attempts)/time.Second)
@@ -131,7 +147,7 @@ func finishWebhookDeliveryFailure(runnerID string, delivery *model.AssetWebhookD
 		status = model.AssetWebhookDeliveryStatusExhausted
 		nextAttemptAt = 0
 	}
-	if err := model.FinishAssetWebhookDelivery(delivery.ID, runnerID, status, responseStatus, nextAttemptAt, truncateError(deliveryErr)); err != nil {
+	if err := model.FinishAssetWebhookDelivery(ctx, delivery.ID, runnerID, status, responseStatus, nextAttemptAt, truncateError(deliveryErr)); err != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("record asset webhook delivery failure: delivery_id=%d error=%v", delivery.ID, err))
 		return
 	}

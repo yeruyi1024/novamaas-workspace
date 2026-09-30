@@ -186,10 +186,19 @@ func ClaimAssetWebhookDeliveries(now int64, leaseUntil int64, lockedBy string, l
 	return claimed, nil
 }
 
-func SupersedeAssetWebhookDelivery(id int64, lockedBy string, reason string) error {
+// OwnsAssetWebhookDeliveryLease checks the persisted claim before an external POST.
+func OwnsAssetWebhookDeliveryLease(ctx context.Context, id int64, lockedBy string, now int64) (bool, error) {
+	var count int64
+	err := DB.WithContext(ctx).Model(&AssetWebhookDelivery{}).
+		Where("id = ? AND status = ? AND locked_by = ? AND lease_until > ?", id, AssetWebhookDeliveryStatusDelivering, lockedBy, now).
+		Count(&count).Error
+	return count == 1, err
+}
+
+func SupersedeAssetWebhookDelivery(ctx context.Context, id int64, lockedBy string, reason string) error {
 	now := common.GetTimestamp()
-	result := DB.Model(&AssetWebhookDelivery{}).
-		Where("id = ? AND status = ? AND locked_by = ?", id, AssetWebhookDeliveryStatusDelivering, lockedBy).
+	result := DB.WithContext(ctx).Model(&AssetWebhookDelivery{}).
+		Where("id = ? AND status = ? AND locked_by = ? AND lease_until > ?", id, AssetWebhookDeliveryStatusDelivering, lockedBy, now).
 		Updates(map[string]any{
 			"status":          AssetWebhookDeliveryStatusSuperseded,
 			"next_attempt_at": 0,
@@ -207,7 +216,7 @@ func SupersedeAssetWebhookDelivery(id int64, lockedBy string, reason string) err
 	return nil
 }
 
-func FinishAssetWebhookDelivery(id int64, lockedBy string, status string, responseStatus int, nextAttemptAt int64, lastError string) error {
+func FinishAssetWebhookDelivery(ctx context.Context, id int64, lockedBy string, status string, responseStatus int, nextAttemptAt int64, lastError string) error {
 	now := common.GetTimestamp()
 	updates := map[string]any{
 		"status":          status,
@@ -222,8 +231,8 @@ func FinishAssetWebhookDelivery(id int64, lockedBy string, status string, respon
 	if status == AssetWebhookDeliveryStatusSucceeded {
 		updates["delivered_at"] = now
 	}
-	result := DB.Model(&AssetWebhookDelivery{}).
-		Where("id = ? AND status = ? AND locked_by = ?", id, AssetWebhookDeliveryStatusDelivering, lockedBy).
+	result := DB.WithContext(ctx).Model(&AssetWebhookDelivery{}).
+		Where("id = ? AND status = ? AND locked_by = ? AND lease_until > ?", id, AssetWebhookDeliveryStatusDelivering, lockedBy, now).
 		Updates(updates)
 	if result.Error != nil {
 		return result.Error

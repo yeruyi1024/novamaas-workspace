@@ -69,7 +69,8 @@ func TestWebhookExpiryStopsBeforeEndpointLookup(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
 	delivery := model.AssetWebhookDelivery{WebhookID: "wh_expired", EndpointID: 999,
 		Status: model.AssetWebhookDeliveryStatusDelivering, LockedBy: "expired-worker",
-		CreatedAt: common.GetTimestamp() - int64((72*time.Hour)/time.Second)}
+		LeaseUntil: common.GetTimestamp() + 60,
+		CreatedAt:  common.GetTimestamp() - int64((72*time.Hour)/time.Second)}
 	require.NoError(t, db.Create(&delivery).Error)
 	deliverAssetWebhook("expired-worker", &delivery)
 	require.NoError(t, db.First(&delivery, delivery.ID).Error)
@@ -82,9 +83,10 @@ func TestWebhookRetryDoesNotSchedulePastExpiry(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
 	delivery := model.AssetWebhookDelivery{WebhookID: "wh_near_expiry",
 		Status: model.AssetWebhookDeliveryStatusDelivering, LockedBy: "retry-worker", Attempts: 10,
-		CreatedAt: common.GetTimestamp() - int64((71*time.Hour)/time.Second)}
+		LeaseUntil: common.GetTimestamp() + 60,
+		CreatedAt:  common.GetTimestamp() - int64((71*time.Hour)/time.Second)}
 	require.NoError(t, db.Create(&delivery).Error)
-	finishWebhookDeliveryFailure("retry-worker", &delivery, 503, errors.New("temporary failure"), false)
+	finishWebhookDeliveryFailure(context.Background(), "retry-worker", &delivery, 503, errors.New("temporary failure"), false)
 	require.NoError(t, db.First(&delivery, delivery.ID).Error)
 	assert.Equal(t, model.AssetWebhookDeliveryStatusFailed, delivery.Status)
 	assert.Equal(t, delivery.CreatedAt+int64((72*time.Hour)/time.Second), delivery.NextAttemptAt)
@@ -95,6 +97,7 @@ func TestWebhookEndpointLookupFailureRemainsRetryable(t *testing.T) {
 	delivery := model.AssetWebhookDelivery{
 		WebhookID: "wh_lookup_failure", EndpointID: 1, EventType: WebhookEventAssetFailed,
 		Status: model.AssetWebhookDeliveryStatusDelivering, LockedBy: "lookup-worker",
+		LeaseUntil: common.GetTimestamp() + 60,
 	}
 	require.NoError(t, db.Create(&delivery).Error)
 	require.NoError(t, db.Callback().Query().Before("gorm:query").Register("endpoint_lookup_failure", func(tx *gorm.DB) {
@@ -184,6 +187,7 @@ func TestWebhookDeliveryPostsUnsignedJSONWithoutEncryptionConfiguration(t *testi
 		EventID: "evt_verify", WebhookID: "wh_verify", EndpointID: endpoint.ID,
 		EndpointPublicID: endpoint.PublicID, OwnerUserID: 42, EventType: WebhookEventAssetFailed,
 		Payload: payload, Status: model.AssetWebhookDeliveryStatusDelivering, LockedBy: "verify-runner",
+		LeaseUntil: common.GetTimestamp() + 60,
 	}
 	require.NoError(t, db.Create(&delivery).Error)
 
@@ -224,6 +228,7 @@ func TestWebhookDeliveryPersistsRetryAfterNon2xx(t *testing.T) {
 		EndpointPublicID: endpoint.PublicID, OwnerUserID: 42, EventType: WebhookEventAssetFailed,
 		Payload: `{"id":"evt_retry_verify"}`, Status: model.AssetWebhookDeliveryStatusDelivering,
 		LockedBy: "retry-runner", CreatedAt: common.GetTimestamp(),
+		LeaseUntil: common.GetTimestamp() + 60,
 	}
 	require.NoError(t, db.Create(&delivery).Error)
 
@@ -274,7 +279,8 @@ func TestWebhookDeliveryUsesConfiguredWorker(t *testing.T) {
 		EventID: "evt_worker_verify", WebhookID: "wh_worker_verify", EndpointID: endpoint.ID,
 		EndpointPublicID: endpoint.PublicID, OwnerUserID: 42, EventType: WebhookEventAssetFailed,
 		Payload: `{"id":"evt_worker_verify"}`, Status: model.AssetWebhookDeliveryStatusDelivering,
-		LockedBy: "worker-runner",
+		LockedBy:   "worker-runner",
+		LeaseUntil: common.GetTimestamp() + 60,
 	}
 	require.NoError(t, db.Create(&delivery).Error)
 
@@ -310,6 +316,7 @@ func TestWebhookDeliverySupersedesStaleActiveEvent(t *testing.T) {
 		EndpointPublicID: "we_stale_active", OwnerUserID: 42, AssetID: asset.ID,
 		EventType: WebhookEventAssetActive, Payload: `{"id":"evt_stale_active"}`,
 		Status: model.AssetWebhookDeliveryStatusDelivering, LockedBy: "stale-runner",
+		LeaseUntil: common.GetTimestamp() + 60,
 	}
 	require.NoError(t, db.Create(&delivery).Error)
 
@@ -319,4 +326,143 @@ func TestWebhookDeliverySupersedesStaleActiveEvent(t *testing.T) {
 	assert.Equal(t, model.AssetWebhookDeliveryStatusSuperseded, delivery.Status)
 	assert.Equal(t, 0, delivery.Attempts)
 	assert.Contains(t, delivery.LastError, "current asset status")
+}
+
+func TestWebhookDeliveryDoesNotSendAfterLeaseLoss(t *testing.T) {
+	for _, scenario := range []string{"expired", "taken_over", "taken_over_during_lookup"} {
+		t.Run(scenario, func(t *testing.T) {
+			db := setupAssetLibraryTestDB(t)
+			fetch := system_setting.GetFetchSetting()
+			previousFetch, previousWorkerURL := *fetch, system_setting.WorkerUrl
+			fetch.EnableSSRFProtection = false
+			system_setting.WorkerUrl = ""
+			coreService.InitHttpClient()
+			t.Cleanup(func() {
+				*fetch = previousFetch
+				system_setting.WorkerUrl = previousWorkerURL
+			})
+			received := make(chan string, 2)
+			callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				received <- r.Header.Get("webhook-id")
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer callback.Close()
+			endpoint := model.AssetWebhookEndpoint{PublicID: "we_lease", URL: callback.URL, Status: model.AssetWebhookEndpointStatusEnabled}
+			require.NoError(t, db.Create(&endpoint).Error)
+			delivery := model.AssetWebhookDelivery{WebhookID: "wh_lease", EndpointID: endpoint.ID,
+				EventType: WebhookEventAssetFailed, Payload: `{}`, Status: model.AssetWebhookDeliveryStatusPending}
+			require.NoError(t, db.Create(&delivery).Error)
+			now := common.GetTimestamp()
+			first, err := model.ClaimAssetWebhookDeliveries(now, now+60, "node-A", 1)
+			require.NoError(t, err)
+			require.Len(t, first, 1)
+
+			if scenario == "taken_over_during_lookup" {
+				require.NoError(t, db.Callback().Query().After("gorm:query").Register("take_over_during_lookup", func(tx *gorm.DB) {
+					if tx.Statement.Table != "asset_webhook_endpoints" {
+						return
+					}
+					if err := db.Model(&model.AssetWebhookDelivery{}).Where("id = ?", delivery.ID).
+						Update("lease_until", now-1).Error; err != nil {
+						tx.AddError(err)
+						return
+					}
+					_, err := model.ClaimAssetWebhookDeliveries(now, now+60, "node-B", 1)
+					if err != nil {
+						tx.AddError(err)
+					}
+				}))
+				t.Cleanup(func() { _ = db.Callback().Query().Remove("take_over_during_lookup") })
+			} else {
+				require.NoError(t, db.Model(&model.AssetWebhookDelivery{}).Where("id = ?", delivery.ID).
+					Update("lease_until", now-1).Error)
+				if scenario == "expired" {
+					first[0].LeaseUntil = now - 1
+				} else {
+					second, err := model.ClaimAssetWebhookDeliveries(now, now+60, "node-B", 1)
+					require.NoError(t, err)
+					require.Len(t, second, 1)
+				}
+			}
+
+			deliverAssetWebhook("node-A", first[0])
+			assert.Empty(t, received, "a stale worker must not POST to the customer")
+			if scenario == "taken_over_during_lookup" {
+				require.NoError(t, db.Callback().Query().Remove("take_over_during_lookup"))
+			}
+			if scenario == "expired" {
+				second, err := model.ClaimAssetWebhookDeliveries(now, now+60, "node-B", 1)
+				require.NoError(t, err)
+				require.Len(t, second, 1)
+			}
+			require.NoError(t, db.First(&delivery, delivery.ID).Error)
+			assert.Equal(t, "node-B", delivery.LockedBy)
+			assert.Zero(t, delivery.Attempts)
+			deliverAssetWebhook("node-B", &delivery)
+			require.Len(t, received, 1, "the new owner must deliver exactly once in this recovery scenario")
+			assert.Equal(t, delivery.WebhookID, <-received)
+			require.NoError(t, db.First(&delivery, delivery.ID).Error)
+			assert.Equal(t, model.AssetWebhookDeliveryStatusSucceeded, delivery.Status)
+		})
+	}
+}
+
+func TestWebhookDeliveryRetriesWithSameIDAfterSuccessWriteFailure(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	fetch := system_setting.GetFetchSetting()
+	previousFetch, previousWorkerURL := *fetch, system_setting.WorkerUrl
+	fetch.EnableSSRFProtection = false
+	system_setting.WorkerUrl = ""
+	coreService.InitHttpClient()
+	t.Cleanup(func() {
+		*fetch = previousFetch
+		system_setting.WorkerUrl = previousWorkerURL
+	})
+	type receipt struct{ id, body string }
+	received := make(chan receipt, 2)
+	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		received <- receipt{r.Header.Get("webhook-id"), string(body)}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer callback.Close()
+	endpoint := model.AssetWebhookEndpoint{PublicID: "we_write_failure", URL: callback.URL, Status: model.AssetWebhookEndpointStatusEnabled}
+	require.NoError(t, db.Create(&endpoint).Error)
+	delivery := model.AssetWebhookDelivery{WebhookID: "wh_write_failure", EndpointID: endpoint.ID,
+		EventType: WebhookEventAssetFailed, Payload: `{"id":"evt_write_failure","type":"asset.failed"}`, Status: model.AssetWebhookDeliveryStatusPending}
+	require.NoError(t, db.Create(&delivery).Error)
+	now := common.GetTimestamp()
+	first, err := model.ClaimAssetWebhookDeliveries(now, now+60, "node-A", 1)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.NoError(t, db.Callback().Update().Before("gorm:update").Register("webhook_success_write_failure", func(tx *gorm.DB) {
+		values, ok := tx.Statement.Dest.(map[string]any)
+		if tx.Statement.Table == "asset_webhook_deliveries" && ok && values["status"] == model.AssetWebhookDeliveryStatusSucceeded {
+			tx.AddError(errors.New("simulated database write failure"))
+		}
+	}))
+	t.Cleanup(func() { _ = db.Callback().Update().Remove("webhook_success_write_failure") })
+	deliverAssetWebhook("node-A", first[0])
+	require.Len(t, received, 1)
+	require.NoError(t, db.First(&delivery, delivery.ID).Error)
+	assert.Equal(t, model.AssetWebhookDeliveryStatusDelivering, delivery.Status)
+	require.NoError(t, db.Callback().Update().Remove("webhook_success_write_failure"))
+
+	// If success cannot be recorded, recovery must retry rather than lose the
+	// event. The customer's deduplication key and payload must remain stable.
+	require.NoError(t, db.Model(&delivery).Update("lease_until", now-1).Error)
+	second, err := model.ClaimAssetWebhookDeliveries(now, now+60, "node-B", 1)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	deliverAssetWebhook("node-B", second[0])
+	require.Len(t, received, 2)
+	a, b := <-received, <-received
+	assert.Equal(t, receipt{delivery.WebhookID, delivery.Payload}, a)
+	assert.Equal(t, a, b)
+	require.NoError(t, db.First(&delivery, delivery.ID).Error)
+	assert.Equal(t, model.AssetWebhookDeliveryStatusSucceeded, delivery.Status)
 }
