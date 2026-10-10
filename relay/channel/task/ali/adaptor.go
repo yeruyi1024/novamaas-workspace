@@ -155,6 +155,37 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if err := common.UnmarshalBodyReusable(c, &fields); err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
 	}
+	if len(mappedInfo.ParamOverride) > 0 {
+		// Apply channel rules to the client format before size conversion and
+		// validation. Keep the reusable original body intact for snapshots/retries.
+		storage, err := common.GetBodyStorage(c)
+		if err != nil {
+			return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+		}
+		body, err := storage.Bytes()
+		if err != nil {
+			return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+		}
+		body, err = relaycommon.ApplyParamOverrideWithRelayInfo(body, &mappedInfo)
+		if err != nil {
+			if overrideErr, ok := relaycommon.AsParamOverrideReturnError(err); ok {
+				return service.TaskErrorFromAPIError(relaycommon.NewAPIErrorFromParamOverride(overrideErr))
+			}
+			return service.TaskErrorWrapperLocal(err, "invalid_parameter_override", http.StatusBadRequest)
+		}
+		info.ParamOverrideAudit = mappedInfo.ParamOverrideAudit
+		req = relaycommon.TaskSubmitReq{}
+		fields = nil
+		if err := common.Unmarshal(body, &req); err != nil {
+			return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+		}
+		if err := common.Unmarshal(body, &fields); err != nil {
+			return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+		}
+		if req.Model != mappedInfo.OriginModelName {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("use model mapping to change the model"), "invalid_parameter_override", http.StatusBadRequest)
+		}
+	}
 	// Legacy metadata wins over official nested fields, which win over flat
 	// fields. Merge individual keys so a nested audio flag does not drop ratio.
 	parameters := make(map[string]any)

@@ -370,6 +370,10 @@ curl --fail-with-body --request POST 'https://gateway.ai.shilijia.xyz/v1/video/g
 
 明确传入的 `false`、`0` 会保留。重复参数按 `metadata.parameters > parameters > 顶层字段` 逐字段合并；显式 `resolution/ratio` 优先于从 `size` 推导的值。`metadata.input` 的同名字段优先于顶层 `input`；明确给出的 `input.media` 优先于从旧图片字段生成的媒体列表。建议同一参数只写一次。
 
+Wan3 渠道的参数覆盖在请求格式转换和参数校验前执行。条件可用 `original_model` 匹配用户提交的模型名，例如精确匹配 `wan3.0-video-480p` 后设置顶层 `size` 为 `480p`，随后转换为上游 `parameters.resolution: "480P"`。模型映射独立负责把公开模型名替换成上游模型名，模型后缀不会自动决定分辨率。`mode: "full"` 要求名称完全一致。
+
+参数覆盖针对用户请求结构执行，仍遵循上述字段优先级：覆盖顶层 `size` 不会压过请求中显式的 `resolution`；需要强制覆盖时，应覆盖实际使用的 `parameters.resolution` 或 `metadata.parameters.resolution`。覆盖后的时长会重新校验，并用于计费估算和上游请求。原始请求快照保留用户提交的内容。
+
 百炼旧模型（例如 Wan2.5）关闭音频仍使用 `metadata.parameters.audio: false`，类型及支持范围保持原有适配器行为。媒体类型和素材限制见[Wan3.0 官方文档](https://help.aliyun.com/zh/model-studio/wan3-video-generation-api-reference)。
 
 ### 2. 网关兼容视频任务轮询 (GET /v1/video/generations/{task_id})

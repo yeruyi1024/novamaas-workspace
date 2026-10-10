@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -378,6 +379,84 @@ func TestWan3RejectsInvalidParametersBeforeBilling(t *testing.T) {
 			assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 			_, stored := c.Get("task_request")
 			assert.False(t, stored)
+		})
+	}
+}
+
+func TestWan3ChannelParameterOverrides(t *testing.T) {
+	for _, tt := range []struct {
+		name, body, condition, path string
+		upstreamModel               string
+		value                       any
+		resolution                  string
+		duration                    float64
+		invalid                     bool
+	}{
+		{name: "official media with configured size", body: `{"model":"wan3.0-video-480p","input":{"prompt":"animate","media":[{"type":"reference_image","url":"https://example.com/a.png"},{"type":"reference_audio","url":"https://example.com/a.mp3"}]},"parameters":{"audio":false}}`, condition: "wan3.0-video-480p", path: "size", value: "480p", resolution: "480P", duration: 5},
+		{name: "flat request", body: `{"model":"wan3.0-video-480p","prompt":"animate","audio":"false"}`, condition: "wan3.0-video-480p", path: "size", value: "480p", resolution: "480P", duration: 5},
+		{name: "legacy metadata request", body: `{"model":"wan3.0-video-480p","prompt":"animate","metadata":{"parameters":{"audio":false}}}`, condition: "wan3.0-video-480p", path: "size", value: "480p", resolution: "480P", duration: 5},
+		{name: "screenshot typo does not match", body: `{"model":"wan3.0-video-480p","prompt":"animate"}`, condition: "wan3-video-480p", path: "size", value: "480p", resolution: "720P", duration: 5},
+		{name: "configured arbitrary public alias", body: `{"model":"customer-video","prompt":"animate"}`, condition: "customer-video", path: "size", value: "1080p", resolution: "1080P", duration: 5},
+		{name: "explicit resolution still takes priority over size", body: `{"model":"wan3.0-video-480p","prompt":"animate","parameters":{"resolution":"1080P"}}`, condition: "wan3.0-video-480p", path: "size", value: "480p", resolution: "1080P", duration: 5},
+		{name: "nested resolution override", body: `{"model":"wan3.0-video-480p","prompt":"animate","parameters":{"resolution":"1080P"}}`, condition: "wan3.0-video-480p", path: "parameters.resolution", value: "480P", resolution: "480P", duration: 5},
+		{name: "duration used by billing and upstream", body: `{"model":"wan3.0-video-480p","prompt":"animate"}`, condition: "wan3.0-video-480p", path: "parameters.duration", value: 8, resolution: "720P", duration: 8},
+		{name: "invalid override rejected before billing", body: `{"model":"wan3.0-video-480p","prompt":"animate"}`, condition: "wan3.0-video-480p", path: "parameters.duration", value: 1000000, invalid: true},
+		{name: "legacy Ali model stays outside new override path", body: `{"model":"wan2.5-i2v-preview","prompt":"animate"}`, condition: "wan2.5-i2v-preview", path: "size", value: "480p", resolution: "1080P", duration: 5, upstreamModel: "wan2.5-i2v-preview"},
+		{name: "model changes require model mapping", body: `{"model":"wan3.0-video-480p","prompt":"animate"}`, condition: "wan3.0-video-480p", path: "model", value: "different-model", invalid: true},
+		{name: "invalid size rejected", body: `{"model":"wan3.0-video-480p","prompt":"animate"}`, condition: "wan3.0-video-480p", path: "size", value: "invalid", invalid: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/video/generations", strings.NewReader(tt.body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Set("model_mapping", `{"wan3.0-video-480p":"wan3.0-video","customer-video":"wan3.0-video"}`)
+			info := testRelayInfo()
+			var original relaycommon.TaskSubmitReq
+			require.NoError(t, common.Unmarshal([]byte(tt.body), &original))
+			info.OriginModelName = original.Model
+			info.UpstreamModelName = original.Model
+			info.ParamOverride = map[string]any{"operations": []any{map[string]any{
+				"path": tt.path, "mode": "set", "value": tt.value, "logic": "AND",
+				"conditions": []any{map[string]any{"path": "original_model", "mode": "full", "value": tt.condition}},
+			}}}
+			adaptor := &TaskAdaptor{}
+			taskErr := adaptor.ValidateRequestAndSetAction(c, info)
+			storage, err := common.GetBodyStorage(c)
+			require.NoError(t, err)
+			t.Cleanup(func() { common.CleanupBodyStorage(c) })
+			raw, err := storage.Bytes()
+			require.NoError(t, err)
+			assert.Equal(t, tt.body, string(raw))
+			if tt.invalid {
+				require.NotNil(t, taskErr)
+				assert.Equal(t, http.StatusBadRequest, taskErr.StatusCode)
+				assert.Nil(t, adaptor.wan3Request)
+				return
+			}
+			require.Nil(t, taskErr)
+			require.NoError(t, helper.ModelMappedHelper(c, info, nil))
+			assert.Equal(t, original.Model, info.OriginModelName, "channel overrides must preserve the pricing model")
+			assert.Equal(t, tt.duration, adaptor.EstimateBilling(c, info)["seconds"])
+			reader, err := adaptor.BuildRequestBody(c, info)
+			require.NoError(t, err)
+			body, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			var request wan3VideoRequest
+			require.NoError(t, common.Unmarshal(body, &request))
+			expectedModel := tt.upstreamModel
+			if expectedModel == "" {
+				expectedModel = "wan3.0-video"
+			}
+			assert.Equal(t, expectedModel, request.Model)
+			assert.Equal(t, tt.resolution, request.Parameters.Resolution)
+			assert.Equal(t, int(tt.duration), *request.Parameters.Duration)
+			if strings.Contains(tt.body, `"audio"`) {
+				require.NotNil(t, request.Parameters.Audio)
+				assert.False(t, bool(*request.Parameters.Audio))
+			}
+			if original.Model == "wan3.0-video-480p" && strings.Contains(tt.body, `"media"`) {
+				assert.Equal(t, []AliVideoMedia{{Type: "reference_image", URL: "https://example.com/a.png"}, {Type: "reference_audio", URL: "https://example.com/a.mp3"}}, request.Input.Media)
+			}
 		})
 	}
 }
