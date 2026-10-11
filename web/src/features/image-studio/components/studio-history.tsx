@@ -26,12 +26,9 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 
 import { deleteStudioResult } from '../api'
-import {
-  studioErrorMessage,
-  studioStatusLabelKey,
-  studioTaskName,
-} from '../studio-utils'
+import { studioErrorMessage } from '../studio-utils'
 import type { StudioResult, StudioRun, StudioRunList } from '../types'
+import { StudioRunSummary } from './studio-gallery'
 
 export function StudioHistory(props: {
   runs: UseQueryResult<StudioRunList>
@@ -104,22 +101,8 @@ export function StudioHistory(props: {
                       className='bg-muted size-14 shrink-0 rounded object-contain'
                     />
                   )}
-                  <span className='flex min-w-0 flex-1 flex-col gap-1'>
-                    <span
-                      className='truncate text-sm font-medium'
-                      title={studioTaskName(run)}
-                    >
-                      {studioTaskName(run)}
-                    </span>
-                    <span
-                      className='text-muted-foreground truncate text-[11px]'
-                      title={run.id}
-                    >
-                      {t('Task ID')}: {run.id}
-                    </span>
-                    <span className='text-muted-foreground truncate text-[11px]'>
-                      {ownerName} · {t('User ID')}: {run.owner_user_id}
-                    </span>
+                  <div className='flex min-w-0 flex-1 flex-col gap-1'>
+                    <StudioRunSummary run={run} ownerName={ownerName} compact />
                     <span
                       className='text-muted-foreground line-clamp-2 text-xs break-words'
                       title={result?.description || run.prompt}
@@ -127,10 +110,9 @@ export function StudioHistory(props: {
                       {result?.description || run.prompt}
                     </span>
                     <span className='text-muted-foreground text-[11px]'>
-                      {t(studioStatusLabelKey(run.status))} ·{' '}
                       {new Date(run.created_at * 1000).toLocaleDateString()}
                     </span>
-                  </span>
+                  </div>
                 </button>
                 {result && (
                   <Button

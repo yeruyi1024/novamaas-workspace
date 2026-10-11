@@ -66,6 +66,9 @@ export function StudioGallery(props: {
   const { t } = useTranslation()
   const [preview, setPreview] = useState<StudioResult>()
   const [unavailable, setUnavailable] = useState<string[]>([])
+  const layout = props.compact
+    ? 'contents'
+    : 'flex min-h-0 min-w-0 flex-1 flex-col gap-3'
   const run = props.run
   const runId = run?.id || ''
   const original = useQuery({
@@ -125,28 +128,10 @@ export function StudioGallery(props: {
   }
 
   return (
-    <section
-      className={
-        props.compact
-          ? 'contents'
-          : 'flex min-h-0 min-w-0 flex-1 flex-col gap-3'
-      }
-      aria-label={t('Generation results')}
-    >
+    <section className={layout} aria-label={t('Generation results')}>
       {!props.compact && (
         <div className='flex shrink-0 flex-wrap items-center justify-between gap-2'>
-          <div className='min-w-0 flex-1'>
-            <h2 className='truncate font-semibold' title={studioTaskName(run)}>
-              {studioTaskName(run)}
-            </h2>
-            <p className='text-muted-foreground mt-1 text-xs break-all'>
-              {t('Task ID')}: {run.id}
-            </p>
-            <p className='text-muted-foreground mt-1 text-xs'>
-              {props.ownerName} · {t('User ID')}: {run.owner_user_id} ·{' '}
-              {run.model}
-            </p>
-          </div>
+          <StudioRunSummary run={run} ownerName={props.ownerName} />
           {props.onReusePrompt && run.prompt ? (
             <Button
               type='button'
@@ -175,31 +160,15 @@ export function StudioGallery(props: {
           <EmptyHeader>
             <EmptyTitle>{t(studioStatusLabelKey(run.status))}</EmptyTitle>
             {props.compact && (
-              <>
-                <p className='text-sm'>{studioTaskName(run)}</p>
-                <p className='text-muted-foreground text-xs break-all'>
-                  {t('Task ID')}: {run.id}
-                </p>
-                <p className='text-muted-foreground text-xs'>
-                  {props.ownerName} · {t('User ID')}: {run.owner_user_id}
-                </p>
-              </>
+              <StudioRunSummary run={run} ownerName={props.ownerName} compact />
             )}
-          </EmptyHeader>
-          {props.compact && (
-            <p className='text-muted-foreground line-clamp-3 text-xs break-words'>
+            <EmptyDescription>
               {run.error_message || run.prompt}
-            </p>
-          )}
+            </EmptyDescription>
+          </EmptyHeader>
         </Empty>
       )}
-      <div
-        className={
-          props.compact
-            ? 'contents'
-            : 'flex min-h-0 min-w-0 flex-1 flex-col gap-3'
-        }
-      >
+      <div className={layout}>
         {results.map((result) => {
           const imageURL = props.compact
             ? result.thumbnail_url || result.preview_url
@@ -317,28 +286,11 @@ export function StudioGallery(props: {
                 </p>
               )}
               {props.compact && (
-                <>
-                  <p
-                    className='truncate text-sm font-medium'
-                    title={studioTaskName(run)}
-                  >
-                    {studioTaskName(run)}
-                  </p>
-                  <p
-                    className='text-muted-foreground truncate text-xs'
-                    title={run.id}
-                  >
-                    {t('Task ID')}: {run.id}
-                  </p>
-                  <div className='flex flex-wrap items-center justify-between gap-1'>
-                    <p className='text-muted-foreground truncate text-xs'>
-                      {props.ownerName} · {t('User ID')}: {run.owner_user_id}
-                    </p>
-                    <Badge variant='secondary'>
-                      {t(studioStatusLabelKey(run.status))}
-                    </Badge>
-                  </div>
-                </>
+                <StudioRunSummary
+                  run={run}
+                  ownerName={props.ownerName}
+                  compact
+                />
               )}
               {(result.description || run.prompt) && (
                 <p
@@ -381,5 +333,38 @@ export function StudioGallery(props: {
         </DialogContent>
       </Dialog>
     </section>
+  )
+}
+
+export function StudioRunSummary(props: {
+  run: StudioRun
+  ownerName?: string
+  compact?: boolean
+}) {
+  const { t } = useTranslation()
+  const run = props.run
+  return (
+    <div className='min-w-0 flex-1 space-y-1'>
+      <p
+        className={cn('truncate font-semibold', props.compact && 'text-sm')}
+        title={studioTaskName(run)}
+      >
+        {studioTaskName(run)}
+      </p>
+      <p className='text-muted-foreground truncate text-xs' title={run.id}>
+        {t('Task ID')}: {run.id}
+      </p>
+      <div className='flex flex-wrap items-center justify-between gap-1'>
+        <p className='text-muted-foreground truncate text-xs'>
+          {props.ownerName} · {t('User ID')}: {run.owner_user_id}
+          {!props.compact && ` · ${run.model}`}
+        </p>
+        {props.compact && (
+          <Badge variant='secondary'>
+            {t(studioStatusLabelKey(run.status))}
+          </Badge>
+        )}
+      </div>
+    </div>
   )
 }

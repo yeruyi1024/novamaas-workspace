@@ -40,6 +40,7 @@ type AssetGroupSelectProps = {
   value: string
   selectedGroup?: AssetGroup
   isAdmin: boolean
+  disabled?: boolean
   onValueChange: (value: string, group?: AssetGroup) => void
 }
 
@@ -118,6 +119,7 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        disabled={props.disabled}
         render={
           <Button
             type='button'

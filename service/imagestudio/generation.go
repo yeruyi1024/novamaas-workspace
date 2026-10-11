@@ -13,7 +13,6 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
-	assetService "github.com/QuantumNous/new-api/service/assetlibrary"
 	"github.com/QuantumNous/new-api/service/authz"
 	storageService "github.com/QuantumNous/new-api/service/storage"
 	"gorm.io/gorm"
@@ -78,7 +77,7 @@ func CreateRun(execution RelayContext, userID int, input RunInput, relay RelayEx
 	}
 	existing, err := findImageStudioRunByIdempotency(userID, key)
 	if err == nil {
-		view, viewErr := buildImageStudioRunView(execution.Context, existing, userID, true)
+		view, viewErr := buildImageStudioRunView(execution.Context, existing, true)
 		return view, true, viewErr
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -118,7 +117,7 @@ func CreateRun(execution RelayContext, userID int, input RunInput, relay RelayEx
 	if err != nil {
 		// Only the insert winner calls the relay. A duplicate request reads its result.
 		if existing, findErr := findImageStudioRunByIdempotency(userID, key); findErr == nil {
-			view, viewErr := buildImageStudioRunView(execution.Context, existing, userID, true)
+			view, viewErr := buildImageStudioRunView(execution.Context, existing, true)
 			return view, true, viewErr
 		}
 		return nil, false, err
@@ -167,7 +166,7 @@ func CreateRun(execution RelayContext, userID int, input RunInput, relay RelayEx
 		}
 		return nil, false, &RequestError{http.StatusInternalServerError, run.ErrorCode, errors.New(run.ErrorMessage)}
 	}
-	view, err := buildImageStudioRunView(execution.Context, run, userID, true)
+	view, err := buildImageStudioRunView(execution.Context, run, true)
 	return view, false, err
 }
 
@@ -214,7 +213,7 @@ func ListRuns(ctx context.Context, actor Actor, review bool, ownerUserID int, pa
 	if !contentRead {
 		return result, false, nil
 	}
-	rows, err := model.ListImageStudioResults(runIDs, false)
+	rows, err := model.ListImageStudioResults(runIDs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -241,7 +240,7 @@ func GetRun(ctx context.Context, actor Actor, publicID string, review bool) (*Ru
 		return nil, false, err
 	}
 	contentRead := !review || authz.Can(actor.UserID, actor.Role, authz.ImageStudioContentRead)
-	view, err := buildImageStudioRunView(ctx, &run, actor.UserID, contentRead)
+	view, err := buildImageStudioRunView(ctx, &run, contentRead)
 	return view, review && contentRead, err
 }
 
@@ -253,7 +252,7 @@ func findImageStudioRunByIdempotency(userID int, key string) (*model.ImageStudio
 	return &run, nil
 }
 
-func buildImageStudioRunView(ctx context.Context, run *model.ImageStudioRun, viewerUserID int, contentRead bool) (*RunView, error) {
+func buildImageStudioRunView(ctx context.Context, run *model.ImageStudioRun, contentRead bool) (*RunView, error) {
 	if err := model.FailExpiredImageStudioRun(run, common.GetTimestamp()); err != nil {
 		return nil, err
 	}
@@ -269,7 +268,7 @@ func buildImageStudioRunView(ctx context.Context, run *model.ImageStudioRun, vie
 	if run.Status == model.ImageStudioRunStatusRunning {
 		return view, nil
 	}
-	rows, err := model.ListImageStudioResults([]int64{run.ID}, true)
+	rows, err := model.ListImageStudioResults([]int64{run.ID})
 	if err != nil {
 		return nil, err
 	}
@@ -278,18 +277,14 @@ func buildImageStudioRunView(ctx context.Context, run *model.ImageStudioRun, vie
 		if resultErr != nil {
 			return nil, resultErr
 		}
-		if result.PreviewURL == "" && row.AssetPublicID != "" {
-			if value, _, err := assetService.PreviewURL(ctx, row.AssetPublicID, viewerUserID, viewerUserID != run.UserID); err == nil {
-				result.PreviewURL = value
-			}
-		}
+
 		view.Results = append(view.Results, result)
 	}
 	return view, nil
 }
 
 func studioResultView(ctx context.Context, row model.ImageStudioResultWithAsset, ownerUserID int, originals bool) (ResultView, error) {
-	result := ResultView{ID: row.PublicID, AssetID: row.AssetPublicID, PreviewURL: string(row.PreviewURL), ThumbnailURL: string(row.ThumbnailURL), Description: row.RevisedPrompt, Index: row.ResultIndex, SaveStatus: row.SaveStatus, SaveError: row.SaveError}
+	result := ResultView{ID: row.PublicID, AssetID: row.AssetPublicID, Description: row.RevisedPrompt, Index: row.ResultIndex, SaveStatus: row.SaveStatus, SaveError: row.SaveError}
 	if row.MediaAssetID != 0 && row.AssetPublicID == "" {
 		result.SaveStatus, result.SaveError = "not_requested", ""
 	}

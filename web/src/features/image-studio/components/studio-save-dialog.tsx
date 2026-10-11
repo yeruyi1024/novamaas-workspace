@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -30,12 +30,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
-import { listAssetGroups } from '@/features/assets/api'
+import { AssetGroupSelect } from '@/features/assets/components/asset-group-select'
+import type { AssetGroup } from '@/features/assets/types'
 
 import { saveStudioResult } from '../api'
-import { assertStudioSuccess, studioErrorMessage } from '../studio-utils'
+import { studioErrorMessage } from '../studio-utils'
 import type { StudioResult } from '../types'
 
 export function StudioSaveDialog(props: {
@@ -44,13 +43,9 @@ export function StudioSaveDialog(props: {
 }) {
   const { t } = useTranslation()
   const client = useQueryClient()
-  const [saveGroup, setSaveGroup] = useState('')
-  const groups = useQuery({
-    queryKey: ['image-studio', 'asset-groups'],
-    queryFn: async () => assertStudioSuccess(await listAssetGroups(false)),
-  })
+  const [group, setGroup] = useState<AssetGroup>()
   const save = useMutation({
-    mutationFn: () => saveStudioResult(props.result.id, saveGroup),
+    mutationFn: () => saveStudioResult(props.result.id, group?.id || ''),
     onSuccess: () => {
       toast.success(t('Saved to asset library'))
       props.onClose()
@@ -78,28 +73,13 @@ export function StudioSaveDialog(props: {
           </DialogDescription>
         </DialogHeader>
         <div className='grid gap-2'>
-          <Label htmlFor='studio-save-group'>{t('Asset group')}</Label>
-          <NativeSelect
-            id='studio-save-group'
-            className='w-full'
-            value={saveGroup}
-            onChange={(event) => setSaveGroup(event.target.value)}
-            disabled={groups.isFetching || save.isPending}
-          >
-            <NativeSelectOption value=''>
-              {t('Select an asset group')}
-            </NativeSelectOption>
-            {groups.data?.map((group) => (
-              <NativeSelectOption key={group.id} value={group.id}>
-                {group.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-          {groups.isError && (
-            <p role='alert' className='text-destructive text-sm'>
-              {t('Failed to load data')}
-            </p>
-          )}
+          <AssetGroupSelect
+            value={group?.id || ''}
+            selectedGroup={group}
+            isAdmin={false}
+            disabled={save.isPending}
+            onValueChange={(_id, selected) => setGroup(selected)}
+          />
           {save.isError && (
             <p role='alert' className='text-destructive text-sm'>
               {studioErrorMessage(save.error)}
@@ -115,7 +95,7 @@ export function StudioSaveDialog(props: {
             {t('Cancel')}
           </Button>
           <Button
-            disabled={!saveGroup || groups.isFetching || save.isPending}
+            disabled={!group || save.isPending}
             onClick={() => save.mutate()}
           >
             {t('Save')}

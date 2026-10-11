@@ -6,7 +6,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 )
 
 var ErrImageStudioResultBusy = errors.New("image is being generated or saved")
@@ -41,21 +40,19 @@ type ImageStudioRun struct {
 }
 
 type ImageStudioResult struct {
-	SaveStatus      string             `json:"save_status" gorm:"type:varchar(16)"`
-	SaveError       string             `json:"save_error,omitempty" gorm:"type:text"`
-	SaveGroupID     string             `json:"save_group_id,omitempty" gorm:"type:varchar(64)"`
-	SaveAttemptID   string             `json:"-" gorm:"type:varchar(64)"`
-	SaveStartedAt   int64              `json:"-" gorm:"bigint"`
-	PreviewURL      ImageStudioPreview `json:"-"`
-	ThumbnailURL    ImageStudioPreview `json:"-"`
-	ID              int64              `json:"-" gorm:"primaryKey"`
-	PublicID        string             `json:"id" gorm:"type:varchar(64);uniqueIndex"`
-	RunID           int64              `json:"-" gorm:"index"`
-	StorageObjectID int64              `json:"-" gorm:"index"`
-	MediaAssetID    int64              `json:"-" gorm:"index"`
-	ResultIndex     int                `json:"index"`
-	RevisedPrompt   string             `json:"revised_prompt,omitempty" gorm:"type:text"`
-	CreatedAt       int64              `json:"created_at" gorm:"bigint;index"`
+	SaveStatus      string `json:"save_status" gorm:"type:varchar(16)"`
+	SaveError       string `json:"save_error,omitempty" gorm:"type:text"`
+	SaveGroupID     string `json:"save_group_id,omitempty" gorm:"type:varchar(64)"`
+	SaveAttemptID   string `json:"-" gorm:"type:varchar(64)"`
+	SaveStartedAt   int64  `json:"-" gorm:"bigint"`
+	ID              int64  `json:"-" gorm:"primaryKey"`
+	PublicID        string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
+	RunID           int64  `json:"-" gorm:"index"`
+	StorageObjectID int64  `json:"-" gorm:"index"`
+	MediaAssetID    int64  `json:"-" gorm:"index"`
+	ResultIndex     int    `json:"index"`
+	RevisedPrompt   string `json:"revised_prompt,omitempty" gorm:"type:text"`
+	CreatedAt       int64  `json:"created_at" gorm:"bigint;index"`
 }
 
 type ImageStudioResultWithAsset struct {
@@ -63,18 +60,14 @@ type ImageStudioResultWithAsset struct {
 	AssetPublicID string
 }
 
-// History reads small previews for a whole page; originals are only loaded for
-// a selected task. Deleted or foreign library assets are never exposed.
-func ListImageStudioResults(runIDs []int64, originals bool) ([]ImageStudioResultWithAsset, error) {
+// Deleted or foreign library assets are never exposed in generation records.
+func ListImageStudioResults(runIDs []int64) ([]ImageStudioResultWithAsset, error) {
 	rows := make([]ImageStudioResultWithAsset, 0)
 	if len(runIDs) == 0 {
 		return rows, nil
 	}
-	columns := "image_studio_results.id, image_studio_results.public_id, image_studio_results.run_id, image_studio_results.result_index, image_studio_results.revised_prompt, image_studio_results.thumbnail_url, image_studio_results.save_status, image_studio_results.save_error, image_studio_results.media_asset_id, image_studio_results.storage_object_id"
-	if originals {
-		columns = "image_studio_results.*"
-	}
-	err := DB.Table("image_studio_results").Select(columns+", media_assets.public_id AS asset_public_id").
+
+	err := DB.Table("image_studio_results").Select("image_studio_results.*, media_assets.public_id AS asset_public_id").
 		Joins("JOIN image_studio_runs ON image_studio_runs.id = image_studio_results.run_id").
 		Joins("LEFT JOIN media_assets ON media_assets.id = image_studio_results.media_asset_id AND media_assets.owner_user_id = image_studio_runs.user_id AND media_assets.status <> ?", AssetStatusDeleted).
 		Where("image_studio_results.run_id IN ?", runIDs).Order("image_studio_results.result_index asc").Scan(&rows).Error
@@ -191,15 +184,4 @@ func DeleteImageStudioResult(userID int, publicID string) error {
 			"error_code": "", "error_message": "", "updated_at": common.GetTimestamp(),
 		}).Error
 	})
-}
-
-// Unsaved Base64 images require more than MySQL TEXT's 64 KiB limit.
-type ImageStudioPreview string
-
-func (ImageStudioPreview) GormDataType() string { return "text" }
-func (ImageStudioPreview) GormDBDataType(db *gorm.DB, _ *schema.Field) string {
-	if db.Dialector.Name() == "mysql" {
-		return "longtext"
-	}
-	return "text"
 }

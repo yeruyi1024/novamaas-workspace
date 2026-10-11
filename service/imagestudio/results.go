@@ -1,7 +1,6 @@
 package imagestudio
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relaykit/dto"
 	assetService "github.com/QuantumNous/new-api/service/assetlibrary"
 	storageService "github.com/QuantumNous/new-api/service/storage"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -102,21 +100,14 @@ func saveImageStudioResult(ctx context.Context, result *model.ImageStudioResult,
 				Updates(map[string]any{"save_status": "failed", "save_error": CleanErrorMessage(err.Error())}).Error
 		}
 	}()
-	if result.StorageObjectID > 0 {
-		value, signErr := storageService.PresignImageStudioObject(ctx, result.StorageObjectID, userID, storageService.AssetObjectURLOriginal)
-		if signErr != nil {
-			return signErr
-		}
-		result.PreviewURL = model.ImageStudioPreview(value)
-	}
-	image := dto.ImageData{Url: string(result.PreviewURL)}
-	if strings.HasPrefix(string(result.PreviewURL), "data:image/") {
-		image.Url = ""
-		image.B64Json = string(result.PreviewURL)
+	url, err := storageService.PresignImageStudioObject(ctx, result.StorageObjectID, userID, storageService.AssetObjectURLOriginal)
+	if err != nil {
+		return err
 	}
 	saveCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	asset, err := storeStudioImage(saveCtx, userID, groupID, modelName, result.ResultIndex, image)
+	name := fmt.Sprintf("%s-%d-%d", strings.ReplaceAll(modelName, "/", "-"), time.Now().Unix(), result.ResultIndex+1)
+	asset, err := assetService.CreateAssetFromURL(saveCtx, userID, groupID, name, model.AssetTypeImage, url)
 	if err != nil {
 		return err
 	}
@@ -142,20 +133,4 @@ func saveImageStudioResult(ctx context.Context, result *model.ImageStudioResult,
 	result.SaveStatus = "saved"
 	result.SaveGroupID = groupID
 	return nil
-}
-
-func storeStudioImage(ctx context.Context, userID int, groupID string, modelName string, index int, image dto.ImageData) (*assetService.AssetView, error) {
-	name := fmt.Sprintf("%s-%d-%d", strings.ReplaceAll(modelName, "/", "-"), time.Now().Unix(), index+1)
-	data, contentType, err := decodeStudioImage(image)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return assetService.CreateAssetFromURL(ctx, userID, groupID, name, model.AssetTypeImage, image.Url)
-	}
-	return assetService.CreateAsset(ctx, userID, assetService.AssetInput{
-		GroupPublicID: groupID, Name: name, AssetType: model.AssetTypeImage,
-		FileName: name + "." + strings.TrimPrefix(contentType, "image/"), ContentType: contentType,
-		Size: int64(len(data)), Body: bytes.NewReader(data),
-	})
 }

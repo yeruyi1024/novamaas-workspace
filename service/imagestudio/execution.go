@@ -232,7 +232,7 @@ func relayErrorMessage(body []byte) string {
 	return "model provider request failed"
 }
 
-// The same validation is used when recording an image and importing it later.
+// Validate provider images before writing permanent OSS objects.
 func decodeStudioImage(image dto.ImageData) (data []byte, contentType string, err error) {
 	payload := strings.TrimSpace(image.B64Json)
 	if payload == "" {
