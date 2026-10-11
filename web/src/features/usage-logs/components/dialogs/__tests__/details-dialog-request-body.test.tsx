@@ -138,6 +138,45 @@ describe('DetailsDialog request body', () => {
     expect(screen.getByText('5.0s')).toBeInTheDocument()
   })
 
+  test.each([true, false])(
+    'image generation snapshots are available only in administrator log details (admin=%s)',
+    async (isAdmin) => {
+      vi.mocked(getLogRequestSnapshots).mockResolvedValue({
+        success: true,
+        data: {
+          original: { request: { model: 'image-model', prompt: 'mountain' } },
+          upstream: { model: 'mapped-image-model', prompt: 'mountain', n: 2 },
+        },
+      })
+      renderDialog(isAdmin, {
+        ...videoUsageLog,
+        model_name: 'image-model',
+        request_id: 'request_image',
+        other: JSON.stringify({
+          request_body_available: true,
+          request_path: '/v1/images/generations',
+        }),
+      })
+      if (!isAdmin) {
+        expect(getLogRequestSnapshots).not.toHaveBeenCalled()
+        expect(screen.queryByText('Request Snapshots')).not.toBeInTheDocument()
+        return
+      }
+      await waitFor(() =>
+        expect(getLogRequestSnapshots).toHaveBeenCalledWith(
+          undefined,
+          'request_image'
+        )
+      )
+      fireEvent.click(
+        await screen.findByRole('tab', { name: 'Actual Upstream Request' })
+      )
+      expect(screen.getByTestId('request-json')).toHaveTextContent(
+        'mapped-image-model'
+      )
+    }
+  )
+
   test('does not request or show a body for unrelated usage logs', () => {
     renderDialog(false, {
       ...videoUsageLog,

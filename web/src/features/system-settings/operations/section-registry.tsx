@@ -26,6 +26,7 @@ import { PerformanceSection } from '../maintenance/performance-section'
 import { UpdateCheckerSection } from '../maintenance/update-checker-section'
 import type { OperationsSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { ImageStudioSettingsSection } from './image-studio-settings-section'
 
 const OPERATIONS_SECTIONS = [
   {
@@ -61,6 +62,22 @@ const OPERATIONS_SECTIONS = [
             settings['perf_metrics_setting.bucket_time'] ?? 'hour',
           'perf_metrics_setting.retention_days':
             settings['perf_metrics_setting.retention_days'] ?? 0,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'image-studio',
+    titleKey: 'AI Creation Studio',
+    build: (settings: OperationsSettings) => (
+      <ImageStudioSettingsSection
+        defaultValues={{
+          'image_studio_setting.visible':
+            settings['image_studio_setting.visible'] ?? true,
+          'image_studio_setting.asset_library_enabled':
+            settings['image_studio_setting.asset_library_enabled'] ?? true,
+          'image_studio_setting.enabled':
+            settings['image_studio_setting.enabled'] ?? true,
         }}
       />
     ),

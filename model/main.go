@@ -364,6 +364,8 @@ func migrateDB() error {
 		&StorageObject{},
 		&AssetGroup{},
 		&MediaAsset{},
+		&ImageStudioRun{},
+		&ImageStudioResult{},
 		&AssetChannelConfig{},
 		&AssetAccessKey{},
 		&AssetWebhookEndpoint{},

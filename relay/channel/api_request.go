@@ -12,7 +12,9 @@ import (
 	"time"
 
 	common2 "github.com/QuantumNous/new-api/common"
+	rootconstant "github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
@@ -488,6 +490,24 @@ func keepUpstreamRedirectResponse(_ *http.Request, _ []*http.Request) error {
 }
 
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	if original := common2.GetContextKeyString(c, rootconstant.ContextKeyImageStudioOriginalRequestBody); original != "" {
+		if req.GetBody == nil {
+			return nil, errors.New("image upstream request cannot be replayed for auditing")
+		}
+		reader, err := req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		body, err := io.ReadAll(io.LimitReader(reader, model.MaxTaskRequestBodyBytes+1))
+		_ = reader.Close()
+		if err != nil {
+			return nil, err
+		}
+		if err = model.SaveRequestSnapshots("", c.GetString(common2.RequestIdKey), model.RequestSnapshotSourceImageStudio, []byte(original), body); err != nil {
+			return nil, fmt.Errorf("archive image request snapshots: %w", err)
+		}
+		common2.SetContextKey(c, rootconstant.ContextKeyImageStudioRequestBodyStored, true)
+	}
 	client, err := service.GetHttpClientWithProxySettings(info.ChannelSetting.Proxy, info.ChannelSetting)
 	if err != nil {
 		return nil, fmt.Errorf("new proxy http client failed: %w", err)

@@ -56,6 +56,9 @@ const defaultOperationsSettings: OperationsSettings = {
   'perf_metrics_setting.flush_interval': 5,
   'perf_metrics_setting.bucket_time': 'hour',
   'perf_metrics_setting.retention_days': 0,
+  'image_studio_setting.asset_library_enabled': true,
+  'image_studio_setting.visible': true,
+  'image_studio_setting.enabled': true,
 }
 
 export function OperationsSettings() {

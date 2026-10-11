@@ -55,7 +55,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let queryClient: QueryClient
 
-function renderLibrary() {
+function renderLibrary(initialGroupId?: string) {
   queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -64,7 +64,7 @@ function renderLibrary() {
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <AssetLibrary />
+      <AssetLibrary initialGroupId={initialGroupId} />
     </QueryClientProvider>
   )
 }
@@ -153,6 +153,19 @@ afterEach(() => {
 })
 
 describe('asset library business layout', () => {
+  test('opening a studio output group filters assets and displays that group', async () => {
+    renderLibrary('group-1')
+    await waitFor(() =>
+      expect(listMediaAssets).toHaveBeenCalledWith(
+        expect.objectContaining({ groupId: 'group-1' })
+      )
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', { name: 'Asset group' })
+      ).toHaveTextContent('Campaign assets')
+    )
+  })
   test('admin asset cards show group name and ID without creator metadata', async () => {
     useAuthStore
       .getState()

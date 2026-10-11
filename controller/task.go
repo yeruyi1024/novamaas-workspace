@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay"
+	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -132,13 +133,15 @@ func GetUserTask(c *gin.Context) {
 
 func GetTaskRequestBody(c *gin.Context) {
 	taskID := c.Param("task_id")
-	body, exists, err := model.GetTaskRequestBody(taskID)
+	snapshots, exists, err := model.GetArchivedRequestSnapshots(taskID, "")
 	if err != nil {
 		respondTaskRequestBody(c, nil, false, err)
 		return
 	}
 	if exists {
-		common.ApiSuccess(c, body)
+		if authorizeRequestSnapshots(c, snapshots) {
+			common.ApiSuccess(c, snapshots.Original)
+		}
 		return
 	}
 
@@ -194,7 +197,7 @@ func GetLogRequestBody(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Task id or request id is required"})
 		return
 	}
-	body, exists, err := model.GetArchivedRequestBody(taskID, requestID)
+	snapshots, exists, err := model.GetArchivedRequestSnapshots(taskID, requestID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to query log request body"})
 		return
@@ -208,7 +211,9 @@ func GetLogRequestBody(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Log request body not found"})
 		return
 	}
-	common.ApiSuccess(c, body)
+	if authorizeRequestSnapshots(c, snapshots) {
+		common.ApiSuccess(c, snapshots.Original)
+	}
 }
 
 func GetLogRequestSnapshots(c *gin.Context) {
@@ -242,7 +247,21 @@ func respondTaskRequestSnapshots(c *gin.Context, taskID string, requestID string
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Request snapshots not found"})
 		return
 	}
-	common.ApiSuccess(c, snapshots)
+	if authorizeRequestSnapshots(c, snapshots) {
+		common.ApiSuccess(c, snapshots)
+	}
+}
+
+func authorizeRequestSnapshots(c *gin.Context, snapshots model.TaskRequestSnapshots) bool {
+	if snapshots.Source != model.RequestSnapshotSourceImageStudio {
+		return true
+	}
+	if !authz.Can(c.GetInt("id"), c.GetInt("role"), authz.ImageStudioRead) || !authz.Can(c.GetInt("id"), c.GetInt("role"), authz.ImageStudioContentRead) {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "image review content permission is required"})
+		return false
+	}
+	recordManageAudit(c, "image_studio.content_read", map[string]interface{}{"request_id": c.Query("request_id"), "task_id": c.Param("task_id")})
+	return true
 }
 
 func respondTaskRequestBody(c *gin.Context, task *model.Task, exists bool, err error) {

@@ -45,6 +45,34 @@ export function GeneralError({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { history } = useRouter()
+  const isChunkLoadError =
+    error instanceof Error &&
+    (error.name === 'ChunkLoadError' ||
+      /Loading (?:CSS )?chunk .* failed|Failed to fetch dynamically imported module|Importing a module script failed/.test(
+        error.message
+      ))
+
+  if (isChunkLoadError) {
+    return (
+      <div
+        className={cn(
+          'flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center',
+          className
+        )}
+      >
+        <h1 className='text-xl font-semibold'>
+          {t('Page resources could not be loaded')}
+        </h1>
+        <p className='text-muted-foreground'>
+          {t(
+            'Refresh to load the latest version. If the problem persists, check your connection.'
+          )}
+        </p>
+        <Button onClick={() => window.location.reload()}>{t('Refresh')}</Button>
+      </div>
+    )
+  }
+
   const status = getHttpStatus(error)
   const isRateLimited = status === 429
   const title = isRateLimited

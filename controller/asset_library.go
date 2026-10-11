@@ -106,6 +106,7 @@ func ListMediaAssets(c *gin.Context) {
 		OwnerUserID:      c.GetInt("id"),
 		IncludeAllOwners: c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all",
 		GroupPublicID:    strings.TrimSpace(c.Query("group_id")),
+		AssetType:        strings.ToLower(strings.TrimSpace(c.Query("type"))),
 		Search:           strings.TrimSpace(c.Query("search")),
 		Page:             pageInfo.GetPage(),
 		PageSize:         pageInfo.GetPageSize(),

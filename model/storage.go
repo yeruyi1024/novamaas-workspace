@@ -34,6 +34,7 @@ const (
 
 	StorageObjectPurposeRelayMediaTemp = "relay_media_temp"
 	StorageObjectPurposeAssetLibrary   = "asset_library"
+	StorageObjectPurposeImageStudio    = "image_studio"
 	StorageObjectPurposeBillingArchive = "billing_archive"
 	StorageObjectStatusUploading       = "uploading"
 	StorageObjectStatusUploaded        = "uploaded"

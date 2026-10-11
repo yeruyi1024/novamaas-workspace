@@ -19,6 +19,10 @@ For commercial licensing, please contact support@quantumnous.com
 // Static translation keys that don't get picked up by the t('...') regex.
 // These cover dynamic labels (e.g. constants, configs) that are passed into t at runtime.
 export const STATIC_I18N_KEYS = [
+  'Read AI studio metadata',
+  'Read AI studio content',
+  'View prompts, reference assets, and generated images across users.',
+  'View image generation records without prompts or generated content.',
   // Billing document branding errors
   'Unable to prepare PDF branding. Check the system Logo URL and Footer settings, then try again.',
 

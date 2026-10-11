@@ -17,9 +17,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute } from '@tanstack/react-router'
+import z from 'zod'
 
 import { AssetLibrary } from '@/features/assets'
 
-export const Route = createFileRoute('/_authenticated/assets/')({
-  component: AssetLibrary,
+const assetLibrarySearchSchema = z.object({
+  group_id: z.string().optional().catch(undefined),
 })
+
+export const Route = createFileRoute('/_authenticated/assets/')({
+  validateSearch: assetLibrarySearchSchema,
+  component: AssetLibraryPage,
+})
+
+function AssetLibraryPage() {
+  const search = Route.useSearch()
+  return (
+    <AssetLibrary
+      key={search.group_id ?? ''}
+      initialGroupId={search.group_id}
+    />
+  )
+}

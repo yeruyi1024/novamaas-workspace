@@ -64,3 +64,32 @@ func TestAssetSignedURLsKeepThumbnailAndDownloadOptionsInsideOSSSignature(t *tes
 	require.NoError(t, err)
 	assert.Empty(t, videoURL.Query().Get("x-oss-process"), "non-image previews must not use image processing")
 }
+
+func TestStudioObjectSigningRequiresOwnerAndSeparatePurpose(t *testing.T) {
+	setupStorageDatabase(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "studio-preview-test-encryption-key")
+	profile, err := SaveProfile(0, ProfileInput{
+		Name: "Studio OSS", ProviderType: model.StorageProviderAliyunOSS, Status: model.StorageProfileStatusEnabled,
+		Endpoint: "https://oss-cn-hangzhou.aliyuncs.com", Region: "cn-hangzhou", Bucket: "test-studio-bucket",
+		AuthType: model.StorageCredentialAuthStatic, AccessKeyID: "test-id", AccessKeySecret: "test-secret",
+	})
+	require.NoError(t, err)
+	policy := model.DefaultAssetLibraryStoragePolicy()
+	policy.StorageProfileID, policy.Enabled = profile.ID, true
+	require.NoError(t, model.SaveStoragePolicy(policy))
+	object := &model.StorageObject{ObjectID: "studio-object", OwnerUserID: 7, StorageProfileID: profile.ID, Purpose: model.StorageObjectPurposeImageStudio, ObjectKey: "assets/image-studio/image.png", ContentType: "image/png", Status: model.StorageObjectStatusUploaded}
+	require.NoError(t, model.DB.Create(object).Error)
+	_, err = PresignImageStudioObject(context.Background(), object.ID, 8, AssetObjectURLOriginal)
+	require.Error(t, err)
+	_, err = PresignAssetObject(context.Background(), object.ID, time.Hour, AssetObjectURLOriginal, "")
+	require.Error(t, err)
+	value, err := PresignImageStudioObject(context.Background(), object.ID, 7, AssetObjectURLThumbnail)
+	require.NoError(t, err)
+	parsed, err := url.Parse(value)
+	require.NoError(t, err)
+	assert.NotEmpty(t, parsed.Query().Get("x-oss-signature"))
+	assert.Contains(t, parsed.Query().Get("x-oss-process"), "image/resize")
+	require.NoError(t, DeleteAssetObject(object.ID, "owner deleted generated image"))
+	_, err = PresignImageStudioObject(context.Background(), object.ID, 7, AssetObjectURLOriginal)
+	require.Error(t, err)
+}

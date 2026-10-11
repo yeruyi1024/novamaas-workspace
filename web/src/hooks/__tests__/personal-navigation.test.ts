@@ -1,3 +1,5 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createElement, type ReactNode } from 'react'
 import { renderHook } from '@testing-library/react'
 import i18next from 'i18next'
 import { expect, test } from 'vitest'
@@ -5,7 +7,14 @@ import { expect, test } from 'vitest'
 import { useSidebarData } from '../use-sidebar-data'
 
 test('personal navigation lists profile, statements and wallet in order', () => {
-  const { result } = renderHook(() => useSidebarData())
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity } },
+  })
+  client.setQueryData(['status'], { ImageStudioVisible: true })
+  const { result, unmount } = renderHook(() => useSidebarData(), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children),
+  })
   const items = result.current.navGroups.find(
     (group) => group.id === 'personal'
   )?.items
@@ -19,4 +28,6 @@ test('personal navigation lists profile, statements and wallet in order', () => 
     '/billing',
     '/wallet',
   ])
+  unmount()
+  client.clear()
 })

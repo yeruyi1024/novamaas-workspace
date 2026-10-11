@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   FlaskConical,
   Images,
+  WandSparkles,
   Key,
   LayoutDashboard,
   ListTodo,
@@ -39,7 +40,10 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
+import { useStatus } from '@/hooks/use-status'
+import { hasPermission } from '@/lib/admin-permissions'
 import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -49,6 +53,12 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const user = useAuthStore((state) => state.auth.user)
+  const canReviewImages =
+    Boolean(user && user.role >= ROLE.ADMIN) &&
+    hasPermission(user, 'image_studio', 'read') &&
+    hasPermission(user, 'image_studio', 'content_read')
 
   return {
     navGroups: [
@@ -61,6 +71,15 @@ export function useSidebarData(): SidebarData {
             url: '/playground',
             icon: FlaskConical,
           },
+          ...(status?.ImageStudioVisible === false
+            ? []
+            : [
+                {
+                  title: t('Image generation'),
+                  url: '/image-studio',
+                  icon: WandSparkles,
+                },
+              ]),
           {
             title: t('Chat'),
             icon: MessageSquare,
@@ -136,6 +155,16 @@ export function useSidebarData(): SidebarData {
             url: '/channels',
             icon: Radio,
           },
+          ...(canReviewImages
+            ? [
+                {
+                  title: t('Image review'),
+                  url: '/image-review',
+                  icon: Images,
+                  requiredRole: ROLE.ADMIN,
+                },
+              ]
+            : []),
           {
             title: t('Supplier Test'),
             url: '/supplier-test',

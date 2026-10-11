@@ -96,6 +96,7 @@ type AssetListInput struct {
 	IncludeAllOwners bool
 	GroupPublicID    string
 	GroupPublicIDs   []string
+	AssetType        string
 	Statuses         []string
 	Search           string
 	Page             int
@@ -353,6 +354,12 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 		input.PageSize = 100
 	}
 	query := model.DB.Model(&model.MediaAsset{}).Where("status <> ?", model.AssetStatusDeleted)
+	if input.AssetType != "" {
+		if input.AssetType != model.AssetTypeImage && input.AssetType != model.AssetTypeVideo && input.AssetType != model.AssetTypeAudio {
+			return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("asset type must be image, video, or audio")}
+		}
+		query = query.Where("asset_type = ?", input.AssetType)
+	}
 	if len(input.Statuses) > 0 {
 		query = query.Where("status IN ?", input.Statuses)
 	}

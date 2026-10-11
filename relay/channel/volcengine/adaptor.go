@@ -107,7 +107,7 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
 	switch info.RelayMode {
-	case constant.RelayModeImagesGenerations:
+	case constant.RelayModeImagesGenerations, constant.RelayModeImagesEdits:
 		return request, nil
 	// 根据官方文档,并没有发现豆包生图支持表单请求:https://www.volcengine.com/docs/82379/1824121
 	//case constant.RelayModeImagesEdits:

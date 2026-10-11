@@ -179,6 +179,9 @@ export function isSidebarModuleEnabled(
 ): boolean {
   const status = getCachedStatus()
   if (!status) return true
+  if (module === 'image_studio' && status.ImageStudioVisible === false) {
+    return false
+  }
 
   const raw = status.SidebarModulesAdmin
   if (!raw || String(raw).trim() === '') return true

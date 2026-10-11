@@ -78,6 +78,25 @@ func TestPublicIDsMatchVolcengineStyle(t *testing.T) {
 	assert.NotContains(t, assetID, "local")
 }
 
+func TestListAssetsFiltersMediaTypeWithoutCrossTenantLeakage(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	assets := []model.MediaAsset{
+		{PublicID: "asset-image", OwnerUserID: 42, StorageObjectID: 1, Name: "image", AssetType: model.AssetTypeImage, Status: model.AssetStatusReady},
+		{PublicID: "asset-video", OwnerUserID: 42, StorageObjectID: 2, Name: "video", AssetType: model.AssetTypeVideo, Status: model.AssetStatusReady},
+		{PublicID: "asset-other-owner", OwnerUserID: 43, StorageObjectID: 3, Name: "other", AssetType: model.AssetTypeImage, Status: model.AssetStatusReady},
+	}
+	require.NoError(t, db.Create(&assets).Error)
+
+	page, err := ListAssets(AssetListInput{OwnerUserID: 42, AssetType: model.AssetTypeImage, Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	assert.Equal(t, "asset-image", page.Items[0].ID)
+
+	_, err = ListAssets(AssetListInput{OwnerUserID: 42, AssetType: "document", Page: 1, PageSize: 20})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "image, video, or audio")
+}
+
 func TestResolveRequestAssetIDsRejectsCrossTenantAndUnreadyAssets(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
 	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 4, Enabled: true, AuthType: model.AssetChannelAuthBearer, BaseURL: "https://example.com", Region: "cn-beijing", Service: "ark", APIVersion: "2024-01-01", QPM: 60}).Error)

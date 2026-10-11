@@ -27,6 +27,7 @@ import type { UpdateOptionRequest } from '../types'
 const STATUS_RELATED_KEYS = new Set([
   'HeaderNavModules',
   'SidebarModulesAdmin',
+  'image_studio_setting.visible',
   'Notice',
   'SystemName',
   'Logo',
@@ -53,6 +54,12 @@ export function useUpdateOption() {
       if (data.success) {
         // Always refresh system-options
         queryClient.invalidateQueries({ queryKey: ['system-options'] })
+
+        if (variables.key.startsWith('image_studio_setting.')) {
+          queryClient.invalidateQueries({
+            queryKey: ['image-studio', 'settings'],
+          })
+        }
 
         // If updating frontend-display-related config, also refresh status
         if (STATUS_RELATED_KEYS.has(variables.key)) {

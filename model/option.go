@@ -214,6 +214,9 @@ func SyncOptions(frequency int) {
 }
 
 func validateOptionValue(key string, value string) error {
+	if strings.HasPrefix(key, "image_studio_setting.") {
+		return operation_setting.ValidateImageStudioOption(key, value)
+	}
 	if key == "OperatingEntityName" {
 		if utf8.RuneCountInString(strings.TrimSpace(value)) > 120 {
 			return errors.New("operating entity name exceeds 120 characters")

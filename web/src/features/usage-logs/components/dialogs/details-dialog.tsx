@@ -643,8 +643,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const showRequestBody =
     props.isAdmin &&
     (hasEmbeddedRequestBody ||
-      (other?.is_task === true &&
-        other.request_body_available === true &&
+      (other?.request_body_available === true &&
         Boolean(other.task_id || props.log.request_id)))
 
   return (

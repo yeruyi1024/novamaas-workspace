@@ -41,3 +41,22 @@ func TestMissingBackendRoutesAreNotCachedAsFrontendAssets(t *testing.T) {
 		})
 	}
 }
+
+func TestMissingChunksDoNotReturnSPAHTML(t *testing.T) {
+	engine := gin.New()
+	SetWebRouter(engine, WebAssets{IndexPage: []byte("<html>app</html>")})
+	for _, path := range []string{"/static/js/async/old.js", "/static/css/old.css"} {
+		recorder := httptest.NewRecorder()
+		engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, http.StatusNotFound, recorder.Code, path)
+		assert.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
+		assert.NotContains(t, recorder.Body.String(), "<html>")
+	}
+	for _, path := range []string{"/image-studio", "/image-review"} {
+		recorder := httptest.NewRecorder()
+		engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, http.StatusOK, recorder.Code, path)
+		assert.Equal(t, "no-cache", recorder.Header().Get("Cache-Control"))
+		assert.Equal(t, "<html>app</html>", recorder.Body.String())
+	}
+}

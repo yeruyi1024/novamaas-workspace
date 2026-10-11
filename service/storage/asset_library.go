@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -17,8 +18,32 @@ import (
 )
 
 func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID string, assetPublicID string, fileName string, contentType string, size int64, body io.Reader) (*model.StorageObject, error) {
-	if ownerUserID <= 0 || strings.TrimSpace(groupPublicID) == "" || strings.TrimSpace(assetPublicID) == "" {
-		return nil, &RequestError{StatusCode: 400, Err: errors.New("asset storage identity is incomplete")}
+	return uploadPermanentObject(ctx, ownerUserID, groupPublicID, assetPublicID, fileName, contentType, size, body, model.StorageObjectPurposeAssetLibrary)
+}
+
+// Generated images share the configured permanent store, but never create library assets.
+func UploadImageStudioObject(ctx context.Context, ownerUserID int, runID, resultID, contentType string, size int64, body io.Reader) (*model.StorageObject, error) {
+	return uploadPermanentObject(ctx, ownerUserID, "image-studio/"+runID, resultID, "", contentType, size, body, model.StorageObjectPurposeImageStudio)
+}
+
+func CheckImageStudioStorage() error {
+	policy, profile, credential, err := ResolveEnabledPolicy(model.StoragePolicyAssetLibrary)
+	if err != nil {
+		return err
+	}
+	if !policyAllowsMIMEType(policy, "image/png") && !policyAllowsMIMEType(policy, "image/jpeg") && !policyAllowsMIMEType(policy, "image/webp") {
+		return errors.New("permanent storage policy does not allow images")
+	}
+	if credential.AuthType == model.StorageCredentialAuthEnvironment && (os.Getenv("OSS_ACCESS_KEY_ID") == "" || os.Getenv("OSS_ACCESS_KEY_SECRET") == "") {
+		return errors.New("OSS environment credentials are unavailable")
+	}
+	_, err = driverForProfile(profile, credential)
+	return err
+}
+
+func uploadPermanentObject(ctx context.Context, ownerUserID int, directory, publicID, fileName, contentType string, size int64, body io.Reader, purpose string) (*model.StorageObject, error) {
+	if ownerUserID <= 0 || strings.TrimSpace(directory) == "" || strings.TrimSpace(publicID) == "" {
+		return nil, &RequestError{StatusCode: 400, Err: errors.New("storage identity is incomplete")}
 	}
 	policy, profile, credential, err := ResolveEnabledPolicy(model.StoragePolicyAssetLibrary)
 	if err != nil {
@@ -44,7 +69,7 @@ func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID strin
 	}
 	userHash := permanentStorageUserHash(ownerUserID)
 	objectKey := fmt.Sprintf("%s/user-%s/%s/%s-%s.%s",
-		strings.Trim(policy.ObjectPrefix, "/"), userHash, groupPublicID, assetPublicID, suffix, extension)
+		strings.Trim(policy.ObjectPrefix, "/"), userHash, directory, publicID, suffix, extension)
 	if len(objectKey) > 1024 {
 		return nil, errors.New("asset storage object key is too long")
 	}
@@ -53,12 +78,15 @@ func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID strin
 		OwnerUserID:      ownerUserID,
 		StorageProfileID: profile.ID,
 		StoragePolicyID:  policy.ID,
-		Purpose:          model.StorageObjectPurposeAssetLibrary,
+		Purpose:          purpose,
 		ObjectKey:        objectKey,
 		ContentType:      contentType,
 		Size:             size,
 		Status:           model.StorageObjectStatusUploading,
 		DeleteAfter:      0,
+	}
+	if purpose == model.StorageObjectPurposeImageStudio {
+		object.DeleteAfter = common.GetTimestamp() + 3600
 	}
 	if err = model.CreateStorageObject(object); err != nil {
 		return nil, err
@@ -94,8 +122,20 @@ const (
 )
 
 func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, mode AssetObjectURLMode, downloadName string) (string, error) {
+	return presignPermanentObject(ctx, objectID, ttl, mode, downloadName, model.StorageObjectPurposeAssetLibrary, 0)
+}
+
+func PresignImageStudioObject(ctx context.Context, objectID int64, ownerUserID int, mode AssetObjectURLMode) (string, error) {
+	return presignPermanentObject(ctx, objectID, 0, mode, "", model.StorageObjectPurposeImageStudio, ownerUserID)
+}
+
+func presignPermanentObject(ctx context.Context, objectID int64, ttl time.Duration, mode AssetObjectURLMode, downloadName, purpose string, ownerUserID int) (string, error) {
 	var object model.StorageObject
-	if err := model.DB.Where("id = ? AND purpose = ? AND status = ?", objectID, model.StorageObjectPurposeAssetLibrary, model.StorageObjectStatusUploaded).First(&object).Error; err != nil {
+	query := model.DB.Where("id = ? AND purpose = ? AND status = ?", objectID, purpose, model.StorageObjectStatusUploaded)
+	if purpose == model.StorageObjectPurposeImageStudio {
+		query = query.Where("owner_user_id = ?", ownerUserID)
+	}
+	if err := query.First(&object).Error; err != nil {
 		return "", err
 	}
 	profile, err := model.GetStorageProfileByID(object.StorageProfileID)

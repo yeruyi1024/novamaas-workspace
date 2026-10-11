@@ -25,18 +25,16 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 	var imageRequest AliImageRequest
 	imageRequest.Model = request.Model
 	imageRequest.ResponseFormat = request.ResponseFormat
+	imageRequest.Parameters = AliImageParameters{
+		Size:      strings.Replace(request.Size, "x", "*", -1),
+		N:         int(lo.FromPtrOr(request.N, uint(1))),
+		Watermark: request.Watermark,
+	}
 	if request.Extra != nil {
 		if val, ok := request.Extra["parameters"]; ok {
 			err := common.Unmarshal(val, &imageRequest.Parameters)
 			if err != nil {
 				return nil, fmt.Errorf("invalid parameters field: %w", err)
-			}
-		} else {
-			// 兼容没有parameters字段的情况，从openai标准字段中提取参数
-			imageRequest.Parameters = AliImageParameters{
-				Size:      strings.Replace(request.Size, "x", "*", -1),
-				N:         int(lo.FromPtrOr(request.N, uint(1))),
-				Watermark: request.Watermark,
 			}
 		}
 		if val, ok := request.Extra["input"]; ok {
@@ -44,6 +42,20 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 			if err != nil {
 				return nil, fmt.Errorf("invalid input field: %w", err)
 			}
+		}
+	}
+	if imageRequest.Input == nil {
+		images, err := imageReferences(request)
+		if err != nil {
+			return nil, err
+		}
+		if len(images) > 0 {
+			contents := make([]AliMediaContent, 0, len(images)+1)
+			for _, image := range images {
+				contents = append(contents, AliMediaContent{Image: image})
+			}
+			contents = append(contents, AliMediaContent{Text: request.Prompt})
+			imageRequest.Input = AliImageInput{Messages: []AliMessage{{Role: "user", Content: contents}}}
 		}
 	}
 
@@ -89,6 +101,28 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 	}
 
 	return &imageRequest, nil
+}
+
+func imageReferences(request dto.ImageRequest) ([]string, error) {
+	raw := request.Images
+	if len(raw) == 0 {
+		raw = request.Image
+	}
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var images []string
+	if err := common.Unmarshal(raw, &images); err == nil {
+		return images, nil
+	}
+	var image string
+	if err := common.Unmarshal(raw, &image); err != nil {
+		return nil, fmt.Errorf("image references must be a string or string array")
+	}
+	if strings.TrimSpace(image) == "" {
+		return nil, nil
+	}
+	return []string{image}, nil
 }
 func getImageBase64sFromForm(c *gin.Context, fieldName string) ([]string, error) {
 	mf := c.Request.MultipartForm

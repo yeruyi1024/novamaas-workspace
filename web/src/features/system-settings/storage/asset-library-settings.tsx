@@ -127,6 +127,11 @@ function AssetPolicyForm({
           {t(
             'Assets remain in your private object storage until the owner deletes them. Signed URLs are generated only for preview and upstream synchronization.'
           )}
+          <p className='mt-2'>
+            {t(
+              'This policy also stores generated images from PC and the mini program without adding them to asset groups. Disabling this policy blocks image generation before billing, even when asset library integration is turned off.'
+            )}
+          </p>
         </CardDescription>
       </CardHeader>
       <Form {...form}>

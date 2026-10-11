@@ -28,6 +28,11 @@ func SetWebRouter(router *gin.Engine, assets WebAssets) {
 	router.Use(static.Serve("/", frontendFS))
 	router.NoRoute(func(c *gin.Context) {
 		c.Set(middleware.RouteTagKey, "web")
+		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
+			c.Header("Cache-Control", "no-store")
+			c.Status(http.StatusNotFound)
+			return
+		}
 		if isBackendRoute(c.Request.URL.Path) {
 			c.Header("Cache-Control", "no-store")
 			controller.RelayNotFound(c)

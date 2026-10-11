@@ -10,10 +10,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
@@ -22,6 +25,26 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 )
+
+func TestImageAuditRejectsOversizedSnapshotBeforeCallingUpstream(t *testing.T) {
+	var requests atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+	c.Set(common.RequestIdKey, "oversized-image")
+	common.SetContextKey(c, constant.ContextKeyImageStudioOriginalRequestBody, `{"request":{"prompt":"mountain"}}`)
+	request, err := http.NewRequest(http.MethodPost, upstream.URL, bytes.NewReader(bytes.Repeat([]byte(" "), model.MaxTaskRequestBodyBytes+1)))
+	require.NoError(t, err)
+	response, err := DoRequest(c, request, &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}})
+	assert.ErrorIs(t, err, model.ErrTaskRequestBodyTooLarge)
+	assert.Nil(t, response)
+	assert.Zero(t, requests.Load())
+	assert.False(t, common.GetContextKeyBool(c, constant.ContextKeyImageStudioRequestBodyStored))
+}
 
 func TestApplyUpstreamBodyMetadataSetsReplayableMetadata(t *testing.T) {
 	t.Parallel()

@@ -78,6 +78,9 @@ const (
 	ContextKeyTemporaryMediaMilliseconds   ContextKey = "temporary_media_ms"
 	ContextKeyTaskRequestMetrics           ContextKey = "task_request_metrics"
 
+	ContextKeyImageStudioOriginalRequestBody ContextKey = "image_studio_original_request_body"
+	ContextKeyImageStudioRequestBodyStored   ContextKey = "image_studio_request_body_stored"
+
 	// ContextKeyAdminRejectReason stores an admin-only reject/block reason extracted from upstream responses.
 	// It is not returned to end users, but can be persisted into consume/error logs for debugging.
 	ContextKeyAdminRejectReason ContextKey = "admin_reject_reason"

@@ -105,6 +105,7 @@ export async function deleteAssetGroup(id: string) {
 
 export async function listMediaAssets(params: {
   groupId?: string
+  type?: 'image' | 'video' | 'audio'
   search?: string
   page: number
   pageSize: number
@@ -115,6 +116,7 @@ export async function listMediaAssets(params: {
     {
       params: {
         group_id: params.groupId || undefined,
+        type: params.type || undefined,
         search: params.search || undefined,
         p: params.page,
         page_size: params.pageSize,

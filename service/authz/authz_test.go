@@ -50,6 +50,9 @@ func TestInitSeedsBuiltInRolesAndPoliciesOnce(t *testing.T) {
 	assert.True(t, Can(2, common.RoleAdminUser, ChannelOperate))
 	assert.True(t, Can(2, common.RoleAdminUser, ChannelWrite))
 	assert.True(t, Can(2, common.RoleAdminUser, FinancialAccountingView))
+	assert.False(t, Can(2, common.RoleAdminUser, ImageStudioRead))
+	assert.False(t, Can(2, common.RoleAdminUser, ImageStudioContentRead))
+	assert.True(t, Can(1, common.RoleRootUser, ImageStudioContentRead))
 	assert.False(t, Can(2, common.RoleAdminUser, ChannelSensitiveWrite))
 	assert.False(t, Can(3, common.RoleCommonUser, ChannelRead))
 }
@@ -76,6 +79,26 @@ func TestInitOnSlaveOnlyLoadsPolicies(t *testing.T) {
 	require.NoError(t, db.Model(&model.CasbinRule{}).Count(&policyCount).Error)
 	assert.Equal(t, int64(0), policyCount)
 	assert.False(t, Can(2, common.RoleAdminUser, ChannelRead))
+}
+
+func TestImageStudioReviewRequiresRootAssignedPermissions(t *testing.T) {
+	db := newAuthzTestDB(t)
+	require.NoError(t, Init(db))
+	assert.False(t, Can(42, common.RoleAdminUser, ImageStudioRead))
+	assert.False(t, Can(42, common.RoleAdminUser, ImageStudioContentRead))
+	require.NoError(t, SetUserPermissions(42, PermissionsMap{
+		ResourceImageStudio: {ActionRead: true, ActionContentRead: true},
+	}))
+	assert.True(t, Can(42, common.RoleAdminUser, ImageStudioRead))
+	assert.True(t, Can(42, common.RoleAdminUser, ImageStudioContentRead))
+	assert.False(t, Can(42, common.RoleCommonUser, ImageStudioRead))
+	require.NoError(t, SetUserPermissions(42, PermissionsMap{
+		ResourceImageStudio: {ActionRead: false, ActionContentRead: false},
+	}))
+	assert.False(t, Can(42, common.RoleAdminUser, ImageStudioRead))
+	assert.False(t, Can(42, common.RoleAdminUser, ImageStudioContentRead))
+	assert.True(t, Can(42, common.RoleRootUser, ImageStudioRead))
+	assert.True(t, Can(42, common.RoleRootUser, ImageStudioContentRead))
 }
 
 func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
@@ -109,6 +132,9 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 		ResourceFinancialAccounting: {
 			ActionFinancialView: true,
 		},
+		ResourceImageStudio: {
+			ActionRead: false, ActionContentRead: false,
+		},
 	}, ExplicitUserPermissions(42))
 	assert.Equal(t, PermissionsMap{
 		ResourceChannel: {
@@ -139,6 +165,9 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 		},
 		ResourceFinancialAccounting: {
 			ActionFinancialView: true,
+		},
+		ResourceImageStudio: {
+			ActionRead: false, ActionContentRead: false,
 		},
 	}, ExplicitUserPermissions(42))
 	assert.Empty(t, ExplicitUserOverrides(42))

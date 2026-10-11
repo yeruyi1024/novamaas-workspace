@@ -98,12 +98,12 @@ const GROUPS_QUERY_KEY = ['asset-library', 'groups'] as const
 const ASSETS_QUERY_KEY = ['asset-library', 'assets'] as const
 const ASSET_PAGE_SIZE = 40
 
-export function AssetLibrary() {
+export function AssetLibrary(props: { initialGroupId?: string } = {}) {
   const { t } = useTranslation()
   const isAdmin = useIsAdmin()
   const currentUserId = useAuthStore((state) => state.auth.user?.id ?? 0)
   const queryClient = useQueryClient()
-  const [selectedGroup, setSelectedGroup] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState(props.initialGroupId ?? '')
   const [selectedGroupInfo, setSelectedGroupInfo] = useState<
     AssetGroup | undefined
   >()
@@ -119,6 +119,11 @@ export function AssetLibrary() {
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null)
   const [deleteGroupDialogOpen, setDeleteGroupDialogOpen] = useState(false)
   const deferredSearch = useDeferredValue(search.trim())
+  const linkedGroupsQuery = useQuery({
+    queryKey: [...GROUPS_QUERY_KEY, 'linked', currentUserId],
+    queryFn: async () => assertAssetSuccess(await listAssetGroups(false)),
+    enabled: Boolean(props.initialGroupId),
+  })
   const openReupload = (target: MediaAsset) => {
     setPreviewTarget(null)
     setReuploadTarget(target)
@@ -311,7 +316,12 @@ export function AssetLibrary() {
               <CardContent className='grid gap-3 py-3 md:grid-cols-[minmax(260px,380px)_minmax(220px,1fr)_auto] md:items-center'>
                 <AssetGroupSelect
                   value={selectedGroup}
-                  selectedGroup={selectedGroupInfo}
+                  selectedGroup={
+                    selectedGroupInfo ??
+                    linkedGroupsQuery.data?.find(
+                      (group) => group.id === selectedGroup
+                    )
+                  }
                   isAdmin={isAdmin}
                   onValueChange={(value, group) => {
                     setSelectedGroup(value)
