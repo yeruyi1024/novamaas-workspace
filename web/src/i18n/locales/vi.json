@@ -631,6 +631,7 @@
     "Asks the vendor to call a tool. No tools API is skipped, not failed.": "Yêu cầu nhà cung cấp gọi công cụ. Không có API công cụ thì bỏ qua, không phải thất bại.",
     "Asks the vendor to return JSON. No JSON mode is skipped, not failed.": "Yêu cầu nhà cung cấp trả JSON. Không có JSON mode thì bỏ qua, không phải thất bại.",
     "Aspect Ratio (ratio)": "Tỷ lệ khung hình (ratio)",
+    "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.": "Khả năng chọn tỷ lệ tùy thuộc vào mô hình đã chọn. Với «Mặc định của mô hình», mô hình tự chọn kích thước và tỷ lệ.",
     "Asset": "Tài nguyên",
     "Asset API base URL": "URL cơ sở API tài nguyên",
     "Asset becomes active": "Tài nguyên chuyển sang khả dụng",

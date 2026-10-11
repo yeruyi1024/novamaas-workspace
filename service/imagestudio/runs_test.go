@@ -373,11 +373,14 @@ func TestGenerateImagesRecordsResultsAndReplaysWithoutSecondCharge(t *testing.T)
 	relay = func(ctx RelayContext, selected *model.Token, path string, request []byte, format types.RelayFormat) RelayResult {
 		var forwarded dto.ImageRequest
 		require.NoError(t, common.Unmarshal(request, &forwarded))
-		assert.Equal(t, "hd", forwarded.Quality)
+		assert.Empty(t, forwarded.Quality)
+		assert.NotContains(t, string(request), `"quality"`)
 		assert.Empty(t, forwarded.OutputCompression)
 		assert.NotContains(t, string(request), "parameters")
-		require.NotNil(t, forwarded.N)
-		assert.Equal(t, uint(1), *forwarded.N)
+		assert.Nil(t, forwarded.N)
+		assert.Empty(t, forwarded.Size)
+		assert.Empty(t, forwarded.ResponseFormat)
+		assert.JSONEq(t, `{"model":"dall-e-3","prompt":"A mountain"}`, string(request))
 		calls++
 		assert.Equal(t, token.Id, selected.Id)
 		assert.Equal(t, "/v1/images/generations", path)
@@ -590,6 +593,29 @@ func TestImageStorageFailureDoesNotExposeImagesOrRebillReplay(t *testing.T) {
 				require.NoError(t, db.First(&object).Error)
 				assert.Equal(t, model.StorageObjectStatusDeletePending, object.Status)
 			}
+		})
+	}
+}
+
+func TestStudioOptionalImageParametersPreserveDefaultsAndExplicitValues(t *testing.T) {
+	settings := config.GlobalConfig.Get("image_studio_setting").(*operation_setting.ImageStudioSetting)
+	previous := *settings
+	settings.Enabled = true
+	t.Cleanup(func() { *settings = previous })
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{
+		{"provider defaults", `{"model":"doubao-seedream-4-5-251128","prompt":"mountain"}`},
+		{"explicit image options", `{"model":"doubao-seedream-4-5-251128","prompt":"mountain","size":"2048x2048","n":2,"response_format":"url"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var request dto.ImageRequest
+			require.NoError(t, common.Unmarshal([]byte(tc.input), &request))
+			require.NoError(t, validateStudioImageRequest(&request, nil, 0))
+			body, err := common.Marshal(request)
+			require.NoError(t, err)
+			assert.JSONEq(t, tc.input, string(body))
 		})
 	}
 }

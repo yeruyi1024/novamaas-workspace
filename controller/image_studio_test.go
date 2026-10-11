@@ -419,6 +419,76 @@ func TestImageStudioRelayArchivesActualMappedAndOverriddenRequest(t *testing.T) 
 	assert.NotContains(t, log.Other, "mountain")
 }
 
+func TestImageStudioDefaultRequestUsesSelectedProviderProtocol(t *testing.T) {
+	for _, tc := range []struct {
+		name, model, path, body, response string
+		channelType                       int
+	}{
+		{name: "OpenAI compatible", channelType: constant.ChannelTypeOpenAI, model: "gpt-image-1", path: "/v1/images/generations", body: `{"model":"gpt-image-1","prompt":"mountain","n":1}`},
+		{name: "Seedream", channelType: constant.ChannelTypeVolcEngine, model: "doubao-seedream-4-5", path: "/api/v3/images/generations", body: `{"model":"doubao-seedream-4-5","prompt":"mountain","n":1}`},
+		{name: "Baidu", channelType: constant.ChannelTypeBaiduV2, model: "qwen-image", path: "/v2/images/generations", body: `{"model":"qwen-image","prompt":"mountain","n":1}`},
+		{name: "Ali Qwen", channelType: constant.ChannelTypeAli, model: "qwen-image-plus", path: "/api/v1/services/aigc/multimodal-generation/generation", body: `{"model":"qwen-image-plus","input":{"messages":[{"role":"user","content":[{"text":"mountain"}]}]},"parameters":{"n":1}}`, response: `{"output":{"results":[{"url":"https://example.test/result.png"}]},"usage":{"image_count":1}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupVolcNativeControllerTest(t)
+			require.NoError(t, db.AutoMigrate(&model.TaskRequestBody{}))
+			prices := ratio_setting.ModelPrice2JSONString()
+			require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"studio-default":0}`))
+			t.Cleanup(func() { require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(prices)) })
+			var sent []byte
+			var sentPath string
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var err error
+				sent, err = io.ReadAll(r.Body)
+				assert.NoError(t, err)
+				sentPath = r.URL.Path
+				w.Header().Set("Content-Type", gin.MIMEJSON)
+				response := tc.response
+				if response == "" {
+					response = `{"data":[{"url":"https://example.test/result.png"}]}`
+				}
+				_, err = io.WriteString(w, response)
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(upstream.Close)
+			channel := &model.Channel{Type: tc.channelType, Key: "test-key", BaseURL: &upstream.URL}
+			require.NoError(t, db.Create(channel).Error)
+			user := &model.User{Username: "studio-provider", Quota: 1000}
+			require.NoError(t, db.Create(user).Error)
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader(`{"model":"studio-default","prompt":"mountain"}`))
+			c.Request.Header.Set("Content-Type", gin.MIMEJSON)
+			c.Set(common.RequestIdKey, "studio-provider-default")
+			common.SetContextKey(c, constant.ContextKeyUserId, user.Id)
+			common.SetContextKey(c, constant.ContextKeyUserQuota, user.Quota)
+			common.SetContextKey(c, constant.ContextKeyUserSetting, dto.UserSetting{BillingPreference: "wallet_only"})
+			common.SetContextKey(c, constant.ContextKeyUsingGroup, "default")
+			common.SetContextKey(c, constant.ContextKeyUserGroup, "default")
+			common.SetContextKey(c, constant.ContextKeyOriginalModel, "studio-default")
+			common.SetContextKey(c, constant.ContextKeyTokenUnlimited, true)
+			common.SetContextKey(c, constant.ContextKeyChannelId, channel.Id)
+			common.SetContextKey(c, constant.ContextKeyChannelType, channel.Type)
+			common.SetContextKey(c, constant.ContextKeyChannelBaseUrl, upstream.URL)
+			common.SetContextKey(c, constant.ContextKeyChannelKey, channel.Key)
+			mapping, err := common.Marshal(map[string]string{"studio-default": tc.model})
+			require.NoError(t, err)
+			common.SetContextKey(c, constant.ContextKeyChannelModelMapping, string(mapping))
+			common.SetContextKey(c, constant.ContextKeyImageStudioOriginalRequestBody, `{"request":{"model":"studio-default","prompt":"mountain"}}`)
+
+			Relay(c, types.RelayFormatOpenAIImage)
+
+			require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+			assert.Equal(t, tc.path, sentPath)
+			assert.JSONEq(t, tc.body, string(sent))
+			var response dto.ImageResponse
+			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+			require.Len(t, response.Data, 1)
+			assert.Equal(t, "https://example.test/result.png", response.Data[0].Url)
+		})
+	}
+}
+
 func TestImageRequestSnapshotEndpointsEnforceRootGrantedContentPermission(t *testing.T) {
 	db := setupManageUserTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.TaskRequestBody{}))

@@ -631,6 +631,7 @@
     "Asks the vendor to call a tool. No tools API is skipped, not failed.": "要求廠商呼叫工具。沒有工具介面則跳過，不是失敗。",
     "Asks the vendor to return JSON. No JSON mode is skipped, not failed.": "要求廠商回傳 JSON。沒有 JSON 模式則跳過，不是失敗。",
     "Aspect Ratio (ratio)": "畫面比例 (ratio)",
+    "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.": "是否支援指定比例取決於所選模型。選擇「模型預設」時，由模型決定尺寸與比例。",
     "Asset": "素材",
     "Asset API base URL": "素材 API 基礎網址",
     "Asset becomes active": "素材變為可用",

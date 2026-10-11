@@ -68,8 +68,7 @@ function useStudioCreation(props: StudioComposerProps) {
           .min(1)
           .max(props.settings.max_prompt_characters),
         n: z.number().int().min(1).max(props.settings.max_images),
-        size: z.string().trim().min(1),
-        quality: z.string(),
+        size: z.string().trim(),
         references: z
           .array(z.string())
           .max(props.settings.max_reference_images),
@@ -80,8 +79,7 @@ function useStudioCreation(props: StudioComposerProps) {
       model: '',
       prompt: '',
       n: 1,
-      size: '1024x1024',
-      quality: '',
+      size: '',
       references: [],
     },
   })
@@ -107,27 +105,22 @@ function useStudioCreation(props: StudioComposerProps) {
     if (dalle2) {
       return ['1024x1024']
     }
+    if (model.includes('seedream-4-5') || model.includes('seedream-5-0-lite')) {
+      return ['2048x2048', '2496x1664', '1664x2496']
+    }
     return ['1024x1024', '1536x1024', '1024x1536']
   }, [model, dalle2])
-  let qualityOptions = ['low', 'medium', 'high', 'standard', 'hd']
   let modelMaxImages = props.settings.max_images
   if (model === 'dall-e-3') {
-    qualityOptions = ['standard', 'hd']
     modelMaxImages = 1
   } else if (dalle2) {
-    qualityOptions = ['standard']
     modelMaxImages = 10
   } else if (gptImage) {
-    qualityOptions = ['low', 'medium', 'high']
     modelMaxImages = 10
   }
   const size = form.watch('size')
   const previousModel = useRef(model)
   const maxImages = Math.min(props.settings.max_images, modelMaxImages)
-  const selectedQuality = form.watch('quality')
-  const quality = qualityOptions.includes(selectedQuality)
-    ? selectedQuality
-    : ''
   useEffect(() => {
     if (form.getValues('n') > maxImages) {
       form.setValue('n', maxImages, { shouldValidate: true })
@@ -135,15 +128,10 @@ function useStudioCreation(props: StudioComposerProps) {
     }
     if (previousModel.current !== model) {
       previousModel.current = model
-      if (
-        (gptImage || dalle2 || model === 'dall-e-3') &&
-        !sizeOptions.includes(form.getValues('size'))
-      ) {
-        form.setValue('size', '1024x1024')
-        requestKey.current = ''
-      }
+      form.setValue('size', '')
+      requestKey.current = ''
     }
-  }, [form, maxImages, model, gptImage, dalle2, sizeOptions])
+  }, [form, maxImages, model])
   const textModels = useQuery({
     queryKey: ['image-studio', 'text-models', textSelection.tokenId],
     queryFn: async () =>
@@ -203,10 +191,8 @@ function useStudioCreation(props: StudioComposerProps) {
       request: {
         model,
         prompt: values.prompt,
-        n: values.n,
-        size: values.size,
-        ...(quality ? { quality } : {}),
-        response_format: 'b64_json',
+        ...(values.n > 1 ? { n: values.n } : {}),
+        ...(values.size ? { size: values.size } : {}),
       },
       input_asset_ids: references,
     })
@@ -221,8 +207,6 @@ function useStudioCreation(props: StudioComposerProps) {
     prompt,
     model,
     models,
-    quality,
-    qualityOptions,
     size,
     sizeOptions,
     maxImages,
@@ -277,7 +261,6 @@ export function StudioComposer(props: StudioComposerProps) {
             creation.onChange()
             creation.form.setValue('tokenId', String(selection.tokenId))
             creation.form.setValue('model', selection.model)
-            creation.form.setValue('quality', '')
           }}
           onTextChange={creation.setTextSelection}
         />

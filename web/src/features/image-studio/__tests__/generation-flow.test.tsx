@@ -158,11 +158,7 @@ test('LAN HTTP generates with an existing key and leaves the asset library untou
     expect.objectContaining({
       token_id: 1,
       idempotency_key: expect.any(String),
-      request: expect.objectContaining({
-        model: 'dall-e-3',
-        prompt: 'A mountain',
-        n: 1,
-      }),
+      request: { model: 'dall-e-3', prompt: 'A mountain' },
     })
   )
   expect(vi.mocked(api.createStudioRun).mock.calls[0][0]).not.toHaveProperty(
@@ -616,7 +612,7 @@ test('recommended examples fill the prompt and style suggestions append without 
   expect(api.createStudioRun).not.toHaveBeenCalled()
 })
 
-test('quality selection is sent upstream and DALL-E 3 explains its single-image limit', async () => {
+test('generation omits quality and DALL-E 3 explains its single-image limit', async () => {
   const user = await renderStudio()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(
@@ -630,10 +626,9 @@ test('quality selection is sent upstream and DALL-E 3 explains its single-image 
   expect(
     screen.getByText('This model supports one image per request.')
   ).toBeInTheDocument()
-  await user.selectOptions(
-    screen.getByRole('combobox', { name: 'Image quality' }),
-    'hd'
-  )
+  expect(
+    screen.queryByRole('combobox', { name: 'Image quality' })
+  ).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Portrait' }))
   expect(screen.getByRole('button', { name: 'Portrait' })).toHaveAttribute(
     'aria-pressed',
@@ -644,24 +639,24 @@ test('quality selection is sent upstream and DALL-E 3 explains its single-image 
     expect(api.createStudioRun).toHaveBeenCalledWith(
       expect.objectContaining({
         request: expect.objectContaining({
-          quality: 'hd',
-          n: 1,
           size: '1024x1792',
         }),
       })
     )
   )
+  expect(
+    vi.mocked(api.createStudioRun).mock.calls[0][0].request
+  ).not.toHaveProperty('quality')
 })
 
-test('switching image models resets incompatible quality and clamps the count before submission', async () => {
+test('switching image models preserves default quality and clamps the count before submission', async () => {
   vi.mocked(api.listStudioModels).mockImplementation(async (_id, kind) =>
     success(kind === 'text' ? ['text-model'] : ['dall-e-3', 'gpt-image-1'])
   )
   const user = await renderStudio()
-  await user.selectOptions(
-    screen.getByRole('combobox', { name: 'Image quality' }),
-    'hd'
-  )
+  expect(
+    screen.queryByRole('combobox', { name: 'Image quality' })
+  ).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Model settings' }))
   let dialog = await screen.findByRole('dialog')
   await user.selectOptions(
@@ -671,13 +666,9 @@ test('switching image models resets incompatible quality and clamps the count be
     'gpt-image-1'
   )
   await user.click(within(dialog).getByRole('button', { name: 'Done' }))
-  expect(screen.getByRole('combobox', { name: 'Image quality' })).toHaveValue(
-    ''
-  )
-  await user.selectOptions(
-    screen.getByRole('combobox', { name: 'Image quality' }),
-    'high'
-  )
+  expect(
+    screen.queryByRole('combobox', { name: 'Image quality' })
+  ).not.toBeInTheDocument()
   expect(
     within(screen.getByRole('combobox', { name: 'Image count' }))
       .getAllByRole('option')
@@ -694,13 +685,15 @@ test('switching image models resets incompatible quality and clamps the count be
       expect.objectContaining({
         request: expect.objectContaining({
           model: 'gpt-image-1',
-          quality: 'high',
           n: 3,
           size: '1536x1024',
         }),
       })
     )
   )
+  expect(
+    vi.mocked(api.createStudioRun).mock.calls[0][0].request
+  ).not.toHaveProperty('quality')
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Model settings' })).toBeEnabled()
   )
@@ -714,10 +707,10 @@ test('switching image models resets incompatible quality and clamps the count be
   )
   await user.click(within(dialog).getByRole('button', { name: 'Done' }))
   expect(screen.getByRole('combobox', { name: 'Image count' })).toHaveValue('1')
-  expect(screen.getByRole('combobox', { name: 'Image quality' })).toHaveValue(
-    ''
-  )
-  expect(screen.getByRole('button', { name: 'Square image' })).toHaveAttribute(
+  expect(
+    screen.queryByRole('combobox', { name: 'Image quality' })
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Model default' })).toHaveAttribute(
     'aria-pressed',
     'true'
   )
@@ -746,19 +739,20 @@ test('reusing a generated prompt focuses the composer without submitting or writ
   expect(api.saveStudioResult).not.toHaveBeenCalled()
 })
 
-test('square-only models show one proportion without pixel controls and submit the selected count', async () => {
+test('square-only models default to omitted size and submit explicit square size and count', async () => {
   vi.mocked(api.listStudioModels).mockImplementation(async (_id, kind) =>
     success(kind === 'text' ? ['text-model'] : ['dall-e-2'])
   )
   const user = await renderStudio('dall-e-2')
   const proportions = screen.getByRole('group', { name: 'Image proportions' })
-  expect(within(proportions).getAllByRole('button')).toHaveLength(1)
+  expect(within(proportions).getAllByRole('button')).toHaveLength(2)
   expect(
-    within(proportions).getByRole('button', { name: 'Square image' })
+    within(proportions).getByRole('button', { name: 'Model default' })
   ).toHaveAttribute('aria-pressed', 'true')
   expect(
     screen.queryByRole('textbox', { name: 'Image size' })
   ).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Square image' }))
   await user.selectOptions(
     screen.getByRole('combobox', { name: 'Image count' }),
     '2'
@@ -774,5 +768,54 @@ test('square-only models show one proportion without pixel controls and submit t
         }),
       })
     )
+  )
+})
+
+test('selecting the model default after a proportion omits size and response format', async () => {
+  const user = await renderStudio()
+  await user.click(screen.getByRole('button', { name: 'Portrait' }))
+  await user.click(screen.getByRole('button', { name: 'Model default' }))
+  await submitImage(user)
+  await waitFor(() => expect(api.createStudioRun).toHaveBeenCalled())
+  expect(vi.mocked(api.createStudioRun).mock.calls[0][0].request).toEqual({
+    model: 'dall-e-3',
+    prompt: 'A mountain',
+  })
+})
+
+test('Seedream 4.5 sends only required image parameters by default', async () => {
+  vi.mocked(api.listStudioModels).mockImplementation(async (_id, kind) =>
+    success(kind === 'text' ? ['text-model'] : ['doubao-seedream-4-5-251128'])
+  )
+  const user = await renderStudio('doubao-seedream-4-5-251128')
+  await submitImage(user)
+  await waitFor(() => expect(api.createStudioRun).toHaveBeenCalled())
+  expect(vi.mocked(api.createStudioRun).mock.calls[0][0].request).toEqual({
+    model: 'doubao-seedream-4-5-251128',
+    prompt: 'A mountain',
+  })
+})
+
+test('Seedream 4.5 explicitly selected proportions use a supported pixel size', async () => {
+  vi.mocked(api.listStudioModels).mockImplementation(async (_id, kind) =>
+    success(kind === 'text' ? ['text-model'] : ['doubao-seedream-4-5-251128'])
+  )
+  const user = await renderStudio('doubao-seedream-4-5-251128')
+  await user.click(screen.getByRole('button', { name: 'Landscape' }))
+  await submitImage(user)
+  await waitFor(() => expect(api.createStudioRun).toHaveBeenCalled())
+  expect(vi.mocked(api.createStudioRun).mock.calls[0][0].request).toEqual({
+    model: 'doubao-seedream-4-5-251128',
+    prompt: 'A mountain',
+    size: '2496x1664',
+  })
+})
+
+test('proportion choices explain model support and how the default determines image size', async () => {
+  await renderStudio()
+  expect(
+    screen.getByRole('group', { name: 'Image proportions' })
+  ).toHaveAccessibleDescription(
+    'Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.'
   )
 })

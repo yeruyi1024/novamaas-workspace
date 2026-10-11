@@ -66,10 +66,9 @@ export type CreateStudioRunInput = {
   request: {
     model: string
     prompt: string
-    n: number
-    size: string
-    quality?: string
-    response_format: 'b64_json'
+    n?: number
+    size?: string
+    response_format?: 'url' | 'b64_json'
   }
   input_asset_ids: string[]
 }

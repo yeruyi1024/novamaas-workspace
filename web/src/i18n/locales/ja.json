@@ -631,6 +631,7 @@
     "Asks the vendor to call a tool. No tools API is skipped, not failed.": "ベンダーにツール呼び出しを求めます。ツール API が無ければスキップであり、失敗ではありません。",
     "Asks the vendor to return JSON. No JSON mode is skipped, not failed.": "ベンダーに JSON を求めます。JSON モードが無ければスキップであり、失敗ではありません。",
     "Aspect Ratio (ratio)": "アスペクト比 (ratio)",
+    "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.": "指定できる縦横比は選択したモデルによって異なります。「モデルの既定値」を選ぶと、モデルがサイズと縦横比を決めます。",
     "Asset": "素材",
     "Asset API base URL": "素材 API ベース URL",
     "Asset becomes active": "素材が利用可能になる",

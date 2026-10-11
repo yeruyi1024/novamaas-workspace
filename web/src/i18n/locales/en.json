@@ -631,6 +631,7 @@
     "Asks the vendor to call a tool. No tools API is skipped, not failed.": "Asks the vendor to call a tool. No tools API is skipped, not failed.",
     "Asks the vendor to return JSON. No JSON mode is skipped, not failed.": "Asks the vendor to return JSON. No JSON mode is skipped, not failed.",
     "Aspect Ratio (ratio)": "Aspect Ratio (ratio)",
+    "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.": "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.",
     "Asset": "Asset",
     "Asset API base URL": "Asset API base URL",
     "Asset becomes active": "Asset becomes active",

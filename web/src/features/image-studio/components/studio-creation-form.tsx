@@ -25,7 +25,12 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -46,13 +51,6 @@ export function StudioCreationForm(props: {
   const optimize = creation.optimize
   const busy = creation.generating || optimize.isPending
 
-  const qualityLabels: Record<string, string> = {
-    low: t('Low'),
-    medium: t('Medium'),
-    high: t('High'),
-    standard: t('Standard'),
-    hd: t('HD'),
-  }
   return (
     <form
       noValidate
@@ -183,10 +181,17 @@ export function StudioCreationForm(props: {
             <FieldLabel>{t('Image proportions')}</FieldLabel>
             <ToggleGroup
               aria-label={t('Image proportions')}
-              value={[creation.size]}
+              aria-describedby='studio-proportions-description'
+              value={[creation.size || 'default']}
               onValueChange={(values) => {
                 if (values[0]) {
-                  form.setValue('size', values[0], { shouldDirty: true })
+                  form.setValue(
+                    'size',
+                    values[0] === 'default' ? '' : values[0],
+                    {
+                      shouldDirty: true,
+                    }
+                  )
                   creation.onChange()
                 }
               }}
@@ -195,6 +200,13 @@ export function StudioCreationForm(props: {
               spacing={2}
               className='w-full'
             >
+              <ToggleGroupItem
+                value='default'
+                aria-label={t('Model default')}
+                className='h-14 min-w-0 flex-1 px-1 text-[11px]'
+              >
+                {t('Model default')}
+              </ToggleGroupItem>
               {creation.sizeOptions.map((value) => {
                 const [width, height] = value.split('x').map(Number)
                 let name = t('Square image')
@@ -223,8 +235,16 @@ export function StudioCreationForm(props: {
                 )
               })}
             </ToggleGroup>
+            <FieldDescription
+              id='studio-proportions-description'
+              className='text-xs'
+            >
+              {t(
+                'Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.'
+              )}
+            </FieldDescription>
           </Field>
-          <FieldGroup className='grid grid-cols-2 gap-3'>
+          <FieldGroup className='gap-3'>
             <Field
               data-invalid={Boolean(form.formState.errors.n)}
               data-disabled={busy}
@@ -249,38 +269,12 @@ export function StudioCreationForm(props: {
                 </p>
               )}
             </Field>
-            <Field data-disabled={busy}>
-              <FieldLabel htmlFor='studio-quality'>
-                {t('Image quality')}
-              </FieldLabel>
-              <NativeSelect
-                id='studio-quality'
-                className='w-full'
-                {...form.register('quality')}
-                value={creation.quality}
-                disabled={busy}
-              >
-                <NativeSelectOption value=''>
-                  {t('Model default')}
-                </NativeSelectOption>
-                {creation.qualityOptions.map((value) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {qualityLabels[value]} ({value})
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
           </FieldGroup>
           {creation.model === 'dall-e-3' && (
             <p className='text-muted-foreground text-xs'>
               {t('This model supports one image per request.')}
             </p>
           )}
-          <p className='text-muted-foreground text-xs'>
-            {t(
-              'Quality and count support depend on the model and provider. Higher quality or more images may cost more.'
-            )}
-          </p>
           {creation.libraryEnabled && !!creation.assets.data?.items.length && (
             <fieldset className='grid gap-2'>
               <legend className='mb-2 text-sm font-medium'>

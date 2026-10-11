@@ -2,14 +2,34 @@ package ali
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestQwenImageEditConvertsStudioReferencesToMessageContent(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", nil)
+	c.Request.Header.Set("Content-Type", gin.MIMEJSON)
+	info := &relaycommon.RelayInfo{RelayMode: relayconstant.RelayModeImagesEdits, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "qwen-image-edit-plus"}}
+	images, err := common.Marshal([]string{"https://assets.example.test/first.png", "https://assets.example.test/second.png"})
+	require.NoError(t, err)
+
+	converted, err := (&Adaptor{}).ConvertImageRequest(c, info, dto.ImageRequest{Model: info.UpstreamModelName, Prompt: "combine", Images: images, Image: images})
+
+	require.NoError(t, err)
+	body, err := common.Marshal(converted)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"model":"qwen-image-edit-plus","input":{"messages":[{"role":"user","content":[{"image":"https://assets.example.test/first.png"},{"image":"https://assets.example.test/second.png"},{"text":"combine"}]}]},"parameters":{"n":1}}`, string(body))
+}
 
 func TestAliImageExtraParametersPreserveStandardRequestFields(t *testing.T) {
 	extra, err := common.Marshal(map[string]any{"prompt_extend": false, "seed": 0})

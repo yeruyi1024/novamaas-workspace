@@ -152,17 +152,12 @@ func validateStudioImageRequest(request *dto.ImageRequest, extraFields json.RawM
 	if request.ResponseFormat != "" && request.ResponseFormat != "url" && request.ResponseFormat != "b64_json" {
 		return &RequestError{http.StatusBadRequest, "invalid_response_format", errors.New("response_format must be url or b64_json")}
 	}
+	// Quality follows the provider default; the studio does not send it.
 	// The studio only exposes these parameters. Provider-specific payloads must
 	// use the public relay API and cannot override the studio's billing count.
 	*request = dto.ImageRequest{
 		Model: request.Model, Prompt: request.Prompt, N: request.N,
-		Size: request.Size, Quality: request.Quality, ResponseFormat: request.ResponseFormat,
-	}
-	if request.N == nil {
-		request.N = common.GetPointer(uint(1))
-	}
-	if request.ResponseFormat == "" {
-		request.ResponseFormat = "b64_json"
+		Size: request.Size, ResponseFormat: request.ResponseFormat,
 	}
 	return nil
 }

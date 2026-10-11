@@ -631,6 +631,7 @@
     "Asks the vendor to call a tool. No tools API is skipped, not failed.": "Demande un appel d’outil. Sans API d’outils : ignoré, pas échoué.",
     "Asks the vendor to return JSON. No JSON mode is skipped, not failed.": "Demande du JSON au fournisseur. Sans mode JSON : ignoré, pas échoué.",
     "Aspect Ratio (ratio)": "Format d'image (ratio)",
+    "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.": "Les proportions disponibles dépendent du modèle choisi. Avec « Par défaut du modèle », le modèle choisit la taille et les proportions.",
     "Asset": "Ressource",
     "Asset API base URL": "URL de base de l’API des ressources",
     "Asset becomes active": "Le média devient actif",

@@ -450,6 +450,28 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 	switch info.RelayMode {
 	case relayconstant.RelayModeImagesEdits:
 		if isJSONRequest(c) {
+			// Studio resolves owned assets into URLs. The official JSON edit API
+			// requires image_url objects; compatible providers retain their format.
+			if info.ChannelType != constant.ChannelTypeOpenAI || common.GetContextKeyString(c, constant.ContextKeyImageStudioOriginalRequestBody) == "" || len(request.Images) == 0 {
+				return request, nil
+			}
+			baseURL, err := url.Parse(info.ChannelBaseUrl)
+			if err != nil || (info.ChannelBaseUrl != "" && !strings.EqualFold(baseURL.Hostname(), "api.openai.com")) {
+				return request, nil
+			}
+			var imageURLs []string
+			if err = common.Unmarshal(request.Images, &imageURLs); err != nil {
+				return nil, fmt.Errorf("invalid studio image references: %w", err)
+			}
+			images := make([]map[string]string, 0, len(imageURLs))
+			for _, imageURL := range imageURLs {
+				images = append(images, map[string]string{"image_url": imageURL})
+			}
+			request.Images, err = common.Marshal(images)
+			if err != nil {
+				return nil, err
+			}
+			request.Image = nil
 			return request, nil
 		}
 

@@ -631,6 +631,7 @@
     "Asks the vendor to call a tool. No tools API is skipped, not failed.": "Просит вызов инструмента. Нет API инструментов — пропуск, не сбой.",
     "Asks the vendor to return JSON. No JSON mode is skipped, not failed.": "Просит JSON у поставщика. Нет JSON-режима — пропуск, не сбой.",
     "Aspect Ratio (ratio)": "Соотношение сторон (ratio)",
+    "Aspect ratio support depends on the selected model. Model default lets the model choose the size and aspect ratio.": "Поддержка пропорций зависит от выбранной модели. При выборе «По умолчанию» модель определяет размер и пропорции.",
     "Asset": "Материал",
     "Asset API base URL": "Базовый URL API материалов",
     "Asset becomes active": "Материал становится доступен",

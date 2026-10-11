@@ -9,12 +9,50 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestStudioOpenAIReferenceImagesUseJSONEditSchema(t *testing.T) {
+	for _, tc := range []struct {
+		name, baseURL     string
+		studio, canonical bool
+	}{
+		{name: "official studio edit", baseURL: "https://api.openai.com", studio: true, canonical: true},
+		{name: "default official studio edit", studio: true, canonical: true},
+		{name: "compatible channel keeps its reference format", baseURL: "https://images.example.test", studio: true},
+		{name: "public API preserves its supplied body", baseURL: "https://api.openai.com"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", nil)
+			c.Request.Header.Set("Content-Type", gin.MIMEJSON)
+			if tc.studio {
+				common.SetContextKey(c, constant.ContextKeyImageStudioOriginalRequestBody, `{"request":{"model":"gpt-image-1"}}`)
+			}
+			images, err := common.Marshal([]string{"https://assets.example.test/first.png", "https://assets.example.test/second.png"})
+			require.NoError(t, err)
+			request := dto.ImageRequest{Model: "gpt-image-1", Prompt: "combine", Image: images, Images: images}
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeOpenAI, ChannelBaseUrl: tc.baseURL}, RelayMode: relayconstant.RelayModeImagesEdits}
+			converted, err := (&Adaptor{}).ConvertImageRequest(c, info, request)
+			require.NoError(t, err)
+			body, err := common.Marshal(converted)
+			require.NoError(t, err)
+			if tc.canonical {
+				assert.JSONEq(t, `{"model":"gpt-image-1","prompt":"combine","images":[{"image_url":"https://assets.example.test/first.png"},{"image_url":"https://assets.example.test/second.png"}]}`, string(body))
+			} else {
+				original, err := common.Marshal(request)
+				require.NoError(t, err)
+				assert.JSONEq(t, string(original), string(body))
+			}
+		})
+	}
+}
 
 // TestConvertImageEditRequestMultipart verifies that ConvertImageRequest
 // re-serializes multipart image edit requests with all fields (including
