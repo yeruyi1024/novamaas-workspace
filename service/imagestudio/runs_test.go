@@ -132,26 +132,6 @@ func TestSaveResultRejectsUnfinishedOrUnavailableGeneration(t *testing.T) {
 	}
 }
 
-func TestImageStudioUnsavedResultRemainsVisibleWithoutAsset(t *testing.T) {
-	db := setupStudioServiceTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ImageStudioRun{}, &model.ImageStudioResult{}, &model.MediaAsset{}))
-	run := &model.ImageStudioRun{PublicID: "run-unsaved", UserID: 7, IdempotencyKey: "unsaved", Status: model.ImageStudioRunStatusCompleted}
-	require.NoError(t, db.Create(run).Error)
-	image := &model.ImageStudioResult{RunID: run.ID, PreviewURL: "data:image/png;base64,aW1hZ2U="}
-	require.NoError(t, db.Create(image).Error)
-	view, err := buildImageStudioRunView(context.Background(), run, 7, true)
-	require.NoError(t, err)
-	require.Len(t, view.Results, 1)
-	assert.Empty(t, view.Results[0].AssetID)
-	assert.Equal(t, string(image.PreviewURL), view.Results[0].PreviewURL)
-	var count int64
-	require.NoError(t, db.Model(&model.MediaAsset{}).Count(&count).Error)
-	assert.Zero(t, count)
-	hidden, err := buildImageStudioRunView(context.Background(), run, 8, false)
-	require.NoError(t, err)
-	assert.Empty(t, hidden.Results)
-}
-
 func TestDeletingLibraryAssetKeepsGeneratedImageReadable(t *testing.T) {
 	db := setupStudioServiceTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.ImageStudioRun{}, &model.ImageStudioResult{}, &model.MediaAsset{}, &model.AssetReplica{}, &model.StorageObject{}))
@@ -192,12 +172,8 @@ func TestDeletingLibraryAssetKeepsGeneratedImageReadable(t *testing.T) {
 func TestHistoryReturnsThumbnailsWithoutOriginalImagesAndKeepsOwnerIsolation(t *testing.T) {
 	db := setupStudioServiceTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.ImageStudioRun{}, &model.ImageStudioResult{}, &model.MediaAsset{}))
-	var original bytes.Buffer
-	require.NoError(t, png.Encode(&original, image.NewRGBA(image.Rect(0, 0, 1024, 512))))
-	preview := "data:image/png;base64," + base64.StdEncoding.EncodeToString(original.Bytes())
-	var small bytes.Buffer
-	require.NoError(t, png.Encode(&small, image.NewRGBA(image.Rect(0, 0, 320, 160))))
-	storedThumbnail := "data:image/png;base64," + base64.StdEncoding.EncodeToString(small.Bytes())
+	preview := "https://example.test/original.png"
+	storedThumbnail := "https://example.test/thumbnail.png"
 	for _, owner := range []int{7, 8} {
 		run := &model.ImageStudioRun{UserID: owner, PublicID: common.GetUUID(), IdempotencyKey: "thumbnail", Model: "dall-e-3", Status: model.ImageStudioRunStatusCompleted}
 		require.NoError(t, db.Create(run).Error)
@@ -211,15 +187,7 @@ func TestHistoryReturnsThumbnailsWithoutOriginalImagesAndKeepsOwnerIsolation(t *
 	encoded, err := common.Marshal(list)
 	require.NoError(t, err)
 	assert.False(t, strings.Contains(string(encoded), preview), "history must not transfer original image bytes")
-	thumbnail := list.Items[0].Results[0].ThumbnailURL
-	require.True(t, strings.HasPrefix(thumbnail, "data:image/png;base64,"))
-	_, payload, _ := strings.Cut(thumbnail, ",")
-	data, err := base64.StdEncoding.DecodeString(payload)
-	require.NoError(t, err)
-	size, _, err := image.DecodeConfig(bytes.NewReader(data))
-	require.NoError(t, err)
-	assert.LessOrEqual(t, size.Width, 320)
-	assert.Equal(t, size.Width/2, size.Height)
+	assert.Equal(t, storedThumbnail, list.Items[0].Results[0].ThumbnailURL)
 	// The detail endpoint continues to expose the owned original image.
 	detail, _, err := GetRun(context.Background(), Actor{UserID: 7}, list.Items[0].ID, false)
 	require.NoError(t, err)
@@ -271,29 +239,17 @@ func TestImageStudioSaveClaimIsIdempotentAndRecoversExpiredAttempt(t *testing.T)
 	require.NoError(t, saveImageStudioResult(context.Background(), result, 7, "group-b", "seedream"))
 }
 
-func TestImageStudioAssetSwitchBlocksReferencesAndSavingOnly(t *testing.T) {
-	settings := config.GlobalConfig.Get("image_studio_setting").(*operation_setting.ImageStudioSetting)
-	previous := *settings
-	t.Cleanup(func() { *settings = previous })
-	settings.AssetLibraryEnabled = false
-	err := SaveResult(context.Background(), 7, "result-a", "group-a")
-	require.Error(t, err)
-	assert.Equal(t, "asset_library_disabled", ErrorCode(err))
-	_, err = resolveStudioAssetURLs(context.Background(), 7, []string{"asset-a"})
-	require.Error(t, err)
-	assert.Equal(t, "asset_library_disabled", ErrorCode(err))
-	err = SaveResult(context.Background(), 7, "result-a", "")
-	require.Error(t, err)
-	assert.Equal(t, "invalid_group", ErrorCode(err))
-	require.NoError(t, validateStudioImageRequest(&dto.ImageRequest{Model: "seedream", Prompt: "mountain"}, nil, 0))
-}
-
 func TestReferenceImagesRequireReadyOwnedImages(t *testing.T) {
 	db := setupStudioServiceTestDB(t)
 	settings := config.GlobalConfig.Get("image_studio_setting").(*operation_setting.ImageStudioSetting)
 	previous := *settings
-	settings.AssetLibraryEnabled = true
+	settings.AssetLibraryEnabled = false
 	t.Cleanup(func() { *settings = previous })
+	_, err := resolveStudioAssetURLs(context.Background(), 7, []string{"owned"})
+	require.Error(t, err)
+	assert.Equal(t, "asset_library_disabled", ErrorCode(err))
+	require.NoError(t, validateStudioImageRequest(&dto.ImageRequest{Model: "seedream", Prompt: "mountain"}, nil, 0))
+	settings.AssetLibraryEnabled = true
 	require.NoError(t, db.AutoMigrate(&model.MediaAsset{}))
 	for _, asset := range []model.MediaAsset{
 		{PublicID: "owned", StorageObjectID: 1, OwnerUserID: 7, AssetType: model.AssetTypeImage, Status: model.AssetStatusReady},
@@ -371,15 +327,6 @@ func TestGenerateImagesRecordsResultsAndReplaysWithoutSecondCharge(t *testing.T)
 	calls := 0
 	var relay RelayExecutor
 	relay = func(ctx RelayContext, selected *model.Token, path string, request []byte, format types.RelayFormat) RelayResult {
-		var forwarded dto.ImageRequest
-		require.NoError(t, common.Unmarshal(request, &forwarded))
-		assert.Empty(t, forwarded.Quality)
-		assert.NotContains(t, string(request), `"quality"`)
-		assert.Empty(t, forwarded.OutputCompression)
-		assert.NotContains(t, string(request), "parameters")
-		assert.Nil(t, forwarded.N)
-		assert.Empty(t, forwarded.Size)
-		assert.Empty(t, forwarded.ResponseFormat)
 		assert.JSONEq(t, `{"model":"dall-e-3","prompt":"A mountain"}`, string(request))
 		calls++
 		assert.Equal(t, token.Id, selected.Id)

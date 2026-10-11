@@ -46,7 +46,6 @@ import { cn } from '@/lib/utils'
 
 import { getStudioRun } from '../api'
 import {
-  assertStudioSuccess,
   downloadStudioImage,
   studioErrorMessage,
   studioStatusLabelKey,
@@ -71,7 +70,7 @@ export function StudioGallery(props: {
   const runId = run?.id || ''
   const original = useQuery({
     queryKey: ['image-studio', 'review-original', runId],
-    queryFn: async () => assertStudioSuccess(await getStudioRun(runId, 'all')),
+    queryFn: () => getStudioRun(runId, 'all'),
     enabled: Boolean(props.compact && preview && !preview.preview_url),
     gcTime: 0,
   })
@@ -281,9 +280,7 @@ export function StudioGallery(props: {
                     try {
                       let image = result
                       if (!result.preview_url) {
-                        const detail = assertStudioSuccess(
-                          await getStudioRun(run.id, 'all')
-                        )
+                        const detail = await getStudioRun(run.id, 'all')
                         const found = detail.results.find(
                           (value) => value.id === result.id
                         )

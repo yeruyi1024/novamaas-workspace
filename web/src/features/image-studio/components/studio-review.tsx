@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 
 import { listStudioRuns } from '../api'
-import { assertStudioSuccess } from '../studio-utils'
 import { StudioGallery } from './studio-gallery'
+import { StudioRunPagination } from './studio-history'
 
 export function StudioReview() {
   const { t } = useTranslation()
@@ -16,8 +16,7 @@ export function StudioReview() {
   const [userId, setUserId] = useState(0)
   const runs = useQuery({
     queryKey: ['image-studio', 'review', userId, page],
-    queryFn: async () =>
-      assertStudioSuccess(await listStudioRuns(page, 12, 'all', userId)),
+    queryFn: () => listStudioRuns(page, 12, 'all', userId),
     placeholderData: keepPreviousData,
   })
 
@@ -89,25 +88,12 @@ export function StudioReview() {
             />
           ))}
       </div>
-      <div className='flex items-center justify-end gap-3'>
-        <Button
-          variant='outline'
-          disabled={page === 1 || runs.isFetching}
-          onClick={() => setPage(page - 1)}
-        >
-          {t('Previous')}
-        </Button>
-        <span>{page}</span>
-        <Button
-          variant='outline'
-          disabled={
-            !runs.data || page * 12 >= runs.data.total || runs.isFetching
-          }
-          onClick={() => setPage(page + 1)}
-        >
-          {t('Next')}
-        </Button>
-      </div>
+      <StudioRunPagination
+        page={page}
+        runs={runs}
+        onPageChange={setPage}
+        showPage
+      />
     </section>
   )
 }

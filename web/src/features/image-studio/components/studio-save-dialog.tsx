@@ -50,8 +50,7 @@ export function StudioSaveDialog(props: {
     queryFn: async () => assertStudioSuccess(await listAssetGroups(false)),
   })
   const save = useMutation({
-    mutationFn: async () =>
-      assertStudioSuccess(await saveStudioResult(props.result.id, saveGroup)),
+    mutationFn: () => saveStudioResult(props.result.id, saveGroup),
     onSuccess: () => {
       toast.success(t('Saved to asset library'))
       props.onClose()

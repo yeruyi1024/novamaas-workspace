@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 
+import { assertStudioSuccess } from './studio-utils'
 import type {
   CreateStudioRunInput,
   StudioResponse,
@@ -26,27 +27,33 @@ import type {
   StudioSettings,
 } from './types'
 
-export async function getStudioSettings() {
-  return (
-    await api.get<StudioResponse<StudioSettings>>('/api/image-studio/settings')
-  ).data
+async function studioData<T>(
+  request: Promise<{ data: StudioResponse<T> }>
+): Promise<T> {
+  return assertStudioSuccess((await request).data)
 }
 
-export async function listStudioModels(tokenId: number, kind?: 'text') {
-  return (
-    await api.get<StudioResponse<string[]>>('/api/image-studio/models', {
+export function getStudioSettings() {
+  return studioData(
+    api.get<StudioResponse<StudioSettings>>('/api/image-studio/settings')
+  )
+}
+
+export function listStudioModels(tokenId: number, kind?: 'text') {
+  return studioData(
+    api.get<StudioResponse<string[]>>('/api/image-studio/models', {
       params: { token_id: tokenId, kind },
     })
-  ).data
+  )
 }
 
-export async function assistStudioPrompt(input: {
+export function assistStudioPrompt(input: {
   token_id: number
   model: string
   prompt: string
 }) {
-  return (
-    await api.post<StudioResponse<{ suggested_prompt: string }>>(
+  return studioData(
+    api.post<StudioResponse<{ suggested_prompt: string }>>(
       '/api/image-studio/prompt-assist',
       input,
       {
@@ -55,28 +62,28 @@ export async function assistStudioPrompt(input: {
         skipErrorHandler: true,
       }
     )
-  ).data
+  )
 }
 
-export async function createStudioRun(input: CreateStudioRunInput) {
-  return (
-    await api.post<StudioResponse<StudioRun>>('/api/image-studio/runs', input, {
+export function createStudioRun(input: CreateStudioRunInput) {
+  return studioData(
+    api.post<StudioResponse<StudioRun>>('/api/image-studio/runs', input, {
       timeout: 300_000,
       headers: { 'Idempotency-Key': input.idempotency_key },
       skipBusinessError: true,
       skipErrorHandler: true,
     })
-  ).data
+  )
 }
 
-export async function listStudioRuns(
+export function listStudioRuns(
   page = 1,
   pageSize = 12,
   scope?: 'all',
   userId = 0
 ) {
-  return (
-    await api.get<StudioResponse<StudioRunList>>('/api/image-studio/runs', {
+  return studioData(
+    api.get<StudioResponse<StudioRunList>>('/api/image-studio/runs', {
       params: {
         p: page,
         page_size: pageSize,
@@ -84,35 +91,33 @@ export async function listStudioRuns(
         user_id: userId || undefined,
       },
     })
-  ).data
+  )
 }
 
-export async function getStudioRun(id: string, scope?: 'all') {
-  return (
-    await api.get<StudioResponse<StudioRun>>(
+export function getStudioRun(id: string, scope?: 'all') {
+  return studioData(
+    api.get<StudioResponse<StudioRun>>(
       `/api/image-studio/runs/${encodeURIComponent(id)}`,
       { params: { scope } }
     )
-  ).data
+  )
 }
 
-export async function saveStudioResult(resultId: string, groupId: string) {
-  return (
-    await api.post<StudioResponse<undefined>>(
+export function saveStudioResult(resultId: string, groupId: string) {
+  return studioData(
+    api.post<StudioResponse<undefined>>(
       `/api/image-studio/results/${encodeURIComponent(resultId)}/save`,
-      {
-        group_id: groupId,
-      },
+      { group_id: groupId },
       { skipBusinessError: true, skipErrorHandler: true }
     )
-  ).data
+  )
 }
 
-export async function deleteStudioResult(resultId: string) {
-  return (
-    await api.delete<StudioResponse<undefined>>(
+export function deleteStudioResult(resultId: string) {
+  return studioData(
+    api.delete<StudioResponse<undefined>>(
       `/api/image-studio/results/${encodeURIComponent(resultId)}`,
       { skipBusinessError: true, skipErrorHandler: true }
     )
-  ).data
+  )
 }

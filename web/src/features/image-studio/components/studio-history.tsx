@@ -22,19 +22,11 @@ import { useMutation, type UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 
 import { deleteStudioResult } from '../api'
 import {
-  assertStudioSuccess,
   studioErrorMessage,
   studioStatusLabelKey,
   studioTaskName,
@@ -60,8 +52,7 @@ export function StudioHistory(props: {
   const ownerName = props.ownerName
   const [deleteTarget, setDeleteTarget] = useState<StudioResult>()
   const remove = useMutation({
-    mutationFn: async (id: string) =>
-      assertStudioSuccess(await deleteStudioResult(id)),
+    mutationFn: (id: string) => deleteStudioResult(id),
     onSuccess: async () => {
       await props.onRemoved()
       setDeleteTarget(undefined)
@@ -162,65 +153,66 @@ export function StudioHistory(props: {
             ))
           )}
         </div>
-        <div className='flex shrink-0 justify-end gap-2'>
-          <Button
-            variant='outline'
-            disabled={page === 1 || runs.isFetching}
-            onClick={() => props.onPageChange(page - 1)}
-          >
-            {t('Previous')}
-          </Button>
-          <Button
-            variant='outline'
-            disabled={
-              !runs.data || page * 12 >= runs.data.total || runs.isFetching
-            }
-            onClick={() => props.onPageChange(page + 1)}
-          >
-            {t('Next')}
-          </Button>
-        </div>
+        <StudioRunPagination
+          page={page}
+          runs={runs}
+          onPageChange={props.onPageChange}
+        />
       </section>
-      <Dialog
+      <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
           if (!open && !remove.isPending) setDeleteTarget(undefined)
         }}
+        title={t('Delete image')}
+        desc={t(
+          'Delete this generated image? Images already saved to the asset library are kept.'
+        )}
+        destructive
+        isLoading={remove.isPending}
+        confirmText={remove.isPending ? t('Deleting...') : t('Delete')}
+        handleConfirm={() => {
+          if (deleteTarget) remove.mutate(deleteTarget.id)
+        }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('Delete image')}</DialogTitle>
-            <DialogDescription>
-              {t(
-                'Delete this generated image? Images already saved to the asset library are kept.'
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          {remove.isError && (
-            <p role='alert' className='text-destructive text-sm'>
-              {studioErrorMessage(remove.error)}
-            </p>
-          )}
-          <DialogFooter>
-            <Button
-              variant='outline'
-              disabled={remove.isPending}
-              onClick={() => setDeleteTarget(undefined)}
-            >
-              {t('Cancel')}
-            </Button>
-            <Button
-              variant='destructive'
-              disabled={remove.isPending}
-              onClick={() => {
-                if (deleteTarget) remove.mutate(deleteTarget.id)
-              }}
-            >
-              {remove.isPending ? t('Deleting...') : t('Delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {remove.isError && (
+          <p role='alert' className='text-destructive text-sm'>
+            {studioErrorMessage(remove.error)}
+          </p>
+        )}
+      </ConfirmDialog>
     </>
+  )
+}
+
+export function StudioRunPagination(props: {
+  page: number
+  runs: UseQueryResult<StudioRunList>
+  onPageChange: (page: number) => void
+  showPage?: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className='flex shrink-0 items-center justify-end gap-2'>
+      <Button
+        variant='outline'
+        disabled={props.page === 1 || props.runs.isFetching}
+        onClick={() => props.onPageChange(props.page - 1)}
+      >
+        {t('Previous')}
+      </Button>
+      {props.showPage && <span>{props.page}</span>}
+      <Button
+        variant='outline'
+        disabled={
+          !props.runs.data ||
+          props.page * 12 >= props.runs.data.total ||
+          props.runs.isFetching
+        }
+        onClick={() => props.onPageChange(props.page + 1)}
+      >
+        {t('Next')}
+      </Button>
+    </div>
   )
 }

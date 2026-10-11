@@ -21,12 +21,11 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { Main } from '@/components/layout'
 import { ImageStudio } from '@/features/image-studio'
 import { getStudioSettings } from '@/features/image-studio/api'
-import { assertStudioSuccess } from '@/features/image-studio/studio-utils'
 import { isSidebarModuleEnabled } from '@/lib/nav-modules'
 
 export const Route = createFileRoute('/_authenticated/image-studio/')({
   beforeLoad: async () => {
-    const settings = assertStudioSuccess(await getStudioSettings())
+    const settings = await getStudioSettings()
     if (
       settings.visible === false ||
       !isSidebarModuleEnabled('chat', 'image_studio')

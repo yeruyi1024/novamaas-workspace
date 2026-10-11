@@ -39,18 +39,16 @@ let client: QueryClient
 beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   vi.mocked(listStudioRuns).mockResolvedValue({
-    success: true,
-    data: { items: [run], total: 13, users },
+    items: [run],
+    total: 13,
+    users,
   })
   vi.mocked(getStudioRun).mockResolvedValue({
-    success: true,
-    data: {
-      ...run,
-      results: run.results.map((result) => ({
-        ...result,
-        preview_url: 'https://example.test/image.png',
-      })),
-    },
+    ...run,
+    results: run.results.map((result) => ({
+      ...result,
+      preview_url: 'https://example.test/image.png',
+    })),
   })
 })
 afterEach(() => {
@@ -114,6 +112,8 @@ test('selecting a user resets pagination and returning to all users clears the f
   await waitFor(() =>
     expect(listStudioRuns).toHaveBeenCalledWith(2, 12, 'all', 0)
   )
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled()
   await user.selectOptions(filter, '7')
   await waitFor(() =>
     expect(listStudioRuns).toHaveBeenCalledWith(1, 12, 'all', 7)

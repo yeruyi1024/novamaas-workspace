@@ -30,7 +30,6 @@ import { StudioComposer } from './components/studio-composer'
 import { StudioGallery } from './components/studio-gallery'
 import { StudioHistory } from './components/studio-history'
 import { StudioSaveDialog } from './components/studio-save-dialog'
-import { assertStudioSuccess } from './studio-utils'
 import type {
   StudioResult,
   StudioRun,
@@ -42,7 +41,7 @@ export function ImageStudio() {
   const { t } = useTranslation()
   const settings = useQuery({
     queryKey: ['image-studio', 'settings'],
-    queryFn: async () => assertStudioSuccess(await getStudioSettings()),
+    queryFn: getStudioSettings,
   })
   const keys = useQuery({
     queryKey: ['api-keys', 'image-studio'],
@@ -100,11 +99,11 @@ function StudioWorkspace(props: { settings: StudioSettings; keys: ApiKey[] }) {
   const libraryEnabled = props.settings.asset_library_enabled === true
   const runs = useQuery({
     queryKey: ['image-studio', 'runs', page],
-    queryFn: async () => assertStudioSuccess(await listStudioRuns(page)),
+    queryFn: () => listStudioRuns(page),
   })
   const current = useQuery({
     queryKey: ['image-studio', 'run', runId],
-    queryFn: async () => assertStudioSuccess(await getStudioRun(runId)),
+    queryFn: () => getStudioRun(runId),
     enabled: Boolean(runId),
     staleTime: 30_000,
     gcTime: 0,

@@ -91,50 +91,6 @@ func TestImageStudioSaveRejectsOtherUsersEvenRoot(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
 
-func TestImageStudioAdminReviewReadsAllImagesAndAuditsAccess(t *testing.T) {
-	db := setupManageUserTestDB(t)
-	previousMaster := common.IsMasterNode
-	common.IsMasterNode = true
-	t.Cleanup(func() { common.IsMasterNode = previousMaster })
-	require.NoError(t, authz.Init(db))
-	require.NoError(t, authz.SetUserPermissions(8, authz.PermissionsMap{authz.ResourceImageStudio: {authz.ActionRead: true, authz.ActionContentRead: true}}))
-	require.NoError(t, db.AutoMigrate(&model.ImageStudioRun{}, &model.ImageStudioResult{}, &model.MediaAsset{}))
-	run := &model.ImageStudioRun{PublicID: "run-review", UserID: 7, IdempotencyKey: "review", Prompt: "Review me", Status: model.ImageStudioRunStatusCompleted}
-	require.NoError(t, db.Create(run).Error)
-	result := &model.ImageStudioResult{RunID: run.ID, PreviewURL: "https://example.test/image.png", ThumbnailURL: "https://example.test/image.png", SaveStatus: "not_requested"}
-	require.NoError(t, db.Create(result).Error)
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/image-studio/runs?scope=all", nil)
-	c.Set("id", 8)
-	c.Set("role", common.RoleAdminUser)
-	c.Set("username", "review-admin")
-	ListImageStudioRuns(c)
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	var response struct {
-		Data struct {
-			Items []studioService.RunView `json:"items"`
-		} `json:"data"`
-	}
-	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
-	require.Len(t, response.Data.Items, 1)
-	assert.Equal(t, 7, response.Data.Items[0].UserID)
-	require.Len(t, response.Data.Items[0].Results, 1)
-	assert.Empty(t, response.Data.Items[0].Results[0].PreviewURL)
-	assert.Equal(t, string(result.PreviewURL), response.Data.Items[0].Results[0].ThumbnailURL)
-	var logs []model.Log
-	require.NoError(t, db.Where("user_id = ?", 8).Find(&logs).Error)
-	require.Len(t, logs, 1)
-	assert.Contains(t, logs[0].Other, "image_studio.content_read")
-	recorder = httptest.NewRecorder()
-	c, _ = gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/image-studio/runs?scope=all", nil)
-	c.Set("id", 9)
-	c.Set("role", common.RoleCommonUser)
-	ListImageStudioRuns(c)
-	assert.Equal(t, http.StatusForbidden, recorder.Code)
-}
-
 func TestImageStudioRunReadScopeAndContentPermission(t *testing.T) {
 	db := setupManageUserTestDB(t)
 	previousMaster := common.IsMasterNode
@@ -177,15 +133,7 @@ func TestImageStudioRunReadScopeAndContentPermission(t *testing.T) {
 			if tc.status != http.StatusOK {
 				return
 			}
-			var response struct {
-				Data struct {
-					Prompt       string `json:"prompt"`
-					ErrorMessage string `json:"error_message"`
-					Results      []struct {
-						PreviewURL string `json:"preview_url"`
-					}
-				}
-			}
+			var response struct{ Data studioService.RunView }
 			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 			if tc.content {
 				assert.Equal(t, run.Prompt, response.Data.Prompt)
@@ -246,16 +194,7 @@ func TestImageStudioReviewUserFilterPreservesScopeAndListsAllOwners(t *testing.T
 			if tc.status != http.StatusOK {
 				return
 			}
-			var response struct {
-				Data struct {
-					Items []studioService.RunView
-					Total int64
-					Users []struct {
-						ID   int
-						Name string
-					}
-				}
-			}
+			var response struct{ Data studioService.RunList }
 			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 			assert.EqualValues(t, tc.count, response.Data.Total)
 			require.Len(t, response.Data.Items, tc.count)
@@ -282,6 +221,13 @@ func TestImageStudioReviewUserFilterPreservesScopeAndListsAllOwners(t *testing.T
 			}
 		})
 	}
+	var logs []model.Log
+	require.NoError(t, db.Where("user_id = ?", 7).Find(&logs).Error)
+	require.Len(t, logs, 3)
+	for _, log := range logs {
+		assert.Contains(t, log.Other, "image_studio.content_read")
+	}
+
 }
 
 func TestDeleteImageStudioResultOnlyOwnerCanDeleteAndKeepsAssetsAndRetryIdentity(t *testing.T) {

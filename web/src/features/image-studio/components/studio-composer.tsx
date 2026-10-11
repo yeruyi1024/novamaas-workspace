@@ -88,7 +88,7 @@ function useStudioCreation(props: StudioComposerProps) {
   const references = libraryEnabled ? form.watch('references') : []
   const models = useQuery({
     queryKey: ['image-studio', 'models', tokenId],
-    queryFn: async () => assertStudioSuccess(await listStudioModels(tokenId)),
+    queryFn: () => listStudioModels(tokenId),
     enabled: Boolean(tokenId),
   })
   const selectedModel = form.watch('model')
@@ -134,10 +134,7 @@ function useStudioCreation(props: StudioComposerProps) {
   }, [form, maxImages, model])
   const textModels = useQuery({
     queryKey: ['image-studio', 'text-models', textSelection.tokenId],
-    queryFn: async () =>
-      assertStudioSuccess(
-        await listStudioModels(textSelection.tokenId, 'text')
-      ),
+    queryFn: () => listStudioModels(textSelection.tokenId, 'text'),
     enabled: Boolean(textSelection.tokenId),
   })
   const textModel = textModels.data?.includes(textSelection.model)
@@ -149,14 +146,12 @@ function useStudioCreation(props: StudioComposerProps) {
     form.setValue('prompt', value, { shouldDirty: true, shouldValidate: true })
   }
   const optimize = useMutation({
-    mutationFn: async (originalPrompt: string) =>
-      assertStudioSuccess(
-        await assistStudioPrompt({
-          token_id: textSelection.tokenId,
-          model: textModel,
-          prompt: originalPrompt,
-        })
-      ),
+    mutationFn: (originalPrompt: string) =>
+      assistStudioPrompt({
+        token_id: textSelection.tokenId,
+        model: textModel,
+        prompt: originalPrompt,
+      }),
     onSuccess: (result) => changePrompt(result.suggested_prompt),
   })
   const assets = useQuery({
@@ -172,9 +167,7 @@ function useStudioCreation(props: StudioComposerProps) {
       input: Omit<CreateStudioRunInput, 'idempotency_key'>
     ) => {
       requestKey.current ||= nanoid()
-      return assertStudioSuccess(
-        await createStudioRun({ ...input, idempotency_key: requestKey.current })
-      )
+      return createStudioRun({ ...input, idempotency_key: requestKey.current })
     },
     onSuccess: (run) => {
       requestKey.current = ''
