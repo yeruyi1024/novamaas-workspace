@@ -12,6 +12,7 @@ import (
 	"time"
 
 	common2 "github.com/QuantumNous/new-api/common"
+	rootconstant "github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/constant"
@@ -311,6 +312,8 @@ func applyHeaderOverrideToRequest(req *http.Request, headerOverride map[string]s
 }
 
 func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody io.Reader) (*http.Response, error) {
+	c.Set(common2.UpstreamRequestIdKey, "")
+	common2.SetContextKey(c, rootconstant.ContextKeyUpstreamTransportError, nil)
 	fullRequestURL, err := a.GetRequestURL(info)
 	if err != nil {
 		return nil, fmt.Errorf("get request url failed: %w", err)
@@ -341,6 +344,8 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 }
 
 func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody io.Reader) (*http.Response, error) {
+	c.Set(common2.UpstreamRequestIdKey, "")
+	common2.SetContextKey(c, rootconstant.ContextKeyUpstreamTransportError, nil)
 	fullRequestURL, err := a.GetRequestURL(info)
 	if err != nil {
 		return nil, fmt.Errorf("get request url failed: %w", err)
@@ -488,6 +493,9 @@ func keepUpstreamRedirectResponse(_ *http.Request, _ []*http.Request) error {
 }
 
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	// A retry owns its own upstream trace even if no response is received.
+	c.Set(common2.UpstreamRequestIdKey, "")
+	common2.SetContextKey(c, rootconstant.ContextKeyUpstreamTransportError, nil)
 	client, err := service.GetHttpClientWithProxySettings(info.ChannelSetting.Proxy, info.ChannelSetting)
 	if err != nil {
 		return nil, fmt.Errorf("new proxy http client failed: %w", err)
@@ -531,6 +539,7 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 
 	resp, err := relayClient.Do(req)
 	if err != nil {
+		common2.SetContextKey(c, rootconstant.ContextKeyUpstreamTransportError, classifyUpstreamTransportError(err))
 		logger.LogError(c, "do request failed: "+err.Error())
 		return nil, types.NewError(err, types.ErrorCodeDoRequestFailed, types.ErrOptionWithHideErrMsg("upstream error: do request failed"))
 	}
@@ -559,6 +568,8 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 }
 
 func DoTaskApiRequest(a TaskAdaptor, c *gin.Context, info *common.RelayInfo, requestBody io.Reader) (*http.Response, error) {
+	c.Set(common2.UpstreamRequestIdKey, "")
+	common2.SetContextKey(c, rootconstant.ContextKeyUpstreamTransportError, nil)
 	fullRequestURL, err := a.BuildRequestURL(info)
 	if err != nil {
 		return nil, err

@@ -220,6 +220,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.LastError = nil
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+		c.Set(common.UpstreamRequestIdKey, "")
+		common.SetContextKey(c, constant.ContextKeyUpstreamTransportError, nil)
 		relayInfo.RetryIndex = retryParam.GetRetry()
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
@@ -433,6 +435,9 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 			other["request_metrics"] = requestMetrics
 		}
 		adminInfo := make(map[string]interface{})
+		if diagnosis, ok := common.GetContextKeyType[hosttypes.UpstreamTransportError](c, constant.ContextKeyUpstreamTransportError); ok {
+			adminInfo["upstream_transport_error"] = diagnosis
+		}
 		adminInfo["use_channel"] = c.GetStringSlice("use_channel")
 		isMultiKey := common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey)
 		if isMultiKey {
@@ -568,6 +573,8 @@ func RelayTask(c *gin.Context) {
 	}
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+		c.Set(common.UpstreamRequestIdKey, "")
+		common.SetContextKey(c, constant.ContextKeyUpstreamTransportError, nil)
 		var channel *model.Channel
 
 		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
