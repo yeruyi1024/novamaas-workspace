@@ -590,7 +590,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: glm chanel /v1/responses (#7050)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/zhipu_4v/adaptor.go`
 - Overlap with downstream changes: (none detected)
@@ -611,7 +611,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(ollama): passthrough Claude Messages and OpenAI Responses (#7051)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/ollama/adaptor.go`
 - Overlap with downstream changes: (none detected)
@@ -622,7 +622,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该提交把 Claude→OpenAI→Ollama 的原有转换改成 Claude 原生端点，并新增 Responses/compact 透传；本地仍使用原生 /api/chat。尚无目标 Ollama 版本和端点支持矩阵，不能直接改变已部署渠道的 Claude 行为。
 - AI risks: 较旧 Ollama 实例未提供这些端点时会从可用转成404；需与后续每渠道OpenAI开关分组评估。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/ollama/adaptor.go:45](https://github.com/QuantumNous/new-api/blob/ba2e9287bb7a8002116c03daa4c457a330054871/relay/channel/ollama/adaptor.go#L45) — 按客户端协议选择 Claude 原生处理。
 - AI evidence: [downstream:relay/channel/ollama/adaptor.go:35](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/ollama/adaptor.go#L35) — 本地 Claude 请求仍通过 Ollama 原生 Chat 转换。
 
@@ -632,7 +632,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: update PR template and remove PR Check workflow (#7053)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.agents/github/ISSUE.md`, `.agents/github/PR.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/bug_report_en.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/ISSUE_TEMPLATE/feature_request_en.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/PULL_REQUEST_TEMPLATE/en.md`, `.github/workflows/pr-check.yml`, `AGENTS.md`
 - Overlap with downstream changes: .github/PULL_REQUEST_TEMPLATE.md, .github/workflows/pr-check.yml, AGENTS.md
@@ -643,7 +643,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 上游新增专用代理模板并删除 PR Check 工作流；本地下游明确要求现有 PR 模板、人工确认和 AI 披露。属于受保护治理文件，不进入自动功能同步。
 - AI risks: 模板/工作流如需调整走专门维护PR，保留 new-api/QuantumNous 归属和下游审查规则。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.agents/github/PR.md:2](https://github.com/QuantumNous/new-api/blob/e468b73915e5028e9849de62c5018a0faa203012/.agents/github/PR.md#L2) — 固定源码：Agent-only PR body. Humans use `.github/PULL_REQUEST_TEMPLATE.md`.
 - AI evidence: [downstream:AGENTS.md:166](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/AGENTS.md#L166) — 下游对照：- Always use the repository PR template at `.github/PULL_REQUEST_TEMPLATE.md` when drafting the PR title/body. Preserve the template structure and fill in the relevant sections instead of replacing it with an ad hoc format.
 
@@ -653,7 +653,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): restore admin unbinding for built-in providers (#6987)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/users/components/dialogs/__tests__/user-binding-dialog.test.tsx`, `web/src/features/users/components/dialogs/user-binding-dialog.tsx`
 - Overlap with downstream changes: web/src/features/users/components/dialogs/user-binding-dialog.tsx
@@ -675,7 +675,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(billing): 修复时间规则恒真表达式导致倍率全天生效 (#6934)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/lib/__tests__/time-rule-expr.test.ts`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -696,7 +696,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(docker): add relaykit go.mod to dev build context (#7072)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `Dockerfile.dev`
 - Overlap with downstream changes: (none detected)
@@ -717,7 +717,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(task): replace built-in task adaptors with a sandboxed JS plugin system (#7076)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `CLAUDE.md`, `THIRD-PARTY-LICENSES.md`, `common/api_type.go`, `common/api_type_task_plugin_test.go`, `common/init.go`, `common/trusted_proxies.go`, `constant/channel.go`, `constant/channel_test.go`, `constant/context_key.go`, `constant/env.go`, `constant/task.go`, `constant/task_test.go`, `controller/billing_option_test.go`, `controller/channel-billing.go`, `controller/channel-test.go`, `controller/channel.go`, `controller/channel_pin_retry_test.go`, `controller/channel_task_plugin_bind_test.go`, `controller/channel_task_plugin_validation_test.go`, `controller/channel_upstream_update.go`, `controller/log.go`, `controller/model.go`, `controller/option.go`, `controller/plugin_endpoint_test.go`, `controller/plugin_native_e2e_test.go`, `controller/plugin_protocol.go`, `controller/plugin_protocol_limiter.go`, `controller/plugin_protocol_limiter_test.go`, `controller/plugin_protocol_sdk_test.go`, `controller/plugin_protocol_test.go`, `controller/relay.go`, `controller/relay_task_plugin_test.go`, `controller/task.go`, `controller/task_generic_test.go`, `controller/task_log_view_test.go`, `controller/task_plugin.go`, `controller/task_plugin_debug.go`, `controller/task_plugin_debug_test.go`, `controller/task_plugin_test.go`, `controller/video_proxy.go`, `controller/video_proxy_gemini.go`, `docs/plugin-api/README.md`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `dto/channel_constraints.go`, `dto/channel_constraints_test.go`, `dto/plugin_protocol.go`, `dto/task.go`, `dto/task_plugin.go`, `e2e/doc_parse_test.go`, `go.mod`, `go.sum`, `logger/logger.go`, `main.go`, `middleware/auth.go`, `middleware/body_cleanup.go`, `middleware/distributor.go`, `middleware/distributor_test.go`, `middleware/jimeng_adapter.go`, `middleware/kling_adapter.go`, `middleware/logger.go`, `middleware/task_artifact_access.go`, `middleware/task_artifact_access_test.go`, `middleware/task_plugin.go`, `middleware/task_plugin_origin_task_test.go`, `middleware/task_plugin_test.go`, `middleware/trusted_proxies.go`, `middleware/utils.go`, `model/ability.go`, `model/channel.go`, `model/channel_cache.go`, `model/channel_constraint.go`, `model/channel_constraint_test.go`, `model/log.go`, `model/log_format_test.go`, `model/main.go`, `model/option.go`, `model/option_task_plugin_test.go`, `model/pricing.go`, `model/pricing_usage_schema_test.go`, `model/task.go`, `model/task_cas_test.go`, `model/task_openai_video_test.go`, `model/task_plugin.go`, `model/task_plugin_channel_select_test.go`, `model/task_plugin_test.go`, `pkg/billingexpr/compile.go`, `pkg/billingexpr/compile_usage_test.go`, `pkg/billingexpr/expr.md`, `pkg/billingexpr/run.go`, `pkg/billingexpr/settle.go`, `pkg/billingexpr/task_usage_test.go`, `pkg/billingexpr/types.go`, `pkg/jsplugin/cli.go`, `pkg/jsplugin/cli_test.go`, `pkg/jsplugin/engine.go`, `pkg/jsplugin/engine_test.go`, `pkg/jsplugin/fixture.go`, `pkg/jsplugin/fixture_test.go`, `pkg/jsplugin/protocol_supports_test.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_disabled_factory_test.go`, `pkg/jsplugin/registry_master_enabled_test.go`, `pkg/jsplugin/registry_test.go`, `pkg/jsplugin/request.go`, `pkg/jsplugin/routing.go`, `pkg/jsplugin/routing_test.go`, `pkg/jsplugin/utils.go`, `plugins/.oxfmtrc.json`, `plugins/.oxlintrc.json`, `plugins/alibaba_responses_test.go`, `plugins/builtin_plugins_test.go`, `plugins/doubao_responses_test.go`, `plugins/embed.go`, `plugins/google_responses_test.go`, `plugins/hailuo_responses_test.go`, `plugins/jimeng_responses_test.go`, `plugins/kling_responses_test.go`, `plugins/sora_responses_test.go`, `plugins/sunoapi_responses_test.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`, `plugins/tasks/google/plugin.js`, `plugins/tasks/hailuo/plugin.js`, `plugins/tasks/jimeng/plugin.js`, `plugins/tasks/kling/plugin.js`, `plugins/tasks/sora/plugin.js`, `plugins/tasks/sunoapi/plugin.js`, `plugins/tasks/vertex-ai/plugin.js`, `plugins/tasks/vidu/plugin.js`, `plugins/vertex_ai_responses_test.go`, `plugins/video_responses_test_helpers_test.go`, `plugins/vidu_responses_test.go`, `relay/channel/adapter.go`, `relay/channel/api_request.go`, `relay/channel/api_request_test.go`, `relay/channel/minimax/relay-minimax.go`, `relay/channel/replicate/adaptor.go`, `relay/channel/task/ali/adaptor.go`, `relay/channel/task/ali/adaptor_test.go`, `relay/channel/task/ali/constants.go`, `relay/channel/task/doubao/adaptor.go`, `relay/channel/task/doubao/constants.go`, `relay/channel/task/gemini/adaptor.go`, `relay/channel/task/gemini/billing.go`, `relay/channel/task/gemini/dto.go`, `relay/channel/task/gemini/image.go`, `relay/channel/task/hailuo/adaptor.go`, `relay/channel/task/hailuo/constants.go`, `relay/channel/task/hailuo/models.go`, `relay/channel/task/jimeng/adaptor.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/channel/task/jsplugin/auth.go`, `relay/channel/task/jsplugin/auth_test.go`, `relay/channel/task/kling/adaptor.go`, `relay/channel/task/sora/adaptor.go`, `relay/channel/task/sora/adaptor_test.go`, `relay/channel/task/sora/constants.go`, `relay/channel/task/suno/adaptor.go`, `relay/channel/task/suno/models.go`, `relay/channel/task/vertex/adaptor.go`, `relay/channel/task/vidu/adaptor.go`, `relay/channel/volcengine/adaptor.go`, `relay/channel/zhipu_4v/adaptor.go`, `relay/common/relay_info.go`, `relay/common/relay_utils.go`, `relay/common/relay_utils_test.go`, `relay/constant/relay_mode.go`, `relay/plugin_protocol.go`, `relay/plugin_protocol_test.go`, `relay/relay_adaptor.go`, `relay/relay_adaptor_jsplugin_test.go`, `relay/relay_task.go`, `relay/relay_task_test.go`, `relay/task_platform_error_test.go`, `relay/task_platform_test.go`, `relaykit/dto/channel_settings.go`, `router/api-router.go`, `router/main.go`, `router/plugin-router.go`, `router/plugin_router_test.go`, `router/relay-router.go`, `router/retired_frontend_routes_test.go`, `router/task-plugin-protocol-router.go`, `router/task-router.go`, `router/task_plugin_options_router_test.go`, `router/task_plugin_protocol_router_test.go`, `router/task_router_test.go`, `router/video-router.go`, `router/video_router_test.go`, `router/web-router.go`, `service/authz/authz_test.go`, `service/authz/resources_task_plugin.go`, `service/channel_select.go`, `service/channel_select_test.go`, `service/codex_channel_models.go`, `service/task_artifact_access.go`, `service/task_artifact_access_test.go`, `service/task_artifact_store.go`, `service/task_artifact_store_test.go`, `service/task_billing.go`, `service/task_billing_test.go`, `service/task_plugin_audit.go`, `service/task_plugin_view.go`, `service/task_plugin_view_test.go`, `service/task_polling.go`, `service/task_polling_test.go`, `setting/billing_setting/tiered_billing.go`, `setting/billing_setting/tiered_billing_test.go`, `setting/system_setting/system_setting_old.go`, `setting/system_setting/task_artifact.go`, `setting/system_setting/task_artifact_store.go`, `setting/system_setting/task_artifact_store_test.go`, `setting/system_setting/task_artifact_test.go`, `setting/task_plugin.go`, `setting/task_plugin_test.go`, `setting/task_pricing_setting/config.go`, `setting/task_pricing_setting/config_test.go`, `types/task_artifact.go`, `web/.gitignore`, `web/bun.lock`, `web/package.json`, `web/rsbuild.config.ts`, `web/scripts/sync-i18n.mjs`, `web/src/components/ai-elements/code-block.tsx`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/__tests__/channel-type-options.test.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/pricing/__tests__/breakdown-tier-match.test.ts`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/__tests__/task-expr.test.ts`, `web/src/features/pricing/__tests__/task-matrix-display.test.ts`, `web/src/features/pricing/__tests__/task-matrix.test.ts`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-billing-mode-badge.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/components/pricing-columns.tsx`, `web/src/features/pricing/components/pricing-sidebar.tsx`, `web/src/features/pricing/constants.ts`, `web/src/features/pricing/hooks/use-pricing-data.ts`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/billing-mode.ts`, `web/src/features/pricing/lib/breakdown-tier-match.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/filters.ts`, `web/src/features/pricing/lib/task-expr.ts`, `web/src/features/pricing/lib/task-matrix-display.ts`, `web/src/features/pricing/types.ts`, `web/src/features/system-settings/__tests__/task-public-address.test.ts`, `web/src/features/system-settings/general/system-info-section.tsx`, `web/src/features/system-settings/general/task-public-address.ts`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/model-ratio-table-columns.tsx`, `web/src/features/system-settings/models/model-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/task-pricing-matrix.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/system-settings/site/index.tsx`, `web/src/features/system-settings/site/section-registry.tsx`, `web/src/features/system-settings/types.ts`, `web/src/features/task-plugins/__tests__/enabled-option.test.ts`, `web/src/features/task-plugins/__tests__/marketplace-panel.test.tsx`, `web/src/features/task-plugins/__tests__/marketplace.test.ts`, `web/src/features/task-plugins/__tests__/plugin-card.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-detail-sheet.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-icon.test.ts`, `web/src/features/task-plugins/__tests__/plugin-url.test.ts`, `web/src/features/task-plugins/__tests__/upload-dialog.test.tsx`, `web/src/features/task-plugins/__tests__/usage-schema-table.test.tsx`, `web/src/features/task-plugins/api.ts`, `web/src/features/task-plugins/components/javascript-viewer.tsx`, `web/src/features/task-plugins/components/marketplace-capabilities.tsx`, `web/src/features/task-plugins/components/marketplace-install-dialog.tsx`, `web/src/features/task-plugins/components/marketplace-panel.tsx`, `web/src/features/task-plugins/components/marketplace-plugin-card.tsx`, `web/src/features/task-plugins/components/marketplace-sources-dialog.tsx`, `web/src/features/task-plugins/components/plugin-card.tsx`, `web/src/features/task-plugins/components/plugin-detail-sheet.tsx`, `web/src/features/task-plugins/components/plugin-icon.tsx`, `web/src/features/task-plugins/components/plugin-metadata-card.tsx`, `web/src/features/task-plugins/components/plugin-sandbox.tsx`, `web/src/features/task-plugins/components/plugin-source-picker.tsx`, `web/src/features/task-plugins/components/plugin-url-import-field.tsx`, `web/src/features/task-plugins/components/plugins-table.tsx`, `web/src/features/task-plugins/components/source-diff.tsx`, `web/src/features/task-plugins/components/upload-dialog.tsx`, `web/src/features/task-plugins/components/usage-schema-table.tsx`, `web/src/features/task-plugins/index.tsx`, `web/src/features/task-plugins/lib/host-protocols.ts`, `web/src/features/task-plugins/lib/marketplace.ts`, `web/src/features/task-plugins/lib/plugin-icon.ts`, `web/src/features/task-plugins/lib/plugin-url.ts`, `web/src/features/task-plugins/types.ts`, `web/src/features/usage-logs/__tests__/access.test.ts`, `web/src/features/usage-logs/__tests__/artifacts.test.ts`, `web/src/features/usage-logs/__tests__/mobile-layout.test.ts`, `web/src/features/usage-logs/__tests__/task-details.test.ts`, `web/src/features/usage-logs/api.ts`, `web/src/features/usage-logs/components/__tests__/usage-facts.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/columns/task-logs-columns.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/components/dialogs/task-details-dialog.tsx`, `web/src/features/usage-logs/components/plugin-author-link.tsx`, `web/src/features/usage-logs/components/task-artifacts.tsx`, `web/src/features/usage-logs/components/timing-metrics-cell.tsx`, `web/src/features/usage-logs/components/usage-logs-mobile-card.tsx`, `web/src/features/usage-logs/components/usage-logs-provider.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/features/usage-logs/constants.ts`, `web/src/features/usage-logs/lib/columns.ts`, `web/src/features/usage-logs/lib/query-params.ts`, `web/src/features/usage-logs/lib/task-artifacts.ts`, `web/src/features/usage-logs/lib/task-details.ts`, `web/src/features/usage-logs/lib/task-mobile-layout.ts`, `web/src/features/usage-logs/lib/utils.ts`, `web/src/features/usage-logs/types.ts`, `web/src/hooks/use-sidebar-data.ts`, `web/src/i18n/locales/_reports/_sync-report.json`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/__tests__/localized-text.test.ts`, `web/src/lib/admin-permissions.ts`, `web/src/lib/localized-text.ts`, `web/src/routeTree.gen.ts`, `web/src/routes/_authenticated/task-plugins/index.tsx`
 - Overlap with downstream changes: THIRD-PARTY-LICENSES.md, common/api_type.go, constant/channel.go, constant/context_key.go, constant/task.go, controller/channel-test.go, controller/channel.go, controller/log.go, controller/model.go, controller/option.go, controller/relay.go, controller/task.go, controller/video_proxy.go, dto/task.go, go.mod, go.sum, logger/logger.go, main.go, middleware/distributor.go, model/ability.go, model/channel.go, model/channel_cache.go, model/log.go, model/log_format_test.go, model/main.go, model/option.go, model/task.go, model/task_cas_test.go, relay/channel/task/ali/adaptor.go, relay/channel/task/ali/adaptor_test.go, relay/channel/task/doubao/adaptor.go, relay/channel/task/doubao/constants.go, relay/common/relay_info.go, relay/constant/relay_mode.go, relay/relay_adaptor.go, relay/relay_task.go, relaykit/dto/channel_settings.go, router/api-router.go, router/relay-router.go, router/video-router.go, router/web-router.go, service/authz/authz_test.go, service/task_billing.go, service/task_billing_test.go, service/task_polling.go, service/task_polling_test.go, web/rsbuild.config.ts, web/scripts/sync-i18n.mjs, web/src/features/channels/api.ts, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/constants.ts, web/src/features/channels/lib/channel-form.ts, web/src/features/system-settings/general/system-info-section.tsx, web/src/features/system-settings/site/index.tsx, web/src/features/system-settings/site/section-registry.tsx, web/src/features/system-settings/types.ts, web/src/features/usage-logs/api.ts, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/columns/task-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/components/usage-logs-mobile-card.tsx, web/src/features/usage-logs/components/usage-logs-table.tsx, web/src/features/usage-logs/constants.ts, web/src/features/usage-logs/lib/query-params.ts, web/src/features/usage-logs/lib/utils.ts, web/src/features/usage-logs/types.ts, web/src/hooks/use-sidebar-data.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/lib/admin-permissions.ts, web/src/routeTree.gen.ts
@@ -728,7 +728,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该提交以沙箱 JS 驱动替换现有 Go 任务适配器，并一起引入插件管理、任务协议、产物存储及用量表达式。下游 Ali、Doubao、Volc 的素材映射、暂存、异步请求归档、冻结账务和通知尚无完整迁移设计，须作为独立架构项目评估后实施。
 - AI risks: 删除现有适配器会丢失下游业务；需历史任务双读与凭据兼容、三数据库迁移、沙箱资源及网络边界验证。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/engine.go:18](https://github.com/QuantumNous/new-api/blob/eb48396d5fe97d27772d0cd5e3ca8aa5caa4f3e9/pkg/jsplugin/engine.go#L18) — 新增 JS 沙箱运行时及有界调用；代码：DefaultCallTimeout = 5 * time.Second
 - AI evidence: [downstream:relay/channel/task/doubao/adaptor.go:265](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/doubao/adaptor.go#L265) — 下游在实际提交前按用户和渠道翻译资产 ID，后续还归档上游请求；代码：data, _, err = assetLibraryService.ResolveRequestAssetIDs(data, info.UserId, info.GetChannelID())
 
@@ -738,7 +738,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): 请求参数校验错误返回 HTTP 400 (#6774)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/relay.go`
 - Overlap with downstream changes: controller/relay.go
@@ -759,7 +759,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): recheck setup status after page reload (#6968)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/routes/__root.tsx`
 - Overlap with downstream changes: (none detected)
@@ -780,7 +780,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): encrypt password login transport
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/password_crypto.go`, `controller/user.go`, `main.go`, `model/main.go`, `model/password_crypto.go`, `router/api-router.go`, `web/bun.lock`, `web/package.json`, `web/src/features/auth/api.ts`, `web/src/features/auth/lib/password-encryption.ts`
 - Overlap with downstream changes: controller/user.go, main.go, model/main.go, router/api-router.go
@@ -791,7 +791,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 RSA-OAEP 密钥表和浏览器加密协议，涉及登录 DTO、主进程初始化和前端依赖。本地下游还支持手机号密码及多种身份入口；建议作为单独认证升级，结合后续可选开关与长密码协议一起设计。
 - AI risks: 应用层加密不能替代 HTTPS；要核对多副本密钥一致性、滚动升级、失效重试及手机号登录。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/password_crypto.go:98](https://github.com/QuantumNous/new-api/blob/b80d633cf586b001cfbb4200bae93e65abe57c2b/common/password_crypto.go#L98) — 固定源码：func DecryptPassword(ciphertextBase64 string, keyID string) (string, error) {
 - AI evidence: [downstream:controller/user.go:30](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/user.go#L30) — 下游对照：type LoginRequest struct {
 
@@ -801,7 +801,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(chat): add AQBot preset (#7079)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `setting/chat.go`, `web/src/features/chat/lib/chat-links.ts`
 - Overlap with downstream changes: (none detected)
@@ -812,7 +812,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 aqbot://providers 深链，并把 API key 放入配置参数。本地有自有聊天客户端入口，先确认产品是否支持该客户端及用户授权展示，再决定引入。
 - AI risks: 自定义协议会把密钥交给外部应用；需要用户明确操作、正确 URL 编码和禁空值回归。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/chat/lib/chat-links.ts:193](https://github.com/QuantumNous/new-api/blob/8454082f930f44593e92791c2581ffc63eb30a59/web/src/features/chat/lib/chat-links.ts#L193) — 固定源码：if (url.includes('{aqbotConfig}')) {
 - AI evidence: [downstream:web/src/features/chat/lib/chat-links.ts:152](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/chat/lib/chat-links.ts#L152) — 下游对照：export function resolveChatUrl({
 
@@ -822,7 +822,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): make password encryption opt-in #6743
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.env.example`, `common/constants.go`, `common/init.go`, `controller/misc.go`, `controller/user.go`, `main.go`, `web/src/features/auth/api.ts`, `web/src/features/auth/sign-in/components/user-auth-form.tsx`, `web/src/features/auth/types.ts`
 - Overlap with downstream changes: .env.example, common/constants.go, controller/misc.go, controller/user.go, main.go, web/src/features/auth/sign-in/components/user-auth-form.tsx, web/src/features/auth/types.ts
@@ -833,7 +833,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 这是前项加密功能的默认关闭和状态下发补丁；本地尚无该协议，单独引入开关不能解决登录行为。随加密升级一并评审。
 - AI risks: 开启后缺少密文必须失败；不能让旧客户端在多节点切换中不可登录。
 - AI dependencies: commit-b80d633cf586
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/constants.go:63](https://github.com/QuantumNous/new-api/blob/918427d8ab41f6adaa4113d0496f1f8621855b70/common/constants.go#L63) — 固定源码：var PasswordLoginEncryptionEnabled = false
 - AI evidence: [downstream:controller/user.go:30](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/user.go#L30) — 下游对照：type LoginRequest struct {
 
@@ -843,7 +843,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(task): resolve channel-mapped aliases and case variants for plugin models
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/billing_option_test.go`, `controller/option.go`, `controller/plugin_protocol_test.go`, `docs/plugin-api/v1.md`, `middleware/task_plugin.go`, `middleware/task_plugin_model.go`, `middleware/task_plugin_test.go`, `model/channel_cache.go`, `model/pricing.go`, `model/pricing_usage_schema_test.go`, `model/task_model_alias.go`, `pkg/jsplugin/model_fold.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/routing.go`, `plugins/tasks/doubao/plugin.js`, `plugins/tasks/hailuo/plugin.js`, `plugins/tasks/jimeng/plugin.js`, `plugins/tasks/kling/plugin.js`, `plugins/tasks/sunoapi/plugin.js`, `plugins/tasks/vidu/plugin.js`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/relay_task.go`, `relay/relay_task_test.go`
 - Overlap with downstream changes: controller/option.go, model/channel_cache.go, relay/relay_task.go
@@ -854,7 +854,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增跨渠道聚合的插件模型别名与大小写折叠，并改写顶层 model 后再匹配插件。此处不是现有 Go 任务别名的小补丁；应随插件架构评估，保留公开名用于权限、价格和日志，真实名只发上游。
 - AI risks: 同名别名指向不同插件时可能歧义；不得覆盖下游公开模型与实际计费身份。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/task_model_alias.go:38](https://github.com/QuantumNous/new-api/blob/6c22550ea325d4fea0e0ece52412cb1e4449291c/model/task_model_alias.go#L38) — 新增依赖 RoutingGeneration 的别名解析器；代码：func ResolveTaskModelAlias(g *jsplugin.RoutingGeneration, name string) (TaskAliasTarget, bool) {
 - AI evidence: [downstream:relay/channel/task/ali/adaptor.go:147](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/ali/adaptor.go#L147) — 现有 Ali 根据渠道映射的实际模型选择 Wan3 路径；代码：mappedInfo.UpstreamModelName = req.Model
 
@@ -864,7 +864,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): disable PostgreSQL prepared statements for pooler compatibility
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `go.mod`, `go.sum`, `model/gorm_logger.go`, `model/gorm_logger_test.go`, `model/main.go`
 - Overlap with downstream changes: go.mod, go.sum, model/gorm_logger.go, model/main.go
@@ -886,7 +886,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(ali): honor image response format (#5513) (#7048)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/ali/adaptor_test.go`, `relay/channel/ali/image.go`
 - Overlap with downstream changes: (none detected)
@@ -907,7 +907,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): factory task plugins update only with the system
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/marketplace.test.ts`, `web/src/features/task-plugins/components/marketplace-plugin-card.tsx`, `web/src/features/task-plugins/components/plugins-table.tsx`, `web/src/features/task-plugins/lib/marketplace.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -918,7 +918,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 市场区分内置版本与自定义覆盖版本，内置插件只随系统更新。当前仓库没有插件市场或覆盖层，独立导入界面无可操作对象；待插件版本及回滚策略确定后纳入。
 - AI risks: 需要与禁用、覆盖回退和系统发版生命周期一致。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/components/plugins-table.tsx:46](https://github.com/QuantumNous/new-api/blob/dc4732cfed712b004d3d3d94a414d3ff127a93cc/web/src/features/task-plugins/components/plugins-table.tsx#L46) — 界面识别陈旧的内置覆盖版本；代码：import { isStaleFactoryOverride } from '../lib/marketplace'
 
 #### commit-b5b94bc685fd
@@ -927,7 +927,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(subscription): 无有效订阅时前端如实显示「仅用订阅」偏好 (#6222) (#7086)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/wallet/components/subscription-plans-card.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -948,7 +948,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(sqlite): enable WAL + working busy timeout + _txlock=immediate to stop concurrent write lockouts (#7030)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/database.go`
 - Overlap with downstream changes: (none detected)
@@ -969,7 +969,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): return string from JSON column Valuers for pg simple protocol
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/channel.go`, `model/json_column_test.go`, `model/main.go`, `model/prefill_group.go`, `model/task.go`
 - Overlap with downstream changes: model/channel.go, model/main.go, model/task.go
@@ -990,7 +990,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): bound the wait for upstream response headers (fixes unbounded heap growth → OOM) (#6949)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.env.example`, `README.md`, `common/constants.go`, `common/init.go`, `service/http_client.go`
 - Overlap with downstream changes: .env.example, README.md, common/constants.go, service/http_client.go
@@ -1011,7 +1011,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix initialize database
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `go.mod`, `go.sum`
 - Overlap with downstream changes: go.mod, go.sum
@@ -1032,7 +1032,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): drop leftover prefill_groups unique constraints before AutoMigrate (#7100)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/main.go`, `model/prefill_group_migration.go`
 - Overlap with downstream changes: model/main.go
@@ -1043,7 +1043,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 该初稿被紧接着的2bf0820f4b撤销，随后2b6f1dfefb以更完整事务和索引核验重做。本轮不应用再撤销；评估最终2b6f与007d的合并行为，保留本地迁移链。
 - AI risks: 直接采用过时初稿会遗漏失败回滚、索引定义和旧命名覆盖。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/prefill_group_migration.go:22](https://github.com/QuantumNous/new-api/blob/69a41eeadc81adb08d04346512c76d62fd6203db/model/prefill_group_migration.go#L22) — 这是后续被撤销的初稿迁移函数；代码：func migratePrefillGroupUniqueIndex(db *gorm.DB) error {
 
 #### commit-2bf0820f4b89
@@ -1052,7 +1052,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: Revert "fix(model): drop leftover prefill_groups unique constraints before Au…" (#7101)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/main.go`, `model/prefill_group_migration.go`
 - Overlap with downstream changes: model/main.go
@@ -1063,7 +1063,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 它仅撤销上一条69a41eeadc，而下游没有引入该初稿；对当前基线无独立功能。保留来源与被取代关系，不执行无意义的正反补丁。
 - AI risks: 不要把撤销看作应删除最终修复或本地下游迁移。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/main.go:317](https://github.com/QuantumNous/new-api/blob/2bf0820f4b89530acf14d389ba3e8229211933fa/model/main.go#L317) — 撤销后migrateDB不再调用初稿辅助函数；代码：func migrateDB() error {
 - AI evidence: [parent:model/prefill_group_migration.go:22](https://github.com/QuantumNous/new-api/blob/69a41eeadc81adb08d04346512c76d62fd6203db/model/prefill_group_migration.go#L22) — 该项父提交中的初稿文件被本次整体删除；代码：func migratePrefillGroupUniqueIndex(db *gorm.DB) error {
 
@@ -1073,7 +1073,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): drop leftover prefill_groups unique constraints before AutoMigrate
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `model/main.go`, `model/prefill_group_migration.go`, `model/prefill_group_migration_test.go`
 - Overlap with downstream changes: AGENTS.md, model/main.go
@@ -1094,7 +1094,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(log): preserve quota in usage statistics (#7108)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/log.go`
 - Overlap with downstream changes: model/log.go
@@ -1105,7 +1105,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `covered` — 该项唯一行为是把RPM/TPM扫描到独立结构再赋值，避免覆盖已累加quota。下游sumLogStatistics已使用rateStatistics并分别赋Rpm/Tpm，且来源文档记录#21同步；可判本单项完整覆盖，无需替换包含有效调账统计的本地实现。
 - AI risks: 本项covered仅指扫描隔离，不能因此覆盖下游有效消费和财务统计实现。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/log.go:685](https://github.com/QuantumNous/new-api/blob/8c8c4153d4b80d54352d21593de41aa9a6178f7e/model/log.go#L685) — 上游把速率查询扫描到独立结构；代码：if err := rpmTpmQuery.Scan(&rateStat).Error; err != nil {
 - AI evidence: [downstream:model/log.go:802](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/log.go#L802) — 下游同样隔离扫描，保持现有statistics.Quota；代码：if err := rateQuery.Scan(&rateStatistics).Error; err != nil {
 - AI evidence: [downstream:model/log.go:806](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/log.go#L806) — 独立结果仅覆盖RPM字段；代码：statistics.Rpm = rateStatistics.Rpm
@@ -1117,7 +1117,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): migrate legacy token key constraints
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/main.go`, `model/token_migration.go`, `model/token_migration_test.go`
 - Overlap with downstream changes: model/main.go
@@ -1138,7 +1138,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(docs): correct Video API links across localized READMEs (#7116)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `README.en.md`, `README.fr.md`, `README.ja.md`, `README.md`, `README.zh_CN.md`, `README.zh_TW.md`
 - Overlap with downstream changes: README.md, README.zh_CN.md
@@ -1149,7 +1149,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 仅更新上游 README 的文档链接，涉及受保护 README 和下游已有产品介绍。不能用功能迁移改写；维护者可另行确认需要的单个链接。
 - AI risks: 上游文档路径也可能变化，另行编辑时应验证链接并保留所有归属和长期差异台账。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:README.en.md:284](https://github.com/QuantumNous/new-api/blob/67a0585d0f252dfca445c11b7600971b7eeb8eea/README.en.md#L284) — 固定源码：- [Video Interface (Video)](https://docs.newapi.pro/en/docs/api/ai-model/videos/sora/createvideo)
 - AI evidence: [downstream:README.md:11](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/README.md#L11) — 下游对照：[![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
@@ -1159,7 +1159,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): do not treat no-op system task state writes as lock loss (#7135)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/system_task.go`, `model/system_task_test.go`
 - Overlap with downstream changes: model/system_task.go
@@ -1181,7 +1181,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(relay): hosted-tool conversion fidelity, reasoning normalization, and billing usage integrity (#7137)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.gitignore`, `controller/channel-test.go`, `controller/relay.go`, `controller/relay_count_tokens_test.go`, `model/channel.go`, `relay/channel/aws/adaptor.go`, `relay/channel/aws/relay_aws_test.go`, `relay/channel/claude/adaptor.go`, `relay/channel/claude/adaptor_test.go`, `relay/channel/claude/relay-claude.go`, `relay/channel/claude/relay_claude_test.go`, `relay/channel/claude/relay_responses.go`, `relay/channel/gemini/adaptor.go`, `relay/channel/gemini/relay-gemini-native.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_responses.go`, `relay/channel/newapi/adaptor.go`, `relay/channel/openai/adaptor.go`, `relay/channel/openai/chat_via_responses.go`, `relay/channel/openai/chat_via_responses_test.go`, `relay/channel/openai/helper.go`, `relay/channel/openai/relay-openai.go`, `relay/channel/openai/relay_responses.go`, `relay/channel/openai/responses_via_chat.go`, `relay/channel/sub2api/adaptor_test.go`, `relay/channel/vertex/adaptor.go`, `relay/channel/zhipu_4v/adaptor.go`, `relay/chat_completions_via_responses.go`, `relay/chat_completions_via_responses_test.go`, `relay/claude_handler.go`, `relay/common/conversion_diagnostics.go`, `relay/common/override.go`, `relay/common/relay_info.go`, `relay/common/relay_info_test.go`, `relay/common/tool_usage.go`, `relay/compatible_handler.go`, `relay/convert_request_error.go`, `relay/convert_request_error_test.go`, `relay/gemini_handler.go`, `relay/helper/price.go`, `relay/helper/price_test.go`, `relay/helper/reasoning_suffix.go`, `relay/helper/reasoning_suffix_test.go`, `relay/responses_handler.go`, `relaykit/README.md`, `relaykit/dto/billing_usage.go`, `relaykit/dto/channel_settings.go`, `relaykit/dto/channel_settings_test.go`, `relaykit/dto/claude.go`, `relaykit/dto/gemini.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/openai_response.go`, `relaykit/dto/reasoning_state.go`, `relaykit/dto/usage_merge.go`, `relaykit/dto/usage_merge_test.go`, `relaykit/reasonmap/reasonmap.go`, `relaykit/relayconvert/claude_default_max_tokens_test.go`, `relaykit/relayconvert/convmeta/meta.go`, `relaykit/relayconvert/convmeta/meta_test.go`, `relaykit/relayconvert/convmeta/options.go`, `relaykit/relayconvert/golden_test.go`, `relaykit/relayconvert/internal/claude_messages/citations.go`, `relaykit/relayconvert/internal/claude_messages/stream_billing_usage_test.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_resp.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_responses_hosted_stream.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_responses_req.go`, `relaykit/relayconvert/internal/gemini_chat/grounding.go`, `relaykit/relayconvert/internal/gemini_chat/to_oai_chat_req.go`, `relaykit/relayconvert/internal/gemini_chat/to_oai_chat_resp.go`, `relaykit/relayconvert/internal/gemini_chat/to_oai_responses_hosted_stream.go`, `relaykit/relayconvert/internal/oai_chat/citations.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_req.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_stream_resp_test.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_resp_test.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_stream_resp.go`, `relaykit/relayconvert/internal/shared/claude/reasoning.go`, `relaykit/relayconvert/internal/shared/claude/usage.go`, `relaykit/relayconvert/internal/shared/gemini/request.go`, `relaykit/relayconvert/internal/toolconv/decode.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/internal/toolconv/hosted_values.go`, `relaykit/relayconvert/internal/toolconv/model.go`, `relaykit/relayconvert/internal/toolconv/policy_test.go`, `relaykit/relayconvert/internal/toolconv/response.go`, `relaykit/relayconvert/internal/toolconv/response_artifacts.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/reasoning/gemini.go`, `relaykit/relayconvert/reasoning/intent.go`, `relaykit/relayconvert/reasoning/intent_test.go`, `relaykit/relayconvert/reasoning/suffix.go`, `relaykit/relayconvert/reasoning/suffix_test.go`, `relaykit/relayconvert/request_compat.go`, `relaykit/relayconvert/request_registry.go`, `relaykit/relayconvert/request_registry_test.go`, `relaykit/relayconvert/response_compat.go`, `relaykit/relayconvert/response_registry.go`, `relaykit/relayconvert/response_registry_test.go`, `relaykit/relayconvert/terminal_stream_test.go`, `relaykit/relayconvert/testdata/golden/request/claude_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/request/claude_to_openai.golden.json`, `relaykit/relayconvert/testdata/golden/request/claude_to_openai_responses.golden.json`, `relaykit/relayconvert/testdata/golden/request/gemini_to_claude.golden.json`, `relaykit/relayconvert/testdata/golden/request/gemini_to_openai.golden.json`, `relaykit/relayconvert/testdata/golden/request/gemini_to_openai_responses.golden.json`, `relaykit/relayconvert/testdata/golden/request/openai_responses_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/request/openai_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/response/claude_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/response/gemini_to_claude.golden.json`, `relaykit/relayconvert/testdata/golden/response/openai_responses_to_claude.golden.json`, `relaykit/relayconvert/testdata/golden/response/openai_responses_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/response/openai_responses_to_openai.golden.json`, `relaykit/relayconvert/testdata/golden/response/openai_to_claude.golden.json`, `relaykit/relayconvert/testdata/golden/response/openai_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/response/openai_to_openai_responses.golden.json`, `relaykit/relayconvert/testdata/golden/stream/claude_to_gemini.golden.json`, `relaykit/relayconvert/testdata/golden/stream/gemini_to_claude.golden.json`, `relaykit/relayconvert/text_converter_registry.go`, `relaykit/relayconvert/text_converter_registry_test.go`, `relaykit/relayconvert/tool_loss_policy_test.go`, `relaykit/types/conversion.go`, `router/relay-router.go`, `router/relay_router_test.go`, `service/billing_session.go`, `service/billing_usage.go`, `service/log_info_generate.go`, `service/quota.go`, `service/request_converter.go`, `service/response_converter.go`, `service/text_quota.go`, `service/text_quota_test.go`, `service/token_counter.go`, `setting/model_setting/global.go`, `setting/ratio_setting/model_ratio.go`, `setting/reasoning/suffix.go`
 - Overlap with downstream changes: .gitignore, controller/channel-test.go, controller/relay.go, model/channel.go, relay/channel/openai/adaptor.go, relay/channel/openai/helper.go, relay/channel/openai/relay-openai.go, relay/chat_completions_via_responses.go, relay/chat_completions_via_responses_test.go, relay/claude_handler.go, relay/common/relay_info.go, relay/compatible_handler.go, relay/responses_handler.go, relaykit/dto/channel_settings.go, relaykit/dto/channel_settings_test.go, relaykit/dto/openai_request.go, router/relay-router.go, router/relay_router_test.go, service/billing_session.go, service/quota.go, service/text_quota.go, setting/ratio_setting/model_ratio.go
@@ -1192,7 +1192,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 149文件重构引入托管工具转换、reasoning state、usage合并、诊断和计费快照，同时改控制器及多个协议。下游有Moonshot/KVV、饱和审计、财务快照等额外边界，尚未完成跨协议/计费矩阵证明，暂不整包引入。
 - AI risks: 需把后续7170、模型修饰符、缓存明细及失败流计费一起评估；README受保护，relaykit独立公共接口也会改变。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/claude/adaptor.go:33](https://github.com/QuantumNous/new-api/blob/0ed497f066a68613375124303ef54f220267b334/relay/channel/claude/adaptor.go#L33) — 原生Claude适配开始调用统一思考模型转换。
 - AI evidence: [downstream:relay/channel/claude/adaptor.go:29](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/claude/adaptor.go#L29) — 本地原生Claude目前保持请求直通。
 
@@ -1202,7 +1202,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): follow-up billing integrity and conversion completions (#7170)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/claude/adaptor.go`, `relay/channel/claude/adaptor_test.go`, `relay/channel/claude/relay-claude.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_gemini_usage_test.go`, `relay/channel/openai/helper.go`, `relay/common/relay_info.go`, `relay/common/relay_info_test.go`, `relaykit/dto/billing_usage.go`, `relaykit/dto/billing_usage_test.go`, `relaykit/dto/usage_merge.go`, `relaykit/dto/usage_merge_test.go`, `relaykit/relayconvert/internal/gemini_chat/to_oai_chat_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/toolconv/decode.go`, `relaykit/relayconvert/internal/toolconv/encode.go`
 - Overlap with downstream changes: relay/channel/openai/helper.go, relay/common/relay_info.go
@@ -1213,7 +1213,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增Gemini→Claude请求/响应以及Claude→Gemini流状态，依赖7137的新usage/转换基础。本地Claude的Gemini转换仍未实现，不能将本后续补丁孤立套入旧接口。
 - AI risks: Gemini message_start用量、缓存与工具调用快照要与7137整组对照并验证不重复扣费。
 - AI dependencies: commit-0ed497f066a6
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/claude/adaptor.go:28](https://github.com/QuantumNous/new-api/blob/bbd97446c26092f2e7250af429096064b9e0f899/relay/channel/claude/adaptor.go#L28) — 新实现依赖统一转换服务。
 - AI evidence: [downstream:relay/channel/claude/adaptor.go:23](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/claude/adaptor.go#L23) — 本地此协议路径仍是not implemented。
 
@@ -1223,7 +1223,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugin): add MiniMax-H3 /v2 video generation to the hailuo task … (#7168)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `docs/plugin-api/v1.md`, `plugins/hailuo_responses_test.go`, `plugins/tasks/hailuo/plugin.js`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/relay_task.go`, `service/task_polling.go`
 - Overlap with downstream changes: relay/relay_task.go, service/task_polling.go
@@ -1234,7 +1234,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 H3 的 v2 请求、4–15 秒时长、768P/2K 分辨率和轮询上下文。模型接入有价值，但本地仍使用 Hailuo Go 适配器，应先确定实际渠道需求与计价，再单独迁移，不能直接加入只适配 JS 的驱动。
 - AI risks: H3 输入媒体计费随后由 73afad588c 修复，不能只取初始实现；需保留既有视频任务审计。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/hailuo/plugin.js:119](https://github.com/QuantumNous/new-api/blob/aece11d2f7f095a33052696c5d28d3656609a99e/plugins/tasks/hailuo/plugin.js#L119) — H3 请求明确校验模型专属时长；代码：function h3Duration(req) {
 - AI evidence: [downstream:relay/channel/task/hailuo/adaptor.go:185](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/hailuo/adaptor.go#L185) — 本地完成状态解析仍通过 Go Hailuo 适配器；代码：func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
 
@@ -1244,7 +1244,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore: let owners use human PR templates
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`
 - Overlap with downstream changes: AGENTS.md
@@ -1255,7 +1255,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只修改上游 AGENTS 对owner/agent模板的分流；下游已由明确规则统一使用本仓库 PR 模板。无需引入上游例外或改写受保护治理。
 - AI risks: 人类确认不能由AI代勾，现有本地授权优先，治理调整另开专门PR。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:AGENTS.md:163](https://github.com/QuantumNous/new-api/blob/d8ca0ed0bb596e910e1955461e7691e40d224d70/AGENTS.md#L163) — 固定源码：- When the pull request is created for the project owner, use the ordinary human PR template: `.github/PULL_REQUEST_TEMPLATE.md` for Chinese requests or `.github/PULL_REQUEST_TEMPLATE/en.md` for English requests. Project-owner pull requests MUST NOT use `.agents/github/PR.md` unless the owner explicitly asks for it.
 - AI evidence: [downstream:AGENTS.md:166](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/AGENTS.md#L166) — 下游对照：- Always use the repository PR template at `.github/PULL_REQUEST_TEMPLATE.md` when drafting the PR title/body. Preserve the template structure and fill in the relevant sections instead of replacing it with an ad hoc format.
 
@@ -1265,7 +1265,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugin): account for MiniMax-H3 input media usage (#7171)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/hailuo_responses_test.go`, `plugins/tasks/hailuo/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -1276,7 +1276,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 补齐 H3 输入图片数与参考视频秒数，用最大值预留、实际用量结算。它修正 H3 首版的少计费风险，若未来接入 H3 应一并迁移，目前没有 H3 驱动和对应账务事实模型。
 - AI risks: 图片/视频元数据必须有界，额度不足须在上游提交前拒绝；不能按输出时长替代输入媒体成本。
 - AI dependencies: commit-eb48396d5fe9, commit-aece11d2f7f0
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/hailuo/plugin.js:47](https://github.com/QuantumNous/new-api/blob/73afad588ca7af07134fa423e8a33fdea6c855b2/plugins/tasks/hailuo/plugin.js#L47) — H3 用量包含输入视频秒数；代码：input_video_seconds: {
 
 #### commit-057f71c2336c
@@ -1285,7 +1285,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(logs): isolate privileged metadata
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.gitignore`, `controller/channel-test.go`, `controller/channel_test_internal_test.go`, `controller/log.go`, `controller/relay.go`, `controller/relay_error_log_test.go`, `model/log.go`, `model/log_format_test.go`, `model/log_other.go`, `model/log_other_test.go`, `relay/convert_request_error_test.go`, `service/billing_usage.go`, `service/channel_affinity.go`, `service/log_info_generate.go`, `service/midjourney.go`, `service/quota_saturation_test.go`, `service/task_billing.go`, `service/task_billing_test.go`, `service/task_plugin_audit.go`, `service/text_quota.go`, `service/text_quota_test.go`, `service/violation_fee.go`, `web/src/features/usage-logs/components/__tests__/reject-reason.test.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/types.ts`
 - Overlap with downstream changes: .gitignore, controller/channel-test.go, controller/log.go, controller/relay.go, model/log.go, model/log_format_test.go, service/midjourney.go, service/task_billing.go, service/task_billing_test.go, service/text_quota.go, service/violation_fee.go, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/types.ts
@@ -1306,7 +1306,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: 优化匿名冷启动与公开内容接口的重复回源请求 (#7166)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/misc.go`, `controller/revalidated_response.go`, `docs/authentication.md`, `service/auth_session.go`, `web/src/features/about/api.ts`, `web/src/features/home/api.ts`, `web/src/features/legal/api.ts`, `web/src/lib/api.ts`, `web/src/lib/auth-session.ts`, `web/src/lib/session-hint.ts`, `web/src/routes/(auth)/sign-in.tsx`, `web/src/routes/_authenticated/route.tsx`
 - Overlap with downstream changes: controller/misc.go, service/auth_session.go
@@ -1327,7 +1327,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(logs): simplify LogOther projection and dedupe sensitive keys
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/log_format_test.go`, `model/log_other.go`, `model/log_other_test.go`, `service/task_billing.go`, `service/task_billing_test.go`, `service/text_quota_test.go`
 - Overlap with downstream changes: model/log_format_test.go, service/task_billing.go, service/task_billing_test.go
@@ -1338,7 +1338,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该项主要整理已类型化LogOther的序列化/投影，当前没有该写入类型；若33只移植读取侧保护，不必先搬写入层再做此重构。可将真实有价值的无变化返回原JSON、敏感键一致性作为33实现原则，不照搬整个提交。
 - AI risks: 不可把写入完整JSON误当已脱敏API结果；测试不能依赖不存在的上游私有类型。
 - AI dependencies: commit-057f71c2336c
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/log_other.go:19](https://github.com/QuantumNous/new-api/blob/9f506dd7f905c288b4a119a8197cd64b77eb4a3f/model/log_other.go#L19) — 统一历史敏感键定义；代码：var legacySensitiveLogOtherKeys = []string{
 
 #### commit-9df450fe54e1
@@ -1347,7 +1347,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(task): give polling hooks a real query context, host HTTP classification, and bounded poll failures
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.env.example`, `common/init.go`, `constant/env.go`, `controller/plugin_protocol_test.go`, `controller/relay.go`, `controller/task_plugin_test.go`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `model/log_other.go`, `model/task.go`, `model/task_cas_test.go`, `pkg/jsplugin/cli.go`, `pkg/jsplugin/cli_test.go`, `plugins/hailuo_responses_test.go`, `plugins/jimeng_responses_test.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`, `plugins/tasks/google/plugin.js`, `plugins/tasks/hailuo/plugin.js`, `plugins/tasks/jimeng/plugin.js`, `plugins/tasks/kling/plugin.js`, `plugins/tasks/sora/plugin.js`, `plugins/tasks/sunoapi/plugin.js`, `plugins/tasks/vertex-ai/plugin.js`, `plugins/tasks/vidu/plugin.js`, `plugins/veo_poll_test.go`, `relay/channel/adapter.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/common/relay_info.go`, `relay/relay_task.go`, `service/task_billing_test.go`, `service/task_plugin_view_test.go`, `service/task_polling.go`, `service/task_polling_test.go`
 - Overlap with downstream changes: .env.example, controller/relay.go, model/task.go, model/task_cas_test.go, relay/common/relay_info.go, relay/relay_task.go, service/task_billing_test.go, service/task_polling.go, service/task_polling_test.go
@@ -1358,7 +1358,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 插件轮询获得真实任务上下文，统一 HTTP 分类并增加连续失败阈值及超时退款。现有下游轮询还处理请求快照归档和通知，临时 429/网络抖动达到阈值即失败退款是运营策略变化，应先确认终态和上游仍运行时的处理。
 - AI risks: 错误退款会造成免费交付或重复结算；需逐状态测试、故障恢复及人工补偿边界。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/init.go:206](https://github.com/QuantumNous/new-api/blob/9df450fe54e1a874a5339b7c38a61014217f02c3/common/init.go#L206) — 新增连续轮询失败阈值配置；代码：constant.TaskPollMaxFailures = GetEnvOrDefault("TASK_POLL_MAX_FAILURES", 20)
 - AI evidence: [downstream:service/task_polling.go:29](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/task_polling.go#L29) — 现有轮询服务有独立 Go 任务编排，不能整体替换；代码：type TaskPollingAdaptor interface {
 
@@ -1368,7 +1368,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: keep ETag valid across different JSON packages
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/etag.go`, `controller/misc.go`, `controller/revalidated_response.go`
 - Overlap with downstream changes: controller/misc.go
@@ -1389,7 +1389,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(ci): resolve release version from trigger tag
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.github/workflows/release.yml`
 - Overlap with downstream changes: .github/workflows/release.yml
@@ -1400,7 +1400,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 修复的是上游 release.yml 的 git describe 取版本，而下游已移除该发布工作流并使用自己的 VERSION/镜像流程。不存在可直接采用的同一发布入口。
 - AI risks: 不得重建上游发布流程或把目标上游tag当下游已升级版本，CI文件属于保护范围。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.github/workflows/release.yml:28](https://github.com/QuantumNous/new-api/blob/8f5ab8e4048a90d88b20ae1e6d5228b04233d3b8/.github/workflows/release.yml#L28) — 固定源码：VERSION=${GITHUB_REF#refs/tags/}
 - AI evidence: [downstream:.github/workflows/build.yml:146](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/.github/workflows/build.yml#L146) — 下游对照：base_version=$(cat VERSION)
 
@@ -1410,7 +1410,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(task): explain 503 when a plugin-claimed model has no channel
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `i18n/keys.go`, `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `middleware/distributor.go`, `middleware/distributor_test.go`
 - Overlap with downstream changes: i18n/keys.go, i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, middleware/distributor.go
@@ -1421,7 +1421,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 错误提示解释模型被任务插件认领但没有可用渠道，依赖插件路由层；后续 7209b6db95 又隐藏内部插件标识，应采用目标版本最终脱敏行为而非本中间态。
 - AI risks: 早期提示暴露内部插件键及管理操作信息。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:middleware/distributor.go:217](https://github.com/QuantumNous/new-api/blob/32c261923a9786c64d2af087327ef057e7bde7e3/middleware/distributor.go#L217) — 分流错误使用插件专属消息；代码：return i18n.T(c, i18n.MsgDistributorNoAvailableChannelTaskPlugin, map[string]any{"Group": group, "Model": modelName, "Plugin": pinned.Plugin.Meta.Key})
 
 #### commit-3a9f41ee85cc
@@ -1430,7 +1430,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: temp disable /messages/count_tokens
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `router/relay-router.go`, `router/relay_router_test.go`
 - Overlap with downstream changes: router/relay-router.go, router/relay_router_test.go
@@ -1441,7 +1441,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 这是回退7137新加的/messages/count_tokens路由；本地基线没有注册该公共工具端点，无需先引入再禁用。日后若设计官方计数能力应独立决定。
 - AI risks: 不能把关闭同名公共路由误当成下游Moonshot兼容入口能力的授权变更。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:router/relay-router.go:89](https://github.com/QuantumNous/new-api/blob/3a9f41ee85cc369f5b8d7fe6e62ff4e7bf3a9ec8/router/relay-router.go#L89) — 上游只注释临时新增路由。
 - AI evidence: [downstream:router/relay-router.go:123](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/relay-router.go#L123) — 本地Claude路由直接注册/messages，没有count_tokens。
 
@@ -1451,7 +1451,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(relay): explicit @ model modifiers and canonical billing identity
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel-test.go`, `controller/model.go`, `middleware/distributor.go`, `middleware/distributor_test.go`, `model/channel_cache.go`, `model/channel_satisfy.go`, `relay/channel/claude/adaptor_test.go`, `relay/channel/claude/relay_claude_test.go`, `relay/channel/openai/adaptor.go`, `relay/claude_handler.go`, `relay/common/relay_info.go`, `relay/common/relay_info_test.go`, `relay/compatible_handler.go`, `relay/convert_request_error_test.go`, `relay/gemini_handler.go`, `relay/helper/model_mapped.go`, `relay/helper/model_modifier.go`, `relay/helper/price.go`, `relay/helper/price_test.go`, `relay/helper/reasoning_suffix.go`, `relay/helper/reasoning_suffix_test.go`, `relay/responses_handler.go`, `relaykit/relayconvert/internal/convdiag/collector.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_req.go`, `relaykit/relayconvert/internal/shared/claude/reasoning.go`, `relaykit/relayconvert/internal/shared/gemini/request.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/reasoning/suffix.go`, `relaykit/relayconvert/reasoning/suffix_test.go`, `relaykit/relayconvert/request_compat.go`, `relaykit/relayconvert/request_registry.go`, `setting/model_setting/global.go`, `setting/model_setting/global_test.go`, `setting/ratio_setting/matching_test.go`, `setting/ratio_setting/model_ratio.go`, `setting/reasoning/suffix.go`, `setting/reasoning/suffix_test.go`, `web/src/features/system-settings/models/global-settings-card.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: controller/channel-test.go, controller/model.go, middleware/distributor.go, model/channel_cache.go, relay/channel/openai/adaptor.go, relay/claude_handler.go, relay/common/relay_info.go, relay/compatible_handler.go, relay/helper/model_mapped.go, relay/responses_handler.go, setting/ratio_setting/model_ratio.go, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -1462,7 +1462,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 本地仅按UPSTREAM记录迁入本提交的Kimi真实模型名保护；当前仍用FormatMatchingModelName及原有计费模型身份。@修饰符、路由身份和计费键是未迁入的大改，不能标记整个提交covered。
 - AI risks: 必须保持公开别名、映射后模型、租户限制、OpenRouter Kimi真实thinking模型和财务成本模型一致；缺完整路由计费回归。
 - AI dependencies: commit-0ed497f066a6
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/model.go:254](https://github.com/QuantumNous/new-api/blob/7c044d7c5c2d2beadf16b21910950f8f593bc3ef/controller/model.go#L254) — 上游改为独立路由匹配身份。
 - AI evidence: [downstream:controller/model.go:242](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/model.go#L242) — 本地仍使用现有匹配模型名。
 - AI evidence: [downstream:UPSTREAM.md:19](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/UPSTREAM.md#L19) — 记录明确仅参考Kimi保护，未引入模型修饰符和计费身份重构。
@@ -1473,7 +1473,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): preserve reasoning effort without implicit remapping
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/deepseek/adaptor.go`, `relay/channel/openai/adaptor.go`, `relay/channel/volcengine/adaptor.go`, `relay/channel/xai/adaptor.go`, `relay/common/relay_info.go`, `relay/helper/model_modifier.go`, `relay/helper/reasoning_suffix.go`, `relaykit/relayconvert/internal/shared/claude/reasoning.go`, `relaykit/relayconvert/internal/shared/gemini/request.go`, `relaykit/relayconvert/reasoning/intent.go`, `relaykit/relayconvert/reasoning/intent_test.go`
 - Overlap with downstream changes: relay/channel/openai/adaptor.go, relay/common/relay_info.go
@@ -1484,7 +1484,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 此修复建立在统一reasoning Intent/@修饰符之后，增加不隐式重映射和多供应商后缀保护。本地OpenAI仍有原有后缀与OpenRouter方言处理，单独cherry-pick会混用两套推理状态。
 - AI risks: 未经分组验证会改变显式none、嵌套reasoning、模型映射和原生DeepSeek/火山/XAI参数语义。
 - AI dependencies: commit-0ed497f066a6, commit-7c044d7c5c2d
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/openai/adaptor.go:259](https://github.com/QuantumNous/new-api/blob/6b659fd61c50e35d559c41520a0fff7b8aea56a4/relay/channel/openai/adaptor.go#L259) — 上游区分原生直通与需要渲染的推理意图。
 - AI evidence: [downstream:relay/channel/openai/adaptor.go:257](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/openai/adaptor.go#L257) — 本地保留Kimi名称的实现仍是旧OpenRouter分支。
 
@@ -1494,7 +1494,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: require expression pricing and consolidated tests
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`
 - Overlap with downstream changes: AGENTS.md
@@ -1505,7 +1505,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 仅向上游 AGENTS 增加内置模型表达式价格和小变更测试组织要求。本地下游计费安全/测试规则由当前治理控制，不通过同步覆盖。
 - AI risks: 如要采用额外约束需维护者单独评审，不得顺带改动现存显式价格覆盖或计费语义。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:AGENTS.md:110](https://github.com/QuantumNous/new-api/blob/d5803532bdccde3a2b1583291f51e92d3519b1c6/AGENTS.md#L110) — 固定源码：**Built-in model pricing:** New built-in model prices MUST be defined as self-contained billing expressions in `setting/billing_setting/builtin_billing.go`, using real USD per million tokens. Do not add new built-in prices to the legacy model/completion/cache ratio tables. Preserve explicit administrator pricing overrides. Existing legacy prices are migrated only when explicitly requested. Verify published prices and cover applicable context-length thresholds and cache categories.
 - AI evidence: [downstream:AGENTS.md:103](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/AGENTS.md#L103) — 下游对照：**Billing expression system:** When working on tiered/dynamic billing (expression-based pricing), MUST read `pkg/billingexpr/expr.md` first. It documents the design philosophy, expression language, full architecture, token normalization rules, quota conversion, and expression versioning. All billing expression changes must follow that document.
 
@@ -1515,7 +1515,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(billing): add built-in expression pricing for gpt-6-astra
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/option.go`, `relay/channel/openai/constant.go`, `setting/billing_setting/builtin_billing.go`, `setting/billing_setting/builtin_billing_test.go`, `setting/billing_setting/tiered_billing.go`
 - Overlap with downstream changes: controller/option.go
@@ -1526,7 +1526,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增内置表达式回落及 gpt-6-astra 默认售价，同时保持管理员显式配置优先。这会改变未配置模型的实际收费，本地没有该默认层；应先确认售价策略与模型能力，再以单独计费配置迁移。
 - AI risks: 不能直接把上游供应商价格当本平台销售价格；模型名、长上下文、缓存创建及已有覆盖配置都需确认。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:setting/billing_setting/tiered_billing.go:53](https://github.com/QuantumNous/new-api/blob/eb99ab1b40343c3317bb47981cccdbb2b159a5fa/setting/billing_setting/tiered_billing.go#L53) — 内置默认表达式尊重已配置旧比例；代码：if ratio_setting.HasConfiguredModelRatio(model) {
 - AI evidence: [downstream:setting/billing_setting/tiered_billing.go:38](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/setting/billing_setting/tiered_billing.go#L38) — 本地计费模式主要来自现有显式配置；代码：func GetBillingMode(model string) string {
 
@@ -1536,7 +1536,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf(common): 批量复制 RawMessage，优化请求深拷贝 (#7221)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/copy.go`, `relay/request_clone_test.go`
 - Overlap with downstream changes: (none detected)
@@ -1557,7 +1557,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): apply model-specific OpenAI chat capabilities (#7211)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel_test_request_test.go`, `relay/channel/openai/adaptor.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/openai_request_zero_value_test.go`
 - Overlap with downstream changes: relay/channel/openai/adaptor.go, relaykit/dto/openai_request.go, relaykit/dto/openai_request_zero_value_test.go
@@ -1578,7 +1578,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(security): add access token management and audit logs
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/access_token.go`, `controller/access_token_audit_test.go`, `controller/audit.go`, `controller/billing_option_test.go`, `controller/channel_task_plugin_bind_test.go`, `controller/channel_test_internal_test.go`, `controller/model_list_test.go`, `controller/relay.go`, `controller/secure_verification.go`, `controller/subscription.go`, `controller/twofa.go`, `controller/user.go`, `controller/user_manage_test.go`, `go.mod`, `go.sum`, `middleware/audit.go`, `middleware/auth.go`, `middleware/auth_test.go`, `model/audit_log.go`, `model/audit_other.go`, `model/log.go`, `model/main.go`, `model/user.go`, `router/api-router.go`, `router/main.go`, `router/plugin_router_test.go`, `router/web-router.go`, `service/authz/authz_test.go`, `service/authz/resources_audit.go`, `web/src/components/layout/components/mobile-drawer.tsx`, `web/src/components/profile-dropdown.tsx`, `web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx`, `web/src/features/profile/__tests__/settings.test.tsx`, `web/src/features/profile/api.ts`, `web/src/features/profile/components/__tests__/login-session-utils.test.ts`, `web/src/features/profile/components/dialogs/access-token-dialog.tsx`, `web/src/features/profile/components/dialogs/change-password-dialog.tsx`, `web/src/features/profile/components/dialogs/delete-account-dialog.tsx`, `web/src/features/profile/components/dialogs/email-bind-dialog.tsx`, `web/src/features/profile/components/dialogs/telegram-bind-dialog.tsx`, `web/src/features/profile/components/dialogs/two-fa-backup-dialog.tsx`, `web/src/features/profile/components/dialogs/two-fa-disable-dialog.tsx`, `web/src/features/profile/components/dialogs/two-fa-setup-dialog.tsx`, `web/src/features/profile/components/dialogs/wechat-bind-dialog.tsx`, `web/src/features/profile/components/login-session-dialogs.tsx`, `web/src/features/profile/components/login-session-item.tsx`, `web/src/features/profile/components/login-session-utils.ts`, `web/src/features/profile/components/login-sessions-card.tsx`, `web/src/features/profile/components/passkey-card.tsx`, `web/src/features/profile/components/profile-security-card.tsx`, `web/src/features/profile/components/profile-settings-card.tsx`, `web/src/features/profile/components/sidebar-modules-card.tsx`, `web/src/features/profile/components/tabs/account-bindings-tab.tsx`, `web/src/features/profile/components/tabs/notification-tab.tsx`, `web/src/features/profile/components/two-fa-card.tsx`, `web/src/features/profile/hooks/index.ts`, `web/src/features/profile/hooks/use-access-token.ts`, `web/src/features/profile/hooks/use-two-fa.ts`, `web/src/features/profile/index.tsx`, `web/src/features/profile/lib/user-settings.ts`, `web/src/features/profile/types.ts`, `web/src/features/security/__tests__/page.test.tsx`, `web/src/features/security/api.ts`, `web/src/features/security/components/__tests__/access-token-card.test.tsx`, `web/src/features/security/components/__tests__/login-session-utils.test.ts`, `web/src/features/security/components/__tests__/privacy-card.test.tsx`, `web/src/features/security/components/access-token-card.tsx`, `web/src/features/security/components/account-action-card.tsx`, `web/src/features/security/components/account-bindings.tsx`, `web/src/features/security/components/dialogs/access-token-dialog.tsx`, `web/src/features/security/components/dialogs/change-password-dialog.tsx`, `web/src/features/security/components/dialogs/delete-account-dialog.tsx`, `web/src/features/security/components/dialogs/email-bind-dialog.tsx`, `web/src/features/security/components/dialogs/telegram-bind-dialog.tsx`, `web/src/features/security/components/dialogs/two-fa-backup-dialog.tsx`, `web/src/features/security/components/dialogs/two-fa-disable-dialog.tsx`, `web/src/features/security/components/dialogs/two-fa-setup-dialog.tsx`, `web/src/features/security/components/dialogs/wechat-bind-dialog.tsx`, `web/src/features/security/components/login-session-dialogs.tsx`, `web/src/features/security/components/login-session-item.tsx`, `web/src/features/security/components/login-session-utils.ts`, `web/src/features/security/components/login-sessions-card.tsx`, `web/src/features/security/components/passkey-card.tsx`, `web/src/features/security/components/privacy-card.tsx`, `web/src/features/security/components/two-fa-card.tsx`, `web/src/features/security/hooks/use-access-token.ts`, `web/src/features/security/hooks/use-two-fa.ts`, `web/src/features/security/index.tsx`, `web/src/features/system-settings/maintenance/config.ts`, `web/src/features/system-settings/maintenance/sidebar-modules-section.tsx`, `web/src/features/usage-logs/audit/__tests__/details.test.tsx`, `web/src/features/usage-logs/audit/__tests__/viewer.test.tsx`, `web/src/features/usage-logs/audit/api.ts`, `web/src/features/usage-logs/audit/components/audit-detail-fields.tsx`, `web/src/features/usage-logs/audit/components/audit-detail-value.tsx`, `web/src/features/usage-logs/audit/components/audit-log-columns.tsx`, `web/src/features/usage-logs/audit/components/audit-log-details-dialog.tsx`, `web/src/features/usage-logs/audit/components/audit-log-filter-bar.tsx`, `web/src/features/usage-logs/audit/components/audit-log-viewer.tsx`, `web/src/features/usage-logs/audit/index.tsx`, `web/src/features/usage-logs/audit/lib/audit-details.ts`, `web/src/features/usage-logs/components/__tests__/log-type-filter.test.tsx`, `web/src/features/usage-logs/components/common-logs-filter-bar.tsx`, `web/src/features/usage-logs/components/compact-date-time-range-picker.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/components/dialogs/log-detail-layout.tsx`, `web/src/features/usage-logs/constants.ts`, `web/src/features/usage-logs/index.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/users/components/__tests__/permissions.test.tsx`, `web/src/features/users/components/users-mutate-drawer.tsx`, `web/src/hooks/__tests__/sidebar-config.test.tsx`, `web/src/hooks/use-sidebar-config.ts`, `web/src/hooks/use-sidebar-data.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/__tests__/http-cache.test.ts`, `web/src/lib/admin-permissions.ts`, `web/src/lib/auth-session.ts`, `web/src/lib/http-client.ts`, `web/src/routeTree.gen.ts`, `web/src/routes/_authenticated/security/index.tsx`, `web/src/routes/_authenticated/usage-logs/audit.tsx`
 - Overlap with downstream changes: controller/audit.go, controller/model_list_test.go, controller/relay.go, controller/secure_verification.go, controller/user.go, controller/user_manage_test.go, go.mod, go.sum, model/log.go, model/main.go, model/user.go, router/api-router.go, router/web-router.go, service/authz/authz_test.go, web/src/components/profile-dropdown.tsx, web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx, web/src/features/profile/components/__tests__/login-session-utils.test.ts, web/src/features/profile/components/login-session-utils.ts, web/src/features/profile/components/tabs/account-bindings-tab.tsx, web/src/features/profile/index.tsx, web/src/features/system-settings/maintenance/config.ts, web/src/features/system-settings/maintenance/sidebar-modules-section.tsx, web/src/features/usage-logs/components/common-logs-filter-bar.tsx, web/src/features/usage-logs/components/compact-date-time-range-picker.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/constants.ts, web/src/features/usage-logs/index.tsx, web/src/features/usage-logs/lib/format.ts, web/src/features/users/components/users-mutate-drawer.tsx, web/src/hooks/use-sidebar-config.ts, web/src/hooks/use-sidebar-data.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/lib/admin-permissions.ts, web/src/lib/http-client.ts, web/src/routeTree.gen.ts
@@ -1589,7 +1589,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 一次变更新增访问令牌管理、审计模型和大量安全页重组；本地控制台 JWT/refresh 与旧 access_token 并存，且审计含下游财务与身份记录。建议拆出认证/审计迁移方案，不能按整提交覆盖。
 - AI risks: 日志隐私、审计分类、管理员权限矩阵、历史数据和前端个人中心迁移均需兼容。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/access_token.go:19](https://github.com/QuantumNous/new-api/blob/d8cb177440ceaae422d5bfd96c258d47af4e0f1d/controller/access_token.go#L19) — 固定源码：func RevokeAccessToken(c *gin.Context) {
 - AI evidence: [downstream:middleware/auth.go:194](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/middleware/auth.go#L194) — 下游对照：func setDashboardAuthContext(c *gin.Context, user *model.UserBase, identity service.AuthIdentity, useAccessToken bool) {
 
@@ -1599,7 +1599,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(db): avoid redundant schema migrations on restart
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `go.mod`, `go.sum`, `model/main.go`, `model/migration_dialector.go`, `model/migration_dialector_test.go`, `model/user_session_migration_test.go`
 - Overlap with downstream changes: AGENTS.md, go.mod, go.sum, model/main.go
@@ -1620,7 +1620,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(security): bind verification proofs to sessions and actions
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `common/json.go`, `common/json_test.go`, `controller/channel.go`, `controller/oauth.go`, `controller/passkey.go`, `controller/passkey_test.go`, `controller/secure_verification.go`, `controller/security_enrollment_test.go`, `controller/twofa.go`, `middleware/auth_test.go`, `middleware/logger.go`, `middleware/secure_verification.go`, `model/auth_flow.go`, `model/passkey.go`, `model/twofa.go`, `model/twofa_enrollment.go`, `model/user_authentication_test.go`, `oauth/discord.go`, `oauth/generic.go`, `oauth/github.go`, `oauth/linuxdo.go`, `oauth/oidc.go`, `router/api-router.go`, `service/auth_token.go`, `service/auth_token_test.go`, `service/oauth_verification.go`, `service/passkey/session.go`, `service/security_verification.go`, `service/twofa.go`, `web/AGENTS.md`, `web/src/features/auth/api.ts`, `web/src/features/auth/components/oauth-callback-screen.tsx`, `web/src/features/auth/constants.ts`, `web/src/features/auth/lib/__tests__/oauth-callback-mode.test.ts`, `web/src/features/auth/lib/__tests__/oauth-popup.test.ts`, `web/src/features/auth/lib/oauth-callback-mode.ts`, `web/src/features/auth/lib/oauth-popup.ts`, `web/src/features/auth/passkey/api.ts`, `web/src/features/auth/passkey/hooks/use-passkey-management.ts`, `web/src/features/auth/secure-verification/__tests__/verification-api.test.ts`, `web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx`, `web/src/features/auth/secure-verification/api.ts`, `web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx`, `web/src/features/auth/secure-verification/hooks/use-secure-verification.ts`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/hooks/__tests__/channel-key-disclosure.test.tsx`, `web/src/features/channels/hooks/use-channel-key-disclosure.ts`, `web/src/features/profile/types.ts`, `web/src/features/security/__tests__/enrollment.test.tsx`, `web/src/features/security/api.ts`, `web/src/features/security/components/account-bindings.tsx`, `web/src/features/security/components/dialogs/two-fa-setup-dialog.tsx`, `web/src/features/security/components/passkey-card.tsx`, `web/src/features/security/components/two-fa-card.tsx`, `web/src/features/security/hooks/use-two-fa-setup.ts`, `web/src/features/security/hooks/use-two-fa.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/api.ts`, `web/src/lib/http-client.ts`, `web/src/lib/oauth.ts`, `web/src/lib/passkey.ts`, `web/src/lib/secure-verification.ts`, `web/src/lib/server-error-message.ts`, `web/src/routes/oauth/$provider.tsx`
 - Overlap with downstream changes: AGENTS.md, controller/channel.go, controller/secure_verification.go, model/auth_flow.go, model/twofa.go, model/user_authentication_test.go, router/api-router.go, service/auth_token.go, web/src/features/auth/constants.ts, web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx, web/src/features/auth/secure-verification/types.ts, web/src/features/channels/api.ts, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/lib/http-client.ts, web/src/lib/server-error-message.ts, web/src/routes/oauth/$provider.tsx
@@ -1631,7 +1631,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游新增 VerificationOperation/ContextHash 并重构 OAuth、Passkey、2FA enrollment；本地证明已绑定会话/身份/方法/scope，但下游手机、微信 miniapp 流程独立扩展。建议优先设计完整的动作绑定迁移，而非照搬治理文件和整套安全页。
 - AI risks: 必须保持一次消费与业务事务原子性，防跨目标、跨动作重放；受保护 AGENTS.md 不进入适配范围。
 - AI dependencies: commit-d8cb177440ce
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:service/security_verification.go:52](https://github.com/QuantumNous/new-api/blob/45c3fbe8aeb049f03c13e14298a40b87aea5bd87/service/security_verification.go#L52) — 固定源码：ContextHash string `json:"context_hash"`
 - AI evidence: [downstream:service/auth_token.go:160](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/auth_token.go#L160) — 下游对照：func VerifySecurityProof(raw string, identity AuthIdentity, requiredScope string, allowedMethods []string) (string, error) {
 
@@ -1641,7 +1641,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): migrate Telegram to unified OAuth
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel.go`, `controller/misc.go`, `controller/oauth.go`, `controller/option.go`, `controller/secure_verification.go`, `controller/security_enrollment_test.go`, `controller/telegram.go`, `controller/telegram_test.go`, `controller/twofa.go`, `go.mod`, `go.sum`, `model/custom_oauth_provider.go`, `model/external_identity_claim.go`, `oauth/registry.go`, `oauth/telegram.go`, `oauth/types.go`, `router/api-router.go`, `service/security_verification.go`, `setting/system_setting/telegram.go`, `web/src/features/auth/api.test.ts`, `web/src/features/auth/api.ts`, `web/src/features/auth/components/oauth-providers.tsx`, `web/src/features/auth/hooks/use-oauth-login.ts`, `web/src/features/auth/lib/__tests__/oauth-popup.test.ts`, `web/src/features/auth/lib/oauth-callback-mode.ts`, `web/src/features/auth/lib/oauth-popup.ts`, `web/src/features/auth/secure-verification/__tests__/verification-api.test.ts`, `web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx`, `web/src/features/auth/secure-verification/api.ts`, `web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx`, `web/src/features/auth/secure-verification/hooks/use-secure-verification.ts`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/auth/types.ts`, `web/src/features/security/__tests__/enrollment.test.tsx`, `web/src/features/security/components/account-bindings.tsx`, `web/src/features/system-settings/auth/index.tsx`, `web/src/features/system-settings/auth/oauth-section.tsx`, `web/src/features/system-settings/auth/section-registry.tsx`, `web/src/features/system-settings/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/server-error-message.ts`, `web/src/routes/oauth/$provider.tsx`
 - Overlap with downstream changes: controller/channel.go, controller/misc.go, controller/option.go, controller/secure_verification.go, go.mod, go.sum, model/external_identity_claim.go, router/api-router.go, web/src/features/auth/components/oauth-providers.tsx, web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx, web/src/features/auth/secure-verification/types.ts, web/src/features/auth/types.ts, web/src/features/system-settings/auth/section-registry.tsx, web/src/features/system-settings/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/lib/server-error-message.ts, web/src/routes/oauth/$provider.tsx
@@ -1652,7 +1652,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 从旧 Telegram assertion 接口转为统一 OAuth flow、配置验证和会话身份绑定；本地仍有独立 Telegram 登录/绑定，并有微信 miniapp 的独立用途。需有旧客户端迁移、回调和配置计划后再选。
 - AI risks: 不可把 Telegram、微信网页登录与微信小程序 flow purpose 合并；旧 Bot Token 配置不等同新 OAuth 配置。
 - AI dependencies: commit-45c3fbe8aeb0
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/oauth.go:71](https://github.com/QuantumNous/new-api/blob/3e84ec0ab8239cf2277f8a10d45566630a9c10fa/controller/oauth.go#L71) — 固定源码：flowPayload.Telegram = telegramFlow
 - AI evidence: [downstream:model/auth_flow.go:24](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/auth_flow.go#L24) — 下游对照：AuthFlowPurposeTelegramAssertion = "telegram_assertion"
 
@@ -1662,7 +1662,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(security): require verification for access token management
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/access_token.go`, `controller/access_token_audit_test.go`, `controller/security_enrollment_test.go`, `controller/user.go`, `router/api-router.go`, `service/security_verification.go`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/security/api.ts`, `web/src/features/security/components/__tests__/access-token-card.test.tsx`, `web/src/features/security/components/access-token-card.tsx`, `web/src/features/security/hooks/use-access-token.ts`, `web/src/lib/secure-verification.ts`
 - Overlap with downstream changes: controller/user.go, router/api-router.go, web/src/features/auth/secure-verification/types.ts
@@ -1673,7 +1673,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该补丁依赖新的操作绑定安全证明与访问令牌控制器；本地 GenerateAccessToken 仍在 user.go。建议与 PAT 安全系列共同迁移，不能只改前端弹窗。
 - AI risks: 令牌签发/撤销需要绑定准确的操作上下文、限流和审计，保留浏览器与小程序会话隔离。
 - AI dependencies: commit-d8cb177440ce, commit-45c3fbe8aeb0
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/access_token.go:25](https://github.com/QuantumNous/new-api/blob/a8729b5c3709cc01d88fc3f2db5b91347fc9129e/controller/access_token.go#L25) — 固定源码：if middleware.RequireSecurityProof(c, service.VerificationOperation{Scope: service.VerificationScopeAccessTokenGenerate}) == nil {
 - AI evidence: [downstream:controller/user.go:422](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/user.go#L422) — 下游对照：func GenerateAccessToken(c *gin.Context) {
 
@@ -1683,7 +1683,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(security): harden account binding and password changes
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.env.example`, `common/account_password.go`, `common/crypto.go`, `common/password_crypto.go`, `controller/audit.go`, `controller/auth_flow_test.go`, `controller/custom_oauth.go`, `controller/email_binding.go`, `controller/misc.go`, `controller/model_list_test.go`, `controller/oauth.go`, `controller/passkey.go`, `controller/secure_verification.go`, `controller/security_account_test.go`, `controller/security_enrollment_test.go`, `controller/setup.go`, `controller/telegram_test.go`, `controller/user.go`, `controller/wechat.go`, `middleware/secure_verification.go`, `model/account_security.go`, `model/auth_flow.go`, `model/email_binding.go`, `model/user.go`, `router/api-router.go`, `service/account_security.go`, `service/auth_session.go`, `service/email_binding.go`, `service/security_verification.go`, `web/src/features/auth/api.ts`, `web/src/features/auth/constants.ts`, `web/src/features/auth/lib/password-encryption.ts`, `web/src/features/auth/secure-verification/__tests__/verification-api.test.ts`, `web/src/features/auth/secure-verification/hooks/use-secure-verification.ts`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/auth/sign-up/components/sign-up-form.tsx`, `web/src/features/auth/types.ts`, `web/src/features/profile/api.ts`, `web/src/features/profile/types.ts`, `web/src/features/security/__tests__/account-security.test.tsx`, `web/src/features/security/__tests__/enrollment.test.tsx`, `web/src/features/security/components/account-action-card.tsx`, `web/src/features/security/components/account-bindings.tsx`, `web/src/features/security/components/dialogs/change-password-dialog.tsx`, `web/src/features/security/components/dialogs/email-bind-dialog.tsx`, `web/src/features/security/components/dialogs/wechat-bind-dialog.tsx`, `web/src/features/security/hooks/use-account-security.ts`, `web/src/features/security/index.tsx`, `web/src/features/setup/setup-wizard.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/users/components/users-mutate-drawer.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/password-policy.ts`, `web/src/stores/auth-store.ts`
 - Overlap with downstream changes: .env.example, controller/audit.go, controller/misc.go, controller/model_list_test.go, controller/secure_verification.go, controller/user.go, model/auth_flow.go, model/user.go, router/api-router.go, service/auth_session.go, web/src/features/auth/constants.ts, web/src/features/auth/secure-verification/types.ts, web/src/features/auth/types.ts, web/src/features/usage-logs/lib/format.ts, web/src/features/users/components/users-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/stores/auth-store.ts
@@ -1694,7 +1694,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 Argon2id、密码 envelope v2、邮箱绑定与账号安全事务；本地存在 verified phone、UnionID 和小程序账号合并边界，需分阶段双格式验证/哈希切换及回滚计划。
 - AI risks: 滚动升级不能生成旧节点无法验证的密码；绑定解绑不可移除手机号所有权和会话失效规则。
 - AI dependencies: commit-b80d633cf586, commit-918427d8ab41, commit-45c3fbe8aeb0, commit-3e84ec0ab823, commit-a8729b5c3709
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/crypto.go:31](https://github.com/QuantumNous/new-api/blob/0973dc2b8f550de71b75fdd3805576d3ce6ccf42/common/crypto.go#L31) — 固定源码：if strings.HasPrefix(hash, "$argon2id$") {
 - AI evidence: [downstream:model/auth_flow.go:25](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/auth_flow.go#L25) — 下游对照：AuthFlowPurposeWeChatMiniAppBind = "wechat_miniapp_bind"
 
@@ -1704,7 +1704,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(audit): complete token and quota operation records
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `constant/context_key.go`, `controller/audit.go`, `controller/subscription.go`, `controller/token.go`, `controller/token_test.go`, `controller/user.go`, `controller/user_manage_test.go`, `controller/user_quota.go`, `middleware/audit.go`, `model/log.go`, `model/quota_reserve.go`, `model/user_quota_adjustment.go`, `router/api-router.go`, `web/src/features/usage-logs/audit/__tests__/details.test.tsx`, `web/src/features/usage-logs/audit/__tests__/viewer.test.tsx`, `web/src/features/usage-logs/audit/components/audit-detail-fields.tsx`, `web/src/features/usage-logs/audit/components/audit-log-columns.tsx`, `web/src/features/usage-logs/audit/components/audit-log-details-dialog.tsx`, `web/src/features/usage-logs/audit/lib/audit-details.ts`, `web/src/features/usage-logs/components/__tests__/quota-adjustment.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/usage-logs/lib/quota-audit-operation.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: AGENTS.md, constant/context_key.go, controller/audit.go, controller/user.go, controller/user_manage_test.go, model/log.go, router/api-router.go, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/lib/format.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -1715,7 +1715,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 tokenAuditParams、独立额度调整与审计字段；本地额度调整接入钱包账本、财务纠错和冻结成本证据。需把审计事件适配到下游事务链，禁止替换现有账务路径。
 - AI risks: 不能因审计重构重复扣费、丢失不可变账本或暴露 API key；AGENTS.md 变更另行治理。
 - AI dependencies: commit-d8cb177440ce
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/user_quota.go:19](https://github.com/QuantumNous/new-api/blob/3f8a50cf8877683669cd812240a0beaf7b171c32/controller/user_quota.go#L19) — 固定源码："requested_quota": req.Value,
 - AI evidence: [downstream:router/api-router.go:123](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/api-router.go#L123) — 下游对照：billingCorrection.POST("/preview", middleware.RootAuth(), middleware.CriticalRateLimit(), controller.PreviewBillingCorrection)
 
@@ -1725,7 +1725,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(dashboard): simplify completed setup guide
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/dashboard/components/overview/__tests__/setup-guide.test.tsx`, `web/src/features/dashboard/components/overview/overview-dashboard.tsx`, `web/src/features/dashboard/index.tsx`
 - Overlap with downstream changes: web/src/features/dashboard/components/overview/overview-dashboard.tsx
@@ -1736,7 +1736,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 调整首页SectionPageLayout、完成后折叠入口与焦点恢复，是体验改版而非运行时兼容修复。下游首页已有新增财务/资源能力，应等维护者选择新布局后单独适配，不在数据库安全修复批次顺带覆盖。
 - AI risks: 保留Root配置提示、用户权限和下游首页数据；焦点与折叠状态需可访问性验证。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/dashboard/components/overview/overview-dashboard.tsx:462](https://github.com/QuantumNous/new-api/blob/521cebf585efc2e782dd9fb93d0f66752c8d3c32/web/src/features/dashboard/components/overview/overview-dashboard.tsx#L462) — 完成引导的折叠入口加入焦点回退；代码：const setupGuideToggleRef = useRef<HTMLButtonElement>(null)
 
 #### commit-6f2333990613
@@ -1745,7 +1745,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): unify login verification and secure account deletion
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/audit.go`, `controller/auth_flow_test.go`, `controller/auth_session_test.go`, `controller/login_verification.go`, `controller/model_list_test.go`, `controller/passkey.go`, `controller/security_account_test.go`, `controller/security_enrollment_test.go`, `controller/twofa.go`, `controller/user.go`, `model/account_security.go`, `model/auth_flow.go`, `model/login_verification.go`, `model/twofa.go`, `model/user.go`, `model/user_session.go`, `router/api-router.go`, `service/auth_session.go`, `service/login_verification.go`, `service/passkey/session.go`, `service/security_verification.go`, `web/src/features/auth/hooks/use-auth-redirect.ts`, `web/src/features/auth/hooks/use-oauth-login.ts`, `web/src/features/auth/otp/__tests__/login-verification.test.tsx`, `web/src/features/auth/otp/components/otp-form.tsx`, `web/src/features/auth/otp/index.tsx`, `web/src/features/auth/secure-verification/__tests__/verification-api.test.ts`, `web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx`, `web/src/features/auth/secure-verification/api.ts`, `web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx`, `web/src/features/auth/secure-verification/hooks/use-secure-verification.ts`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/auth/sign-in/components/user-auth-form.tsx`, `web/src/features/auth/sign-up/components/sign-up-form.tsx`, `web/src/features/auth/types.ts`, `web/src/features/profile/api.ts`, `web/src/features/profile/types.ts`, `web/src/features/security/__tests__/account-security.test.tsx`, `web/src/features/security/components/dialogs/delete-account-dialog.tsx`, `web/src/features/security/components/dialogs/two-fa-backup-dialog.tsx`, `web/src/features/security/components/dialogs/two-fa-disable-dialog.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/api.ts`, `web/src/lib/auth-session.test.ts`, `web/src/lib/passkey.ts`, `web/src/routes/oauth/$provider.tsx`, `web/src/stores/auth-store.ts`
 - Overlap with downstream changes: controller/audit.go, controller/model_list_test.go, controller/user.go, model/auth_flow.go, model/twofa.go, model/user.go, router/api-router.go, service/auth_session.go, web/src/features/auth/otp/components/otp-form.tsx, web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx, web/src/features/auth/secure-verification/types.ts, web/src/features/auth/sign-in/components/user-auth-form.tsx, web/src/features/auth/types.ts, web/src/features/usage-logs/lib/format.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/routes/oauth/$provider.tsx, web/src/stores/auth-store.ts
@@ -1756,7 +1756,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游把 2FA/Passkey 登录挑战统一，并提高 Passkey UserVerification、账号删除验证要求；本地登录会签发自己的 session bundle 且有手机号/微信流程，需要一致的跨入口策略。
 - AI risks: 删除账号前验证、会话撤销与数据留存要一并审计；不能让已有小程序会话绕过或全部失效。
 - AI dependencies: commit-45c3fbe8aeb0, commit-0973dc2b8f55
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/passkey.go:81](https://github.com/QuantumNous/new-api/blob/6f2333990613bf3e9dd36f541fc380148c7b5175/controller/passkey.go#L81) — 固定源码：selection.UserVerification = protocol.VerificationRequired
 - AI evidence: [downstream:service/auth_token.go:37](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/auth_token.go#L37) — 下游对照：type AuthIdentity struct {
 
@@ -1766,7 +1766,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(models): rework model/vendor management and pricing
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/model_management_test.go`, `controller/model_meta.go`, `controller/model_pricing_config.go`, `controller/model_sync.go`, `controller/ratio_config.go`, `controller/ratio_sync.go`, `controller/ratio_sync_test.go`, `controller/vendor_meta.go`, `model/ability.go`, `model/channel_cache.go`, `model/model_meta.go`, `model/model_metadata_sync.go`, `model/model_pricing_config.go`, `model/option.go`, `model/pricing_default.go`, `model/vendor_management.go`, `model/vendor_meta.go`, `router/api-router.go`, `setting/billing_setting/tiered_billing.go`, `setting/ratio_setting/model_ratio.go`, `web/src/components/data-table/core/badge-list-cell.tsx`, `web/src/components/data-table/layout/data-table-page.tsx`, `web/src/components/data-table/layout/mobile-card-list.tsx`, `web/src/components/data-table/toolbar/bulk-actions.tsx`, `web/src/components/data-table/toolbar/view-mode-toggle.tsx`, `web/src/components/layout/components/section-page-layout.tsx`, `web/src/components/lobe-icon-field.tsx`, `web/src/components/ui/__tests__/combobox.test.tsx`, `web/src/components/ui/combobox-input.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/features/channels/components/dialogs/advanced-custom-editor-dialog.tsx`, `web/src/features/channels/components/dialogs/channel-test-dialog.tsx`, `web/src/features/channels/components/dialogs/edit-tag-dialog.tsx`, `web/src/features/channels/components/dialogs/param-override-editor-dialog.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/model-pricing/__tests__/pricing.test.ts`, `web/src/features/model-pricing/api.ts`, `web/src/features/model-pricing/model-pricing-panel.tsx`, `web/src/features/model-pricing/pricing.ts`, `web/src/features/models/__tests__/metadata-editing.test.tsx`, `web/src/features/models/__tests__/metadata-sync.test.tsx`, `web/src/features/models/__tests__/model-deletion.test.tsx`, `web/src/features/models/__tests__/vendor-management.test.tsx`, `web/src/features/models/api.ts`, `web/src/features/models/components/data-table-bulk-actions.tsx`, `web/src/features/models/components/data-table-row-actions.tsx`, `web/src/features/models/components/dialogs/create-deployment-drawer.tsx`, `web/src/features/models/components/dialogs/missing-models-dialog.tsx`, `web/src/features/models/components/dialogs/model-delete-dialog.tsx`, `web/src/features/models/components/dialogs/price-sync-dialog.tsx`, `web/src/features/models/components/dialogs/sync-wizard-dialog.tsx`, `web/src/features/models/components/dialogs/upstream-conflict-dialog.tsx`, `web/src/features/models/components/dialogs/vendor-mutate-dialog.tsx`, `web/src/features/models/components/dialogs/vendor-operation-dialog.tsx`, `web/src/features/models/components/dialogs/vendors-management-dialog.tsx`, `web/src/features/models/components/dialogs/view-logs-dialog.tsx`, `web/src/features/models/components/drawers/model-mutate-drawer.tsx`, `web/src/features/models/components/model-connections.tsx`, `web/src/features/models/components/models-columns.tsx`, `web/src/features/models/components/models-dialogs.tsx`, `web/src/features/models/components/models-primary-buttons.tsx`, `web/src/features/models/components/models-provider.tsx`, `web/src/features/models/components/models-table.tsx`, `web/src/features/models/components/vendor-linked-models.tsx`, `web/src/features/models/components/vendors-table.tsx`, `web/src/features/models/constants.ts`, `web/src/features/models/index.tsx`, `web/src/features/models/lib/model-actions.ts`, `web/src/features/models/section-registry.tsx`, `web/src/features/models/types.ts`, `web/src/features/models/vendor-api.ts`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/__tests__/pricing-controls.test.tsx`, `web/src/features/pricing/components/loading-skeleton.tsx`, `web/src/features/pricing/components/model-billing-mode-badge.tsx`, `web/src/features/pricing/components/model-card-grid.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/model-perf-badge.tsx`, `web/src/features/pricing/components/pricing-sidebar.tsx`, `web/src/features/pricing/components/pricing-toolbar.tsx`, `web/src/features/pricing/index.tsx`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/profile/components/language-preferences-card.tsx`, `web/src/features/subscriptions/components/dialogs/subscription-purchase-dialog.tsx`, `web/src/features/subscriptions/components/dialogs/user-subscriptions-dialog.tsx`, `web/src/features/subscriptions/components/subscriptions-mutate-drawer.tsx`, `web/src/features/system-settings/__tests__/pricing-sync.test.tsx`, `web/src/features/system-settings/auth/custom-oauth/components/preset-selector.tsx`, `web/src/features/system-settings/integrations/waffo-pancake-settings-section.tsx`, `web/src/features/system-settings/models/channel-selector-dialog.tsx`, `web/src/features/system-settings/models/conflict-confirm-dialog.tsx`, `web/src/features/system-settings/models/group-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/group-special-usable-editor.tsx`, `web/src/features/system-settings/models/model-pricing-core.ts`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/model-pricing-snapshots.ts`, `web/src/features/system-settings/models/model-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/ratio-settings-card.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/features/system-settings/models/upstream-price-cells.tsx`, `web/src/features/system-settings/models/upstream-ratio-sync-columns.tsx`, `web/src/features/system-settings/models/upstream-ratio-sync-helpers.ts`, `web/src/features/system-settings/models/upstream-ratio-sync-table.tsx`, `web/src/features/system-settings/models/upstream-ratio-sync.tsx`, `web/src/features/system-settings/types.ts`, `web/src/features/task-plugins/components/plugin-detail-sheet.tsx`, `web/src/features/task-plugins/components/plugin-sandbox.tsx`, `web/src/features/usage-logs/audit/components/audit-log-filter-bar.tsx`, `web/src/features/users/components/users-mutate-drawer.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/lobe-icon.tsx`, `web/src/routes/_authenticated/models/$section.tsx`, `web/vitest.config.ts`
 - Overlap with downstream changes: model/ability.go, model/channel_cache.go, model/option.go, router/api-router.go, setting/ratio_setting/model_ratio.go, web/src/features/channels/components/dialogs/channel-test-dialog.tsx, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/models/components/drawers/model-mutate-drawer.tsx, web/src/features/pricing/index.tsx, web/src/features/system-settings/types.ts, web/src/features/users/components/users-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -1777,7 +1777,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 122文件重构统一模型元数据、供应商、价格快照及并发保存，并将插件usage_schema纳入价格配置。它有管理价值，但不是现有上游来源同步页面；须先确认与下游财务权限、固定档位、成本折扣和调账页面的关系。
 - AI risks: 删除模型可能清理渠道和价格；所有删除、并发冲突及跨数据库事务需验证，不能损坏历史冻结账单。
 - AI dependencies: commit-eb48396d5fe9, commit-eb99ab1b4034
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/model_pricing_config.go:46](https://github.com/QuantumNous/new-api/blob/0c76e4dae77a279e015329b7478e6f02d6b62edd/model/model_pricing_config.go#L46) — 新增带乐观版本冲突检测的价格管理模型；代码：var ErrModelPricingConflict = errors.New("model pricing changed; reload before saving")
 
 #### commit-3b4652269a6a
@@ -1786,7 +1786,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(ali): support wan3.0 all-in-one video models
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/alibaba_wan3_test.go`, `plugins/tasks/alibaba/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -1797,7 +1797,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游为 Wan3 新增统一 input.media、adaptive 比例、分辨率和自动时长标记。下游已具有独立 Wan3 Go DTO 与映射后路由，但未证明所有协议/计费语义等价，应先做能力矩阵，再挑缺口迁移；不能标记整体 covered。
 - AI risks: 自动时长负值不能直接参与计费；需保留显式零值、请求冻结、Wan2.x 旧行为。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/alibaba/plugin.js:82](https://github.com/QuantumNous/new-api/blob/3b4652269a6a6d9e2c8650a84ee8c4e447e6473b/plugins/tasks/alibaba/plugin.js#L82) — 上游把 -1 自动时长转为独立标记进入后续计价；代码：function normalizeAutoDuration(req) {
 - AI evidence: [downstream:relay/channel/task/ali/adaptor.go:755](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/ali/adaptor.go#L755) — 下游已有独立 Wan3 请求类型，不能用 JS 文件覆盖；代码：type wan3VideoRequest struct {
 
@@ -1807,7 +1807,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): preserve Kimi K3 dynamic tool loading messages
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/moonshot/constants.go`, `relay/chat_completions_via_responses.go`, `relay/chat_completions_via_responses_test.go`, `relay/compatible_handler.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/openai_request_zero_value_test.go`, `relaykit/relayconvert/kitutil/json_test.go`
 - Overlap with downstream changes: relay/channel/moonshot/constants.go, relay/chat_completions_via_responses.go, relay/chat_completions_via_responses_test.go, relay/compatible_handler.go, relaykit/dto/openai_request.go, relaykit/dto/openai_request_zero_value_test.go
@@ -1818,7 +1818,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `covered` — 已对照本地K3模型列表、messages[].tools序列化、无content动态消息、工具Token估算和系统提示注入逻辑；UPSTREAM已记录这项完整动态工具修复。保留现有Moonshot facade明确拒绝伪造动态加载的下游边界，不重复迁入。
 - AI risks: covered仅指本提交动态工具修复；不表示7c044模型修饰符大重构或所有Kimi专属能力已覆盖。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/dto/openai_request.go:123](https://github.com/QuantumNous/new-api/blob/6e10f9bc927a4eae889864a6ef601359d53526b9/relaykit/dto/openai_request.go#L123) — 上游识别动态工具消息并省略其content。
 - AI evidence: [downstream:relaykit/dto/openai_request.go:119](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/dto/openai_request.go#L119) — 本地已有相同动态消息专用序列化路径。
 - AI evidence: [downstream:UPSTREAM.md:20](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/UPSTREAM.md#L20) — 已记录迁入范围、Token估算、系统提示与原生Moonshot/facade边界及验证。
@@ -1831,7 +1831,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(json): route JSON helpers through a host-injectable codec
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/json.go`, `common/json_test.go`, `relaykit/dto/values.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/kitutil/json.go`
 - Overlap with downstream changes: relaykit/dto/values.go
@@ -1842,7 +1842,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游让common与relaykit DTO统一走可注入Codec，本地common和独立relaykit仍直接使用标准库。属于跨模块初始化/序列化语义调整，不能只替换部分调用。
 - AI risks: 要保留下游IntValue溢出/字符串解析加强、显式零、ETag稳定性，并证明relaykit无根模块依赖；须与所选JSON引擎升级一并验证。
 - AI dependencies: commit-0ed497f066a6
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/json.go:18](https://github.com/QuantumNous/new-api/blob/7bbe85bcb09546e0b89572bf97198fc94889be3d/common/json.go#L18) — 宿主在初始化时注入统一编解码器。
 - AI evidence: [downstream:common/json.go:22](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/common/json.go#L22) — 本地common JSON封装仍直接使用标准库。
 
@@ -1852,7 +1852,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): keep drawer popups interactive and shim storage in tests
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/ui/__tests__/portal-container.test.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/components/ui/drawer.tsx`, `web/src/components/ui/portal-container.ts`, `web/src/components/ui/select.tsx`, `web/src/test-setup.ts`
 - Overlap with downstream changes: (none detected)
@@ -1873,7 +1873,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(perf): return hourly success-rate series for model health bar
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/perf_metrics/metrics.go`, `pkg/perf_metrics/types.go`, `web/src/features/performance-metrics/types.ts`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/components/model-perf-badge.tsx`
 - Overlap with downstream changes: (none detected)
@@ -1884,7 +1884,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 把最近三个非空成功率改为带时间戳的小时序列并展示24槽。当前下游是刻意紧凑的三柱状态，接入会改变API契约与卡片布局，且后续1ca79d57e7重新定义近期样本；建议选最终方案整体迁移而非孤立改接口。
 - AI risks: 必须区分无流量和失败，保留按用户可用组过滤；不能影响下游Root节点资源监控。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/perf_metrics/metrics.go:190](https://github.com/QuantumNous/new-api/blob/5c7cca015525212a7ac2741da7f3b51fa2e30db0/pkg/perf_metrics/metrics.go#L190) — API改为时间戳成功率序列；代码：RecentSuccessSeries: recentSuccessSeries(modelBuckets[name]),
 - AI evidence: [downstream:web/src/features/pricing/components/model-perf-badge.tsx:70](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/pricing/components/model-perf-badge.tsx#L70) — 本地状态显示明确为三个柱位；代码：...Array(Math.max(0, 3 - statusRates.length)).fill(null),
 
@@ -1894,7 +1894,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugin): suppress factory layer when disabling an overridden task plugin
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/task_plugin.go`, `controller/task_plugin_test.go`
 - Overlap with downstream changes: (none detected)
@@ -1905,7 +1905,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 禁用覆盖插件时同时抑制内置 factory 层，防止禁用后继续接单。该行为应作为未来插件启停的必需安全语义；当前没有插件覆盖层，不宜先引入孤立控制器。
 - AI risks: 禁用对已存在任务的轮询能力与新请求路由应分别确认。
 - AI dependencies: commit-eb48396d5fe9, commit-dc4732cfed71
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/task_plugin.go:481](https://github.com/QuantumNous/new-api/blob/6298b0f3238461b9629dfc1c00866f8325123aa1/controller/task_plugin.go#L481) — 禁用会同时停止可服务此键的层；代码：// Switching a key off must silence every layer that can serve it. The
 
 #### commit-92bc7ff73c5e
@@ -1914,7 +1914,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugins): make sunoapi alias-safe and lock alias echo across built-ins
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/builtin_plugins_test.go`, `plugins/sunoapi_responses_test.go`, `plugins/tasks/sunoapi/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -1925,7 +1925,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — Suno 按解析后的真实模型区分歌词/音乐，响应保留公开别名，并只透传有效请求头；是插件别名链修复。下游 Suno Go 模式与 `/moonshot` 透传不同，应随插件模型身份统一纳入。
 - AI risks: 公开别名不得变成上游模型或计费身份；空 Header 不应干扰服务端默认。
 - AI dependencies: commit-eb48396d5fe9, commit-6c22550ea325
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/sunoapi/plugin.js:230](https://github.com/QuantumNous/new-api/blob/92bc7ff73c5ef215496d09d3e4b5769c9e35006b/plugins/tasks/sunoapi/plugin.js#L230) — 按已解析模型决定歌词模式；代码：const declared = trimmed(ctx.upstreamModel || ctx.model).toLowerCase();
 
 #### commit-210734bb73bc
@@ -1934,7 +1934,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(task): remove the custom-plugin layer switch
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/init.go`, `constant/task.go`, `controller/task_plugin.go`, `controller/task_plugin_test.go`, `model/option.go`, `model/option_task_plugin_test.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_disabled_factory_test.go`, `pkg/jsplugin/registry_master_enabled_test.go`, `pkg/jsplugin/registry_test.go`, `pkg/jsplugin/routing.go`, `pkg/jsplugin/routing_test.go`
 - Overlap with downstream changes: constant/task.go, model/option.go
@@ -1945,7 +1945,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 删除自定义覆盖层的独立开关，保留总开关与内置禁用集。该提交是先前插件配置契约的调整，并非现有配置清理；应和最终版本插件策略一起选择。
 - AI risks: 旧环境变量或已保存选项的升级语义需记录；不能意外启用自定义插件。
 - AI dependencies: commit-eb48396d5fe9, commit-6298b0f32384
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/routing.go:848](https://github.com/QuantumNous/new-api/blob/210734bb73bc3c6e37548af90360aa4226566fe2/pkg/jsplugin/routing.go#L848) — 最终有效插件直接合并覆盖层；代码：maps.Copy(effective, override)
 
 #### commit-bee45b58a3c0
@@ -1954,7 +1954,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): switch the pricing card grid to three columns at xl
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/components/loading-skeleton.tsx`, `web/src/features/pricing/components/model-card-grid.tsx`
 - Overlap with downstream changes: (none detected)
@@ -1965,7 +1965,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 上游从 2xl 提前到 xl 三列；下游已定制为 lg 三列，比上游更早切换。此提交会撤回下游已选布局，不作为上游功能缺口。
 - AI risks: 若重新设计定价页密度，需按实际卡片内容/视口验证，而非把样式差异当缺陷。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/components/model-card-grid.tsx:76](https://github.com/QuantumNous/new-api/blob/bee45b58a3c0b77e8dc81e6b5aeb4474aa9058d1/web/src/features/pricing/components/model-card-grid.tsx#L76) — 固定源码：<div className='grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3'>
 - AI evidence: [downstream:web/src/features/pricing/components/model-card-grid.tsx:76](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/pricing/components/model-card-grid.tsx#L76) — 下游对照：<div className='grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3'>
 
@@ -1975,7 +1975,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(pricing): support site currency in pricing editors
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/model-pricing/__tests__/editor-currency.test.tsx`, `web/src/features/model-pricing/currency.ts`, `web/src/features/model-pricing/pricing-amount-input.tsx`, `web/src/features/model-pricing/pricing-currency-selector.tsx`, `web/src/features/system-settings/models/model-pricing-core.ts`, `web/src/features/system-settings/models/model-pricing-inputs.tsx`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/task-pricing-matrix.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/stores/pricing-preferences-store.ts`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -1986,7 +1986,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 统一编辑器USD与站点币种换算并保存用户显示偏好，依赖新的模型定价面板。应先确认换算只发生在展示/输入边界，不改变历史账单、钱包quota和独立上游成本币种。
 - AI risks: 汇率变动、空/零价格与精度舍入可能改变保存售价，需往返与业务账务测试。
 - AI dependencies: commit-0c76e4dae77a
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/model-pricing/currency.ts:34](https://github.com/QuantumNous/new-api/blob/75e533209490a8ef3a8b5e3d93e4dac03ba19bcf/web/src/features/model-pricing/currency.ts#L34) — 新定价模块定义币种换算入口；代码：export function getSitePricingCurrency(
 
 #### commit-99974a814f00
@@ -1995,7 +1995,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): extend plugin metadata and icon support
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel.go`, `controller/channel_task_plugin_bind_test.go`, `controller/channel_task_plugin_validation_test.go`, `controller/task_plugin.go`, `controller/task_plugin_test.go`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `model/pricing.go`, `model/pricing_usage_schema_test.go`, `model/task_plugin.go`, `pkg/jsplugin/engine_test.go`, `pkg/jsplugin/icon.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_test.go`, `pkg/jsplugin/request.go`, `plugins/embed.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`, `plugins/tasks/google/plugin.js`, `plugins/tasks/hailuo/plugin.js`, `plugins/tasks/jimeng/plugin.js`, `plugins/tasks/kling/plugin.js`, `plugins/tasks/sora/plugin.js`, `plugins/tasks/sunoapi/plugin.js`, `plugins/tasks/vertex-ai/plugin.js`, `plugins/tasks/vidu/plugin.js`, `router/api-router.go`, `router/plugin_router_test.go`
 - Overlap with downstream changes: controller/channel.go, router/api-router.go
@@ -2006,7 +2006,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 扩展插件图标、排序与默认 BaseURL，默认地址在创建渠道时固定保存。当前无插件实体和管理接口，需先评审图标解码/体积边界与渠道目的地主机的审计策略。
 - AI risks: 不能因插件升级静默改变渠道主机；保留下载地址、SSRF、代理和租户边界。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/channel.go:480](https://github.com/QuantumNous/new-api/blob/99974a814f00a26dfa7431beb313e487529bbeed/controller/channel.go#L480) — 插件默认目的地被固化为渠道属性；代码：// The plugin default is persisted onto the channel instead of being
 
 #### commit-984330920061
@@ -2015,7 +2015,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): improve plugin management and marketplace
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/marketplace-install-dialog.test.tsx`, `web/src/features/task-plugins/__tests__/marketplace-plugin-logo.test.tsx`, `web/src/features/task-plugins/__tests__/marketplace.test.ts`, `web/src/features/task-plugins/__tests__/plugin-card.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-detail-sheet.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-icon-file.test.ts`, `web/src/features/task-plugins/__tests__/plugin-icon-image.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-icon.test.ts`, `web/src/features/task-plugins/__tests__/plugin-meta-preview.test.ts`, `web/src/features/task-plugins/__tests__/plugins-table.test.tsx`, `web/src/features/task-plugins/__tests__/website.test.tsx`, `web/src/features/task-plugins/api.ts`, `web/src/features/task-plugins/components/javascript-viewer.tsx`, `web/src/features/task-plugins/components/marketplace-capabilities.tsx`, `web/src/features/task-plugins/components/marketplace-install-dialog.tsx`, `web/src/features/task-plugins/components/marketplace-panel.tsx`, `web/src/features/task-plugins/components/marketplace-plugin-card.tsx`, `web/src/features/task-plugins/components/plugin-card.tsx`, `web/src/features/task-plugins/components/plugin-detail-sheet.tsx`, `web/src/features/task-plugins/components/plugin-endpoints.tsx`, `web/src/features/task-plugins/components/plugin-icon.tsx`, `web/src/features/task-plugins/components/plugin-integrity-check.tsx`, `web/src/features/task-plugins/components/plugin-metadata-card.tsx`, `web/src/features/task-plugins/components/plugin-model-list.tsx`, `web/src/features/task-plugins/components/plugin-website-link.tsx`, `web/src/features/task-plugins/components/plugins-table.tsx`, `web/src/features/task-plugins/components/source-diff.tsx`, `web/src/features/task-plugins/components/upload-dialog.tsx`, `web/src/features/task-plugins/components/usage-schema-table.tsx`, `web/src/features/task-plugins/lib/marketplace.ts`, `web/src/features/task-plugins/lib/plugin-icon-file.ts`, `web/src/features/task-plugins/lib/plugin-icon.ts`, `web/src/features/task-plugins/lib/plugin-meta-preview.ts`, `web/src/features/task-plugins/lib/plugin-website.ts`, `web/src/features/task-plugins/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/test-setup.ts`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2026,7 +2026,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 引入较完整的市场来源、完整性校验、源码预览和上传/安装交互；没有对应后端插件生命周期时不单独引入。应和受信来源、签名/哈希、权限及回滚策略一起设计。
 - AI risks: 外部插件源码是可执行内容，不能把市场安装视为普通静态资源下载。
 - AI dependencies: commit-eb48396d5fe9, commit-dc4732cfed71, commit-99974a814f00
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/api.ts:93](https://github.com/QuantumNous/new-api/blob/984330920061e014159c7581b8fcdb726de2c247/web/src/features/task-plugins/api.ts#L93) — 前端上传依赖插件后端 API；代码：export async function uploadTaskPlugin(
 
 #### commit-eb76b136b85e
@@ -2035,7 +2035,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channels): improve plugin channel setup and icons
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/provider-badge.tsx`, `web/src/components/ui/__tests__/combobox.test.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/channel-type-badge.test.tsx`, `web/src/features/channels/components/channel-type-badge.tsx`, `web/src/features/channels/components/channels-columns.tsx`, `web/src/features/channels/components/channels-table.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/lib/__tests__/task-plugin-base-url.test.ts`, `web/src/features/channels/lib/task-plugin-base-url.ts`, `web/src/features/channels/types.ts`
 - Overlap with downstream changes: web/src/features/channels/api.ts, web/src/features/channels/components/channels-table.tsx, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/types.ts
@@ -2046,7 +2046,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 渠道表单使用插件图标、默认地址与任务类型选择，需要已存在的插件列表和元数据。本地渠道表单包含下游视频、素材、存储配置，应待插件方案批准后按字段迁移。
 - AI risks: 整个表单替换会丢失下游渠道选项与本地国际化。
 - AI dependencies: commit-eb48396d5fe9, commit-99974a814f00, commit-984330920061
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/lib/task-plugin-base-url.ts:51](https://github.com/QuantumNous/new-api/blob/eb76b136b85ecba9d6ad19c714c5781e51815530/web/src/features/channels/lib/task-plugin-base-url.ts#L51) — 新增插件地址信任警告规则模块；代码：export function assessBaseUrlTrust(
 - AI evidence: [downstream:web/src/features/channels/components/drawers/channel-mutate-drawer.tsx:621](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/drawers/channel-mutate-drawer.tsx#L621) — 本地下游复用渠道编辑器承载现有渠道配置；代码：export function ChannelMutateDrawer({
 
@@ -2056,7 +2056,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(pricing): improve pricing editors and log display
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/model-pricing/__tests__/editor-layout.test.tsx`, `web/src/features/model-pricing/model-pricing-panel.tsx`, `web/src/features/models/__tests__/metadata-editing.test.tsx`, `web/src/features/models/components/data-table-row-actions.tsx`, `web/src/features/models/components/drawers/model-mutate-drawer.tsx`, `web/src/features/models/components/models-columns.tsx`, `web/src/features/models/components/models-dialogs.tsx`, `web/src/features/models/components/models-provider.tsx`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/__tests__/task-price-display.test.tsx`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/task-matrix-display.ts`, `web/src/features/pricing/lib/task-price-display.ts`, `web/src/features/pricing/types.ts`, `web/src/features/system-settings/components/settings-form-layout.tsx`, `web/src/features/system-settings/models/__tests__/task-pricing-copy.test.tsx`, `web/src/features/system-settings/models/model-pricing-inputs.tsx`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/model-ratio-form.tsx`, `web/src/features/system-settings/models/model-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/ratio-settings-card.tsx`, `web/src/features/system-settings/models/task-pricing-matrix.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/usage-logs/components/__tests__/detail-preview.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`
 - Overlap with downstream changes: web/src/features/models/components/drawers/model-mutate-drawer.tsx, web/src/features/usage-logs/components/columns/common-logs-columns.tsx
@@ -2067,7 +2067,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 在模型管理中接入价格操作，整理动态价、任务矩阵、编辑器和日志表达式展示；依赖统一模型管理和币种编辑。当前本地有特殊费用、有效调账与成本权限提示，应按最终展示模块逐处迁移。
 - AI risks: 全量覆盖日志列会丢失下游管理员饱和、成本和历史调账证据。
 - AI dependencies: commit-0c76e4dae77a, commit-75e533209490
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/models/components/data-table-row-actions.tsx:31](https://github.com/QuantumNous/new-api/blob/0e0ba152bdcc6891f6053047ccf14d41b3cad60a/web/src/features/models/components/data-table-row-actions.tsx#L31) — 新增价格编辑权限入口；代码：import { useCanEditModelPricing } from '@/features/model-pricing/api'
 
 #### commit-71c1fd7caad7
@@ -2076,7 +2076,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(models): improve model listing, pricing and visibility filters
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/model_management_test.go`, `controller/model_meta.go`, `model/model_meta.go`, `model/pricing.go`, `web/src/features/model-pricing/__tests__/editor-currency.test.tsx`, `web/src/features/model-pricing/model-pricing-panel.tsx`, `web/src/features/model-pricing/pricing.ts`, `web/src/features/models/__tests__/metadata-editing.test.tsx`, `web/src/features/models/__tests__/model-listing.test.tsx`, `web/src/features/models/components/data-table-bulk-actions.tsx`, `web/src/features/models/components/data-table-row-actions.tsx`, `web/src/features/models/components/drawers/model-mutate-drawer.tsx`, `web/src/features/models/components/model-connections.tsx`, `web/src/features/models/components/model-square-status.tsx`, `web/src/features/models/components/models-columns.tsx`, `web/src/features/models/components/models-table.tsx`, `web/src/features/models/lib/model-utils.ts`, `web/src/features/models/types.ts`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-price-cell.tsx`, `web/src/features/pricing/components/pricing-columns.tsx`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/price.ts`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/routes/_authenticated/models/$section.tsx`
 - Overlap with downstream changes: web/src/features/models/components/drawers/model-mutate-drawer.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/lib/format.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -2087,7 +2087,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增可见/不可用/隐藏/部分可用状态、供应商筛选和模型连接/价格入口。依赖前述元数据管理，并改变公开可见性判断，需要保留租户组和本地财务权限。
 - AI risks: 模型广场隐藏和管理员可编辑不能混为访问授权；批量操作不得误删运行时配置。
 - AI dependencies: commit-0c76e4dae77a, commit-0e0ba152bdcc
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/model_meta.go:21](https://github.com/QuantumNous/new-api/blob/71c1fd7caad738db4d13aabbf28eeadb293d0cfe/model/model_meta.go#L21) — 模型元数据新增广场状态；代码：type ModelSquareState string
 
 #### commit-a5e41a893379
@@ -2096,7 +2096,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(usage-logs): refine mobile layout and keep quick actions visible
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/data-table/core/__tests__/pagination.test.tsx`, `web/src/components/data-table/core/pagination.tsx`, `web/src/components/data-table/layout/data-table-page.tsx`, `web/src/features/usage-logs/components/__tests__/mobile-card.test.tsx`, `web/src/features/usage-logs/components/__tests__/mobile-filter.test.tsx`, `web/src/features/usage-logs/components/common-log-mobile-card.tsx`, `web/src/features/usage-logs/components/common-logs-filter-bar.tsx`, `web/src/features/usage-logs/components/compact-date-time-range-picker.tsx`, `web/src/features/usage-logs/components/logs-filter-toolbar.tsx`, `web/src/features/usage-logs/components/model-badge.tsx`, `web/src/features/usage-logs/components/timing-metrics-cell.tsx`, `web/src/features/usage-logs/components/usage-logs-mobile-card.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/usage-logs/components/common-logs-filter-bar.tsx, web/src/features/usage-logs/components/compact-date-time-range-picker.tsx, web/src/features/usage-logs/components/usage-logs-mobile-card.tsx, web/src/features/usage-logs/components/usage-logs-table.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2107,7 +2107,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游新增 CommonLogMobileCard、紧凑分页和工具栏；下游日志扩展成本、财务纠错、永久账本与审计信息，需先设计字段映射再迁入布局。
 - AI risks: 移动卡片不能遗漏或误显示有效扣费/成本、请求ID和仅管理员可见内容。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/data-table/layout/data-table-page.tsx:210](https://github.com/QuantumNous/new-api/blob/a5e41a893379e49bd9e1d025e775c04df8961c95/web/src/components/data-table/layout/data-table-page.tsx#L210) — 固定源码：compactPagination?: boolean
 - AI evidence: [downstream:web/src/features/usage-logs/components/usage-logs-table.tsx:80](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/usage-logs/components/usage-logs-table.tsx#L80) — 下游对照：export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
 
@@ -2117,7 +2117,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): refine API key and user quota displays
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/data-table/core/data-table-view.tsx`, `web/src/components/data-table/core/truncated-cell.tsx`, `web/src/components/group-badge.tsx`, `web/src/components/ui/table.tsx`, `web/src/features/keys/components/__tests__/api-key-group-cell.test.tsx`, `web/src/features/keys/components/__tests__/api-key-group-combobox.test.tsx`, `web/src/features/keys/components/__tests__/api-key-listing.test.tsx`, `web/src/features/keys/components/__tests__/auto-group-order-editor.test.tsx`, `web/src/features/keys/components/api-key-group-cell.tsx`, `web/src/features/keys/components/api-key-quota-cell.tsx`, `web/src/features/keys/components/api-key-timestamp-cell.tsx`, `web/src/features/keys/components/api-keys-cells.tsx`, `web/src/features/keys/components/api-keys-columns.tsx`, `web/src/features/keys/components/api-keys-table.tsx`, `web/src/features/keys/components/auto-group-visuals.tsx`, `web/src/features/keys/components/data-table-row-actions.tsx`, `web/src/features/users/components/__tests__/quota-display.test.tsx`, `web/src/features/users/components/user-quota-cell.tsx`, `web/src/features/users/components/users-columns.tsx`, `web/src/features/users/components/users-table.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/styles/index.css`
 - Overlap with downstream changes: web/src/features/users/components/users-table.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/styles/index.css
@@ -2128,7 +2128,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游新增多个 quota/group/timestamp cell 组件并调整表格尺寸；本地 API key 额度仍内联，用户额度还展示钱包有效余额。建议待统一展示方案后按下游有效金额迁移。
 - AI risks: 不可用上游原始 quota 覆盖本地更正后的财务展示；需同时覆盖桌面/移动端和权限。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/keys/components/api-key-quota-cell.tsx:43](https://github.com/QuantumNous/new-api/blob/2bec370629aa72d74d3f598b953a4d33b8bcbf7d/web/src/features/keys/components/api-key-quota-cell.tsx#L43) — 固定源码：export function ApiKeyQuotaCell(props: ApiKeyQuotaCellProps) {
 - AI evidence: [downstream:web/src/features/keys/components/api-keys-columns.tsx:145](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/api-keys-columns.tsx#L145) — 下游对照：accessorKey: 'remain_quota',
 
@@ -2138,7 +2138,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(usage-logs): add searchable group filter
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/ui/combobox-input.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/features/usage-logs/components/__tests__/group-filter.test.tsx`, `web/src/features/usage-logs/components/__tests__/log-type-filter.test.tsx`, `web/src/features/usage-logs/components/common-logs-filter-bar.tsx`
 - Overlap with downstream changes: web/src/features/usage-logs/components/common-logs-filter-bar.tsx
@@ -2159,7 +2159,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(keys): show desktop quota amounts side by side
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/__tests__/api-key-listing.test.tsx`, `web/src/features/keys/components/api-key-quota-cell.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2170,7 +2170,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 此修复针对前项新增 ApiKeyQuotaCell；下游尚无该组件，不能单独搬补丁。与额度展示重组一起评审。
 - AI risks: 窄屏、无限额度、极大金额和有效账务金额需保留可读性。
 - AI dependencies: commit-2bec370629aa
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/keys/components/api-key-quota-cell.tsx:108](https://github.com/QuantumNous/new-api/blob/551bb63edf4007d7c4b0930504faf6db87012d73/web/src/features/keys/components/api-key-quota-cell.tsx#L108) — 固定源码：'grid w-full min-w-0 items-baseline gap-x-2 gap-y-1 text-xs',
 - AI evidence: [downstream:web/src/features/keys/components/api-keys-columns.tsx:145](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/api-keys-columns.tsx#L145) — 下游对照：accessorKey: 'remain_quota',
 
@@ -2180,7 +2180,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: style(keys): widen the desktop quota column
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/api-keys-columns.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2191,7 +2191,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 只为新增额度 cell 扩宽 quota 列；本地仍内联渲染，不宜在未迁入该布局时机械设宽。
 - AI risks: 应联合既有列表密度与移动卡片验证，避免横向滚动回退。
 - AI dependencies: commit-2bec370629aa, commit-551bb63edf40
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/keys/components/api-keys-columns.tsx:141](https://github.com/QuantumNous/new-api/blob/bd22e45a740a7c02c328704dc419d8795237cb74/web/src/features/keys/components/api-keys-columns.tsx#L141) — 固定源码：minSize: 260,
 - AI evidence: [downstream:web/src/features/keys/components/api-keys-columns.tsx:145](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/api-keys-columns.tsx#L145) — 下游对照：accessorKey: 'remain_quota',
 
@@ -2201,7 +2201,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(keys): preserve spacing after desktop quota content
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/__tests__/api-key-listing.test.tsx`, `web/src/features/keys/components/api-key-quota-cell.tsx`, `web/src/features/keys/components/api-keys-table.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2212,7 +2212,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 调整新增 quota cell 的最大宽度并去掉表格额外留白，依赖前述额度组件链；本地不存在同组件。
 - AI risks: 应以最终布局评审，避免先宽后窄中间态及金额截断。
 - AI dependencies: commit-2bec370629aa, commit-551bb63edf40, commit-bd22e45a740a
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/keys/components/api-key-quota-cell.tsx:86](https://github.com/QuantumNous/new-api/blob/950644c9d54445bdd8796643e4e2e18e13167a4c/web/src/features/keys/components/api-key-quota-cell.tsx#L86) — 固定源码：props.variant === 'card' ? 'space-y-2.5' : 'max-w-45 space-y-1.5'
 - AI evidence: [downstream:web/src/features/keys/components/api-keys-columns.tsx:145](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/api-keys-columns.tsx#L145) — 下游对照：accessorKey: 'remain_quota',
 
@@ -2222,7 +2222,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(redemptions): add batch deletion and optional file exports
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/audit.go`, `controller/redemption.go`, `controller/redemption_batch_test.go`, `middleware/audit.go`, `model/redemption.go`, `router/api-router.go`, `web/src/features/redemption-codes/api.ts`, `web/src/features/redemption-codes/components/__tests__/bulk-delete.test.tsx`, `web/src/features/redemption-codes/components/__tests__/redemptions-export.test.tsx`, `web/src/features/redemption-codes/components/data-table-bulk-actions.tsx`, `web/src/features/redemption-codes/components/redemptions-export-dialog.tsx`, `web/src/features/redemption-codes/components/redemptions-mutate-drawer.tsx`, `web/src/features/redemption-codes/components/redemptions-table.tsx`, `web/src/features/usage-logs/audit/__tests__/details.test.tsx`, `web/src/features/usage-logs/audit/lib/audit-details.ts`, `web/src/features/usage-logs/lib/format.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: controller/audit.go, router/api-router.go, web/src/features/usage-logs/lib/format.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2233,7 +2233,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游增加最多1000个 ID 的批量软删除、审计和可选导出；本地兑换码会进入资金及账务追溯，需确认批删权限、已使用记录可追溯性及导出策略再选择。
 - AI risks: 批删不能破坏兑换与账本证据；导出包含敏感兑换码，需权限、可见性及审计验证。
 - AI dependencies: commit-d8cb177440ce
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/redemption.go:244](https://github.com/QuantumNous/new-api/blob/524455fac3c438321df4ae9ed4ffd11bc635cc4f/model/redemption.go#L244) — 固定源码：func BatchDeleteRedemptions(ids []int) (int64, error) {
 - AI evidence: [downstream:router/api-router.go:429](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/api-router.go#L429) — 下游对照：redemptionRoute := apiRouter.Group("/redemption")
 
@@ -2243,7 +2243,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: update project architecture and Go conventions
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`
 - Overlap with downstream changes: AGENTS.md
@@ -2254,7 +2254,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 上游架构已包含JS插件/PAT等下游尚未采用的能力；直接更新 AGENTS 会形成不真实架构说明并覆盖项目约束。
 - AI risks: 后续实际迁入能力后再写准确下游架构，保护当前数据库/relaykit与身份规则。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:AGENTS.md:16](https://github.com/QuantumNous/new-api/blob/fff0635bb14b8ec5f10df9e582a83591df841902/AGENTS.md#L16) — 固定源码：- **Extensions**: JavaScript task plugins executed by Sobek; Electron desktop wrapper
 - AI evidence: [downstream:AGENTS.md:67](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/AGENTS.md#L67) — 下游对照：**relaykit module independence:** The `relaykit/` Go module MUST remain independently buildable.
 
@@ -2264,7 +2264,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor: modernize Go code conventions
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/custom-event.go`, `common/etag.go`, `common/gopool.go`, `common/init.go`, `common/quota_math.go`, `common/redis.go`, `common/session_cookie.go`, `common/ssrf_protection.go`, `common/str.go`, `common/totp.go`, `common/utils.go`, `controller/access_token.go`, `controller/access_token_audit_test.go`, `controller/audit.go`, `controller/auth_flow_test.go`, `controller/channel-test.go`, `controller/channel.go`, `controller/channel_authz_test.go`, `controller/channel_upstream_update.go`, `controller/channel_upstream_update_test.go`, `controller/custom_oauth.go`, `controller/deployment.go`, `controller/email_binding.go`, `controller/group.go`, `controller/model.go`, `controller/model_management_test.go`, `controller/model_meta.go`, `controller/model_pricing_config.go`, `controller/model_sync.go`, `controller/oauth.go`, `controller/option.go`, `controller/passkey.go`, `controller/pricing.go`, `controller/ratio_sync.go`, `controller/redemption.go`, `controller/relay_error_log_test.go`, `controller/secure_verification.go`, `controller/security_account_test.go`, `controller/security_enrollment_test.go`, `controller/subscription.go`, `controller/task_plugin.go`, `controller/telegram_test.go`, `controller/topup.go`, `controller/topup_waffo.go`, `controller/topup_waffo_pancake_test.go`, `controller/twofa.go`, `controller/uptime_kuma.go`, `controller/user.go`, `controller/wechat.go`, `dto/midjourney.go`, `dto/suno.go`, `middleware/audit.go`, `middleware/auth.go`, `middleware/rate-limit.go`, `middleware/task_artifact_access.go`, `model/audit_log.go`, `model/channel.go`, `model/channel_cache.go`, `model/channel_satisfy.go`, `model/channel_status_test.go`, `model/checkin.go`, `model/gorm_logger.go`, `model/json_column_test.go`, `model/log.go`, `model/log_format_test.go`, `model/log_other_test.go`, `model/main.go`, `model/model_pricing_config.go`, `model/option.go`, `model/passkey.go`, `model/perf_metric.go`, `model/prefill_group.go`, `model/pricing.go`, `model/quota_reserve.go`, `model/quota_reserve_test.go`, `model/redemption.go`, `model/redemption_test.go`, `model/subscription.go`, `model/task.go`, `model/task_cas_test.go`, `model/token.go`, `model/topup.go`, `model/twofa.go`, `model/usedata.go`, `model/user.go`, `model/user_auth_cache.go`, `model/user_authentication_test.go`, `model/user_cache.go`, `model/user_session.go`, `model/user_session_test.go`, `model/user_update_test.go`, `model/utils.go`, `oauth/registry.go`, `pkg/billingexpr/compile.go`, `pkg/billingexpr/run.go`, `pkg/jsplugin/engine.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/routing.go`, `plugins/hailuo_responses_test.go`, `relay/channel/ali/dto.go`, `relay/channel/api_request_getbody_test.go`, `relay/channel/aws/dto.go`, `relay/channel/aws/relay-aws.go`, `relay/channel/claude/relay_claude_test.go`, `relay/channel/gemini/adaptor.go`, `relay/channel/gemini/adaptor_responses_test.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_gemini_usage_test.go`, `relay/channel/ollama/dto.go`, `relay/channel/ollama/relay-ollama.go`, `relay/channel/openai/adaptor.go`, `relay/channel/openai/chat_via_responses_test.go`, `relay/channel/openai/relay-openai.go`, `relay/channel/openai/relay_image.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/tencent/dto.go`, `relay/channel/tencent/relay-tencent.go`, `relay/common/outbound_body_test.go`, `relay/common/override.go`, `relay/common/override_test.go`, `relay/common/relay_info.go`, `relay/common/relay_utils.go`, `relay/common/stream_status_test.go`, `relay/common/tool_usage_test.go`, `relay/convert_request_error_test.go`, `relay/helper/billing_expr_request.go`, `relay/helper/common.go`, `relay/helper/stream_scanner_test.go`, `relay/mjproxy_handler.go`, `relay/plugin_protocol.go`, `relay/relay_task.go`, `relay/request_clone_test.go`, `relaykit/dto/billing_usage.go`, `relaykit/dto/claude.go`, `relaykit/dto/gemini.go`, `relaykit/dto/notify.go`, `relaykit/dto/openai_image.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/openai_response.go`, `relaykit/dto/pricing.go`, `relaykit/dto/ratio_sync.go`, `relaykit/dto/realtime.go`, `relaykit/relayconvert/internal/claude_messages/citations.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/req_helpers.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_stream_resp_test.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_resp_test.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_stream_resp.go`, `relaykit/relayconvert/internal/toolconv/decode.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/kitutil/mask.go`, `relaykit/relayconvert/kitutil/value.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/reasoning/suffix.go`, `relaykit/relayconvert/response_registry_test.go`, `router/plugin-router.go`, `service/auth_session.go`, `service/auth_session_test.go`, `service/auth_token.go`, `service/authz/adapter.go`, `service/authz/registry.go`, `service/authz/resolver.go`, `service/channel_affinity.go`, `service/channel_affinity_template_test.go`, `service/email_binding.go`, `service/error_test.go`, `service/file_decoder.go`, `service/file_service.go`, `service/funding_source.go`, `service/group.go`, `service/http_client_transport_test.go`, `service/http_transport_sharded.go`, `service/log_info_generate.go`, `service/midjourney.go`, `service/notify-limit.go`, `service/quota.go`, `service/quota_saturation_test.go`, `service/rankings.go`, `service/system_instance.go`, `service/task_billing_test.go`, `service/task_plugin_audit.go`, `service/task_polling.go`, `service/text_quota.go`, `service/text_quota_test.go`, `service/token_counter.go`, `service/violation_fee.go`, `service/webhook.go`, `setting/auto_group.go`, `setting/billing_setting/tiered_billing.go`, `setting/billing_setting/tiered_billing_test.go`, `setting/config/config.go`, `setting/model_setting/claude.go`, `setting/model_setting/gemini.go`, `setting/model_setting/global.go`, `setting/operation_setting/channel_affinity_setting.go`, `setting/operation_setting/operation_setting.go`, `setting/operation_setting/tools.go`, `setting/operation_setting/tools_price_test.go`, `setting/ratio_setting/exposed_cache.go`, `setting/ratio_setting/model_ratio.go`, `setting/sensitive.go`, `setting/system_setting/task_artifact_store.go`, `setting/task_plugin.go`, `setting/user_usable_group.go`
 - Overlap with downstream changes: common/redis.go, common/ssrf_protection.go, controller/audit.go, controller/channel-test.go, controller/channel.go, controller/channel_authz_test.go, controller/model.go, controller/option.go, controller/secure_verification.go, controller/user.go, model/channel.go, model/channel_cache.go, model/gorm_logger.go, model/log.go, model/log_format_test.go, model/main.go, model/option.go, model/task.go, model/task_cas_test.go, model/twofa.go, model/usedata.go, model/user.go, model/user_authentication_test.go, model/user_cache.go, model/user_update_test.go, relay/channel/openai/adaptor.go, relay/channel/openai/relay-openai.go, relay/common/relay_info.go, relay/helper/common.go, relay/mjproxy_handler.go, relay/relay_task.go, relaykit/dto/openai_request.go, relaykit/relayconvert/kitutil/mask.go, service/auth_session.go, service/auth_session_test.go, service/auth_token.go, service/funding_source.go, service/http_client_transport_test.go, service/midjourney.go, service/quota.go, service/task_billing_test.go, service/task_polling.go, service/text_quota.go, service/violation_fee.go, service/webhook.go, setting/ratio_setting/model_ratio.go
@@ -2275,7 +2275,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 样例主要是 interface{}→any、reflect.TypeFor 等广泛语法整理，未提供需要本批次修复的运行时缺口。跳过全仓重排以降低下游账务/协议/身份变更的冲突噪声。
 - AI risks: 以后功能迁入可就地采用必要写法；不能把纯重构算作已同步的业务能力。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/utils.go:191](https://github.com/QuantumNous/new-api/blob/ebe4c368f28787919ea478c0abf1ea7101978179/common/utils.go#L191) — 固定源码：func Interface2String(inter any) string {
 - AI evidence: [downstream:common/utils.go:191](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/common/utils.go#L191) — 下游对照：func Interface2String(inter interface{}) string {
 
@@ -2285,7 +2285,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(web): unify table cells and quota details
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/activity-time-cell.tsx`, `web/src/components/data-table/core/data-table-view.tsx`, `web/src/components/group-badge.tsx`, `web/src/components/masked-value-display.tsx`, `web/src/components/quota-details-popover.tsx`, `web/src/components/ui/table.tsx`, `web/src/features/keys/components/__tests__/api-key-group-cell.test.tsx`, `web/src/features/keys/components/__tests__/api-key-group-combobox.test.tsx`, `web/src/features/keys/components/__tests__/api-key-listing.test.tsx`, `web/src/features/keys/components/api-key-quota-cell.tsx`, `web/src/features/keys/components/api-key-timestamp-cell.tsx`, `web/src/features/keys/components/api-keys-cells.tsx`, `web/src/features/redemption-codes/components/redemptions-columns.tsx`, `web/src/features/users/components/__tests__/quota-display.test.tsx`, `web/src/features/users/components/user-quota-cell.tsx`, `web/src/features/users/components/users-columns.tsx`, `web/src/features/users/components/users-table.tsx`
 - Overlap with downstream changes: web/src/features/users/components/users-table.tsx
@@ -2296,7 +2296,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 ActivityTimeCell/QuotaDetailsPopover 并替换多个用户、兑换码、API key 单元格；本地下游财务金额和既有表格布局不同。建议与额度展示组统一评审，避免在新金额逻辑前搬通用组件。
 - AI risks: 原始 quota、有效余额、历史成本不能混成相同显示；可访问标签和复制操作须保留。
 - AI dependencies: commit-2bec370629aa, commit-551bb63edf40, commit-bd22e45a740a, commit-950644c9d544
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/data-table/core/data-table-view.tsx:149](https://github.com/QuantumNous/new-api/blob/ea7cb0ba4e0f82e2bfa5e55752eb68bdf902f71b/web/src/components/data-table/core/data-table-view.tsx#L149) — 固定源码：withContainer={false}
 - AI evidence: [downstream:web/src/features/keys/components/api-keys-columns.tsx:145](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/api-keys-columns.tsx#L145) — 下游对照：accessorKey: 'remain_quota',
 
@@ -2306,7 +2306,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: preserve provider fields in Sora video queries
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `docs/plugin-api/README.md`, `docs/plugin-api/v1.md`, `plugins/tasks/sora/plugin.js`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`
 - Overlap with downstream changes: (none detected)
@@ -2317,7 +2317,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 保留 Sora 上游原始查询 JSON，再由宿主覆盖可信状态与完成时间，避免转换时丢字段。方案依赖插件任务视图，可在未来驱动迁移时实现；现阶段不应新加整个 JS 适配层。
 - AI risks: 必须由宿主控制状态/权限字段，不能让不可信供应商 JSON 覆盖公开任务身份。
 - AI dependencies: commit-eb48396d5fe9
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/task/jsplugin/adaptor.go:818](https://github.com/QuantumNous/new-api/blob/9bf328d9749751757d5d6b74088d514813a618bd/relay/channel/task/jsplugin/adaptor.go#L818) — 宿主覆盖状态同时保留扩展字段；代码：rendered["status"] = host.Status
 
 #### commit-4fc9d1f1fa77
@@ -2326,7 +2326,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(options): rebuild options table primary key and stop pricing writes resetting rows
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/main.go`, `model/model_pricing_config.go`, `model/option_primary_key_migration.go`
 - Overlap with downstream changes: model/main.go
@@ -2337,7 +2337,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游自动识别无主键options表、去重后交换新表并备份旧行，同时修复新价格管理的默认行写入。本地模型已有primaryKey声明但未审计实际旧库，且无新model_pricing_config；不在同步中默认运行最后值胜出和表交换，需要三数据库真实旧表样本及恢复方案后单独决定。
 - AI risks: 配置可能含计费/密钥/运行参数；去重选择、锁、交换失败和多节点读取都需验证，不能丢失历史值。
 - AI dependencies: commit-9a8674425c5a, commit-0c76e4dae77a
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/option_primary_key_migration.go:42](https://github.com/QuantumNous/new-api/blob/4fc9d1f1fa77c0cfdd9719cb59ff9ecc9885d66a/model/option_primary_key_migration.go#L42) — 仅确认缺唯一键后才重建表，但涉及自动数据选择与交换；代码：return repairOptionPrimaryKey(locked)
 - AI evidence: [downstream:model/option.go:24](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/option.go#L24) — 本地模型有主键声明，仍不能据此推定所有历史库物理形态；代码：Key   string `json:"key" gorm:"primaryKey"`
 
@@ -2347,7 +2347,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(frontend): deduplicate /api/status requests (#7189)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/users/components/dialogs/__tests__/user-binding-dialog.test.tsx`, `web/src/features/users/components/dialogs/user-binding-dialog.tsx`, `web/src/hooks/use-status.ts`, `web/src/hooks/use-system-config.ts`, `web/src/lib/__tests__/status-query.test.tsx`, `web/src/lib/nav-modules.ts`, `web/src/lib/status-query.ts`, `web/src/main.tsx`, `web/src/routes/pricing/$modelId/index.tsx`, `web/src/routes/pricing/index.tsx`, `web/src/routes/rankings/index.tsx`
 - Overlap with downstream changes: web/src/features/users/components/dialogs/user-binding-dialog.tsx, web/src/hooks/use-system-config.ts, web/src/lib/nav-modules.ts
@@ -2368,7 +2368,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: 修正火山方舟渠道获取模型列表的端点路径 (#7203)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel_upstream_update.go`
 - Overlap with downstream changes: (none detected)
@@ -2389,7 +2389,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(billing): add time-based pricing editor and expression previews
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/billingexpr/billingexpr_test.go`, `pkg/billingexpr/testdata/frontend_simulation.json`, `web/src/components/ui/combobox-input.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/features/model-pricing/__tests__/editor-currency.test.tsx`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/__tests__/task-price-display.test.tsx`, `web/src/features/pricing/components/cached-price-cell.tsx`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/components/model-price-cell.tsx`, `web/src/features/pricing/components/pricing-columns.tsx`, `web/src/features/pricing/hooks/use-billing-time.ts`, `web/src/features/pricing/lib/__tests__/billing-expression.test.ts`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/billing-expression/README.md`, `web/src/features/pricing/lib/billing-expression/condition-display.ts`, `web/src/features/pricing/lib/billing-expression/display.ts`, `web/src/features/pricing/lib/billing-expression/parser.ts`, `web/src/features/pricing/lib/billing-expression/runtime.ts`, `web/src/features/pricing/lib/billing-expression/structure.ts`, `web/src/features/pricing/lib/billing-expression/types.ts`, `web/src/features/pricing/lib/billing-expression/visual.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/task-expr.ts`, `web/src/features/pricing/lib/tier-expr.ts`, `web/src/features/system-settings/models/__tests__/request-simulation.test.tsx`, `web/src/features/system-settings/models/__tests__/visual-billing-editor.test.tsx`, `web/src/features/system-settings/models/billing-time-fields.tsx`, `web/src/features/system-settings/models/draft-number-input.tsx`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/request-simulation.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/system-settings/models/tier-price-fields.tsx`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/features/system-settings/models/visual-billing-document-editor.tsx`, `web/src/features/system-settings/models/visual-condition-tree.css`, `web/src/features/system-settings/models/visual-condition-tree.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -2400,7 +2400,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 引入独立表达式解析、运行、可视文档与时钟预览，替换现有正则式展示。范围达48文件且后续固定请求计费继续扩展，建议作为独立功能组选定，先合ac381acf4b的明确正确性修复。
 - AI risks: 前端模拟必须与Go表达式和冻结日志语义一致；不能改变未识别表达式、AST规则跟踪及后台实际扣费。
 - AI dependencies: commit-ac381acf4bf4, commit-0e0ba152bdcc
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/lib/billing-expression/parser.ts:425](https://github.com/QuantumNous/new-api/blob/d52bdc0b4087d50d87eb06387e86b2be53e85cd4/web/src/features/pricing/lib/billing-expression/parser.ts#L425) — 新增独立表达式解析器模块；代码：export function compileBillingExpression(source: string): CompilationResult {
 
 #### commit-12be9975c0bf
@@ -2409,7 +2409,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): unify server error notifications
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/AGENTS.md`, `web/src/components/layout/components/chat-presets-item.tsx`, `web/src/components/sign-out-dialog.tsx`, `web/src/features/about/index.tsx`, `web/src/features/auth/forgot-password/components/forgot-password-form.tsx`, `web/src/features/auth/hooks/use-email-verification.ts`, `web/src/features/auth/hooks/use-oauth-login.ts`, `web/src/features/auth/otp/components/otp-form.tsx`, `web/src/features/auth/reset-password-confirm/index.tsx`, `web/src/features/auth/sign-in/components/user-auth-form.tsx`, `web/src/features/auth/sign-up/components/sign-up-form.tsx`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/channel-type-badge.tsx`, `web/src/features/channels/components/channels-columns.tsx`, `web/src/features/channels/components/channels-table.tsx`, `web/src/features/channels/components/dialogs/balance-query-dialog.tsx`, `web/src/features/channels/components/dialogs/channel-test-dialog.tsx`, `web/src/features/channels/components/dialogs/codex-usage-dialog.tsx`, `web/src/features/channels/components/dialogs/edit-tag-dialog.tsx`, `web/src/features/channels/components/dialogs/fetch-models-dialog.tsx`, `web/src/features/channels/components/dialogs/multi-key-manage-dialog.tsx`, `web/src/features/channels/components/dialogs/ollama-models-dialog.tsx`, `web/src/features/channels/components/dialogs/tag-batch-edit-dialog.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/hooks/use-channel-key-disclosure.ts`, `web/src/features/channels/hooks/use-channel-mutate-form.ts`, `web/src/features/channels/hooks/use-channel-upstream-updates.ts`, `web/src/features/channels/index.tsx`, `web/src/features/channels/lib/channel-actions.ts`, `web/src/features/chat/hooks/use-active-chat-key.ts`, `web/src/features/dashboard/components/flow/flow-charts.tsx`, `web/src/features/dashboard/components/models/performance-overview.tsx`, `web/src/features/dashboard/components/overview/overview-dashboard.tsx`, `web/src/features/dashboard/components/overview/performance-health-panel.tsx`, `web/src/features/dashboard/components/overview/summary-cards.tsx`, `web/src/features/dashboard/components/users/user-charts.tsx`, `web/src/features/dashboard/lib/flow-selection.ts`, `web/src/features/home/hooks/use-home-page-content.ts`, `web/src/features/keys/components/api-keys-columns.tsx`, `web/src/features/keys/components/api-keys-delete-dialog.tsx`, `web/src/features/keys/components/api-keys-multi-delete-dialog.tsx`, `web/src/features/keys/components/api-keys-mutate-drawer.tsx`, `web/src/features/keys/components/api-keys-provider.tsx`, `web/src/features/keys/components/api-keys-table.tsx`, `web/src/features/keys/components/data-table-row-actions.tsx`, `web/src/features/keys/components/dialogs/cc-switch-dialog.tsx`, `web/src/features/model-pricing/__tests__/save-errors.test.tsx`, `web/src/features/model-pricing/api.ts`, `web/src/features/models/components/deployments-table.tsx`, `web/src/features/models/components/dialogs/create-deployment-drawer.tsx`, `web/src/features/models/components/dialogs/extend-deployment-dialog.tsx`, `web/src/features/models/components/dialogs/missing-models-dialog.tsx`, `web/src/features/models/components/dialogs/model-delete-dialog.tsx`, `web/src/features/models/components/dialogs/prefill-group-management-dialog.tsx`, `web/src/features/models/components/dialogs/rename-deployment-dialog.tsx`, `web/src/features/models/components/dialogs/sync-wizard-dialog.tsx`, `web/src/features/models/components/dialogs/update-config-dialog.tsx`, `web/src/features/models/components/dialogs/vendor-mutate-dialog.tsx`, `web/src/features/models/components/dialogs/vendor-operation-dialog.tsx`, `web/src/features/models/components/dialogs/vendors-management-dialog.tsx`, `web/src/features/models/components/dialogs/view-details-dialog.tsx`, `web/src/features/models/components/dialogs/view-logs-dialog.tsx`, `web/src/features/models/components/drawers/model-mutate-drawer.tsx`, `web/src/features/models/components/drawers/prefill-group-form-drawer.tsx`, `web/src/features/models/components/models-table.tsx`, `web/src/features/models/components/vendor-linked-models.tsx`, `web/src/features/models/components/vendors-table.tsx`, `web/src/features/models/index.tsx`, `web/src/features/models/lib/model-actions.ts`, `web/src/features/models/lib/vendor-actions.ts`, `web/src/features/models/vendor-api.ts`, `web/src/features/playground/api.ts`, `web/src/features/playground/hooks/use-chat-handler.ts`, `web/src/features/playground/hooks/use-playground-options.ts`, `web/src/features/pricing/components/model-card-grid.tsx`, `web/src/features/pricing/components/model-details-performance.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/hooks/use-pricing-data.ts`, `web/src/features/profile/components/checkin-calendar-card.tsx`, `web/src/features/profile/components/language-preferences-card.tsx`, `web/src/features/profile/components/sidebar-modules-card.tsx`, `web/src/features/profile/components/tabs/notification-tab.tsx`, `web/src/features/profile/hooks/use-profile.ts`, `web/src/features/rankings/hooks/use-rankings.ts`, `web/src/features/redemption-codes/components/__tests__/bulk-delete.test.tsx`, `web/src/features/redemption-codes/components/__tests__/redemptions-mutate-drawer.test.tsx`, `web/src/features/redemption-codes/components/data-table-bulk-actions.tsx`, `web/src/features/redemption-codes/components/data-table-row-actions.tsx`, `web/src/features/redemption-codes/components/redemptions-delete-dialog.tsx`, `web/src/features/redemption-codes/components/redemptions-mutate-drawer.tsx`, `web/src/features/redemption-codes/components/redemptions-primary-buttons.tsx`, `web/src/features/redemption-codes/components/redemptions-table.tsx`, `web/src/features/security/components/__tests__/privacy-card.test.tsx`, `web/src/features/security/components/dialogs/telegram-bind-dialog.tsx`, `web/src/features/security/components/login-sessions-card.tsx`, `web/src/features/security/components/passkey-card.tsx`, `web/src/features/security/components/privacy-card.tsx`, `web/src/features/security/hooks/use-access-token.ts`, `web/src/features/security/hooks/use-account-security.ts`, `web/src/features/security/hooks/use-two-fa-setup.ts`, `web/src/features/setup/setup-wizard.tsx`, `web/src/features/subscriptions/components/dialogs/reset-subscriptions-dialog.tsx`, `web/src/features/subscriptions/components/dialogs/subscription-purchase-dialog.tsx`, `web/src/features/subscriptions/components/dialogs/toggle-status-dialog.tsx`, `web/src/features/subscriptions/components/dialogs/user-subscriptions-dialog.tsx`, `web/src/features/subscriptions/components/subscriptions-mutate-drawer.tsx`, `web/src/features/subscriptions/components/subscriptions-table.tsx`, `web/src/features/system-info/components/system-instances-panel.tsx`, `web/src/features/system-info/components/system-tasks-panel.tsx`, `web/src/features/system-settings/auth/custom-oauth/hooks/use-custom-oauth-mutations.ts`, `web/src/features/system-settings/auth/custom-oauth/hooks/use-custom-oauth-providers.ts`, `web/src/features/system-settings/auth/oauth-section.tsx`, `web/src/features/system-settings/content/announcements-section.tsx`, `web/src/features/system-settings/content/api-info-section.tsx`, `web/src/features/system-settings/content/faq-section.tsx`, `web/src/features/system-settings/content/uptime-kuma-section.tsx`, `web/src/features/system-settings/general/channel-affinity/cache-stats-dialog.tsx`, `web/src/features/system-settings/general/channel-affinity/index.tsx`, `web/src/features/system-settings/hooks/use-system-options.ts`, `web/src/features/system-settings/hooks/use-update-option.ts`, `web/src/features/system-settings/integrations/payment-settings-section.tsx`, `web/src/features/system-settings/integrations/waffo-pancake-settings-section.tsx`, `web/src/features/system-settings/maintenance/log-settings-section.tsx`, `web/src/features/system-settings/maintenance/performance-section.tsx`, `web/src/features/system-settings/maintenance/update-checker-section.tsx`, `web/src/features/system-settings/models/model-ratio-form.tsx`, `web/src/features/system-settings/models/ratio-settings-card.tsx`, `web/src/features/system-settings/models/upstream-ratio-sync.tsx`, `web/src/features/task-plugins/api.ts`, `web/src/features/task-plugins/components/marketplace-install-dialog.tsx`, `web/src/features/task-plugins/components/marketplace-panel.tsx`, `web/src/features/task-plugins/components/marketplace-plugin-card.tsx`, `web/src/features/task-plugins/components/marketplace-sources-dialog.tsx`, `web/src/features/task-plugins/components/plugin-detail-sheet.tsx`, `web/src/features/task-plugins/components/plugin-icon.tsx`, `web/src/features/task-plugins/components/plugin-sandbox.tsx`, `web/src/features/task-plugins/components/plugin-url-import-field.tsx`, `web/src/features/task-plugins/components/plugins-table.tsx`, `web/src/features/task-plugins/index.tsx`, `web/src/features/usage-logs/audit/api.ts`, `web/src/features/usage-logs/audit/components/audit-log-viewer.tsx`, `web/src/features/usage-logs/components/common-logs-filter-bar.tsx`, `web/src/features/usage-logs/components/common-logs-stats.tsx`, `web/src/features/usage-logs/components/dialogs/user-info-dialog.tsx`, `web/src/features/usage-logs/components/task-artifacts.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/features/users/api.ts`, `web/src/features/users/components/data-table-row-actions.tsx`, `web/src/features/users/components/dialogs/user-binding-dialog.tsx`, `web/src/features/users/components/user-quota-dialog.tsx`, `web/src/features/users/components/users-delete-dialog.tsx`, `web/src/features/users/components/users-mutate-drawer.tsx`, `web/src/features/users/components/users-table.tsx`, `web/src/features/wallet/components/subscription-plans-card.tsx`, `web/src/features/wallet/hooks/use-affiliate.ts`, `web/src/features/wallet/hooks/use-billing-history.ts`, `web/src/features/wallet/hooks/use-creem-payment.ts`, `web/src/features/wallet/hooks/use-payment.ts`, `web/src/features/wallet/hooks/use-redemption.ts`, `web/src/features/wallet/hooks/use-topup-info.ts`, `web/src/features/wallet/hooks/use-waffo-pancake-payment.ts`, `web/src/features/wallet/hooks/use-waffo-payment.ts`, `web/src/hooks/use-notifications.ts`, `web/src/lib/__tests__/server-error-notifications.test.ts`, `web/src/lib/api.ts`, `web/src/lib/handle-server-error.ts`, `web/src/lib/http-client.ts`, `web/src/lib/query-client.ts`, `web/src/lib/secure-verification.ts`, `web/src/lib/server-error-message.ts`, `web/src/main.tsx`, `web/src/routes/(auth)/oauth.tsx`, `web/src/routes/_authenticated/chat2link.tsx`, `web/src/routes/oauth/$provider.tsx`
 - Overlap with downstream changes: web/src/features/about/index.tsx, web/src/features/auth/otp/components/otp-form.tsx, web/src/features/auth/sign-in/components/user-auth-form.tsx, web/src/features/channels/api.ts, web/src/features/channels/components/channels-table.tsx, web/src/features/channels/components/dialogs/channel-test-dialog.tsx, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/hooks/use-channel-mutate-form.ts, web/src/features/dashboard/components/overview/overview-dashboard.tsx, web/src/features/dashboard/components/overview/summary-cards.tsx, web/src/features/models/components/drawers/model-mutate-drawer.tsx, web/src/features/system-info/components/system-tasks-panel.tsx, web/src/features/system-settings/content/announcements-section.tsx, web/src/features/system-settings/hooks/use-update-option.ts, web/src/features/system-settings/maintenance/log-settings-section.tsx, web/src/features/usage-logs/components/common-logs-filter-bar.tsx, web/src/features/usage-logs/components/common-logs-stats.tsx, web/src/features/usage-logs/components/usage-logs-table.tsx, web/src/features/users/api.ts, web/src/features/users/components/data-table-row-actions.tsx, web/src/features/users/components/dialogs/user-binding-dialog.tsx, web/src/features/users/components/users-mutate-drawer.tsx, web/src/features/users/components/users-table.tsx, web/src/lib/http-client.ts, web/src/lib/server-error-message.ts, web/src/routes/oauth/$provider.tsx
@@ -2420,7 +2420,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 174 文件横切变更新增安全消息包装、取消识别和 toast 去重，同时更换大量业务调用。下游还含短信/财务/资产等错误码；先做错误契约与去重策略，后按模块迁移。
 - AI risks: 不能把取消操作报成错误，也不能吞掉真实账务/认证失败；受保护 web/AGENTS.md 不照搬。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/lib/handle-server-error.ts:27](https://github.com/QuantumNous/new-api/blob/12be9975c0bf01fa175a2bb3360607767c8ba5fb/web/src/lib/handle-server-error.ts#L27) — 固定源码：const reportedErrors = new WeakSet<object>()
 - AI evidence: [downstream:web/src/lib/handle-server-error.ts:25](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/lib/handle-server-error.ts#L25) — 下游对照：export function handleServerError(error: unknown) {
 
@@ -2430,7 +2430,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(alibaba): correct Wan model protocols and usage accounting
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/alibaba_responses_test.go`, `plugins/alibaba_wan3_test.go`, `plugins/tasks/alibaba/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -2441,7 +2441,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 建立按 Wan 型号区分的能力表，统一原生与兼容协议的尺寸、时长和用量统计。下游已实现 Wan3 Go 专用解析和冻结计费，对输入+输出时长、audio 维度和旧模型仍需逐型号核实，适合独立后端迁移评估。
 - AI risks: 此修复不能只搬模型名；计费维度改变会影响存量价格、成本重算和历史任务。
 - AI dependencies: commit-eb48396d5fe9, commit-3b4652269a6a
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/alibaba/plugin.js:4](https://github.com/QuantumNous/new-api/blob/a20574136b2746e9afc4b268c99cf99b3f6cc68b/plugins/tasks/alibaba/plugin.js#L4) — 能力表为 Wan3 定义分辨率与最长时长；代码："wan3.0-video": { kind: "all", resolutions: ["480P", "720P", "1080P"], defaultResolution: "1080P", maxDuration: 30 },
 - AI evidence: [downstream:relay/channel/task/ali/adaptor.go:560](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/ali/adaptor.go#L560) — 下游当前估算由 Go 适配器提供并接冻结账务链；代码：func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
 
@@ -2451,7 +2451,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): keep model pricing content in one scroll area
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/model-pricing/model-pricing-panel.tsx`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2462,7 +2462,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 将价格信息、当前计费和编辑表单放入一个滚动区域，依赖本地尚不存在的ModelPricingPanel及新Sheet接口。应随统一定价管理UI评估，不单独复制新页面布局。
 - AI risks: 保留移动端可达性、固定保存按钮和已有本地批量调价入口。
 - AI dependencies: commit-0c76e4dae77a, commit-0e0ba152bdcc
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-settings/models/model-pricing-sheet.tsx:118](https://github.com/QuantumNous/new-api/blob/7cf9b473f61eb7dc09f6f0782192f17595140a08/web/src/features/system-settings/models/model-pricing-sheet.tsx#L118) — Sheet新增滚动头区域；代码：scrollHeader?: ReactNode
 
 #### commit-064ed943e1ac
@@ -2471,7 +2471,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(billing): support fixed per-request expression pricing
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/billingexpr/billingexpr_test.go`, `pkg/billingexpr/compile.go`, `pkg/billingexpr/expr.md`, `pkg/billingexpr/fixed.go`, `pkg/billingexpr/run.go`, `pkg/billingexpr/settle.go`, `pkg/billingexpr/testdata/frontend_simulation.json`, `pkg/billingexpr/types.go`, `relay/helper/price.go`, `relay/helper/price_test.go`, `relay/relay_task.go`, `service/log_info_generate.go`, `service/quota.go`, `service/text_quota.go`, `service/text_quota_test.go`, `service/tiered_settle.go`, `setting/billing_setting/tiered_billing.go`, `setting/billing_setting/tiered_billing_test.go`, `web/src/features/pricing/__tests__/breakdown-tier-match.test.ts`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/__tests__/task-price-display.test.tsx`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/components/model-price-cell.tsx`, `web/src/features/pricing/lib/__tests__/billing-expression.test.ts`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/billing-expression/README.md`, `web/src/features/pricing/lib/billing-expression/display.ts`, `web/src/features/pricing/lib/billing-expression/parser.ts`, `web/src/features/pricing/lib/billing-expression/runtime.ts`, `web/src/features/pricing/lib/billing-expression/types.ts`, `web/src/features/pricing/lib/billing-expression/visual.ts`, `web/src/features/pricing/lib/breakdown-tier-match.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/tier-expr.ts`, `web/src/features/system-settings/models/__tests__/visual-billing-editor.test.tsx`, `web/src/features/system-settings/models/request-simulation.tsx`, `web/src/features/system-settings/models/tier-price-fields.tsx`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/features/system-settings/models/visual-billing-document-editor.tsx`, `web/src/features/usage-logs/components/__tests__/detail-preview.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/usage-logs/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: relay/relay_task.go, service/quota.go, service/text_quota.go, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/lib/format.ts, web/src/features/usage-logs/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2482,7 +2482,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增fixed定价标记、AST校验、快照单位及多入口结算，扩展现有每百万Token表达式契约。该能力可能有价值，但改变真实收费单位，需选择产品策略并证明任务/文本/图片/Realtime入口及历史表达式兼容后单独迁移。
 - AI risks: 不能在冻结原始账务和成本证据之外重解释旧表达式；fixed与tier混用、失败/零用量、重试和退款需确定。
 - AI dependencies: commit-eb48396d5fe9, commit-d52bdc0b4087
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/billingexpr/fixed.go:12](https://github.com/QuantumNous/new-api/blob/064ed943e1ac40e3eaca1b58ffb7fa5dacb3fde3/pkg/billingexpr/fixed.go#L12) — 引擎识别固定请求定价并供宿主校验入口；代码：func UsesFixedPricing(expression string) bool {
 - AI evidence: [downstream:pkg/billingexpr/types.go:49](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/pkg/billingexpr/types.go#L49) — 本地冻结快照尚无收费单位和固定价格字段；代码：type BillingSnapshot struct {
 
@@ -2492,7 +2492,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: restore add split button in advanced custom routes (#7289)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/dialogs/advanced-custom-editor-dialog.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2513,7 +2513,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: clarify passkey website configuration
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/auth/__tests__/passkey-settings.test.tsx`, `web/src/features/system-settings/auth/passkey-section.tsx`, `web/src/features/system-settings/hooks/use-update-option.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/system-settings/hooks/use-update-option.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2524,7 +2524,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游增加网站/域名帮助和状态查询失效处理；建议与安全多 RP 方案一起设计，以免把单 RP 当前配置界面先改成临时形态。
 - AI risks: 不得把 RP ID 与完整 Origin 混为一谈；域名变化对已有凭据的影响需显式提示。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-settings/hooks/use-update-option.ts:45](https://github.com/QuantumNous/new-api/blob/b6566f33d908fee574c8a6da2a23c4fd5df7353c/web/src/features/system-settings/hooks/use-update-option.ts#L45) — 固定源码：'passkey.rp_id',
 - AI evidence: [downstream:setting/system_setting/passkey.go:14](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/setting/system_setting/passkey.go#L14) — 下游对照：RPID                 string `json:"rp_id"`
 
@@ -2534,7 +2534,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): display localized changelogs with English fallback
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`, `web/src/components/ui/markdown.tsx`, `web/src/features/task-plugins/__tests__/marketplace-install-dialog.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-changelog-panel.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-changelog.test.ts`, `web/src/features/task-plugins/components/marketplace-install-dialog.tsx`, `web/src/features/task-plugins/components/plugin-changelog-panel.tsx`, `web/src/features/task-plugins/lib/plugin-changelog.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2545,7 +2545,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增按语言读取 changelog 并回落英语，Markdown 相对链接按来源解析。当前没有插件市场页面，不引入只服务未启用能力的 YAML/Markdown 扩展；待市场方案确定再处理。
 - AI risks: 外部 Markdown 链接需要安全协议限制；语言回落不得执行源码。
 - AI dependencies: commit-eb48396d5fe9, commit-984330920061
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/ui/markdown.tsx:723](https://github.com/QuantumNous/new-api/blob/3e1b8b15324941ff20c77616737d8dd984582d33/web/src/components/ui/markdown.tsx#L723) — 相对链接根据插件来源解析后限制协议；代码：function addExternalLinkAttributes(html: string, baseUrl?: string): string {
 
 #### commit-3cea2bf799a6
@@ -2554,7 +2554,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(relaykit): preserve cached input token breakdowns
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/dto/billing_usage.go`, `relaykit/dto/billing_usage_test.go`, `relaykit/dto/openai_response.go`, `relaykit/dto/usage_merge.go`
 - Overlap with downstream changes: (none detected)
@@ -2575,7 +2575,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(billingexpr): support image cache and quantity variables
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/billingexpr/billingexpr_test.go`, `pkg/billingexpr/compile.go`, `pkg/billingexpr/expr.md`, `pkg/billingexpr/fixed.go`, `pkg/billingexpr/run.go`, `pkg/billingexpr/settle.go`, `pkg/billingexpr/testdata/frontend_simulation.json`, `pkg/billingexpr/types.go`
 - Overlap with downstream changes: (none detected)
@@ -2586,7 +2586,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 扩展img_cr/image_count等变量并按表达式使用情况拆分缓存及图片数量，依赖fixed和新版快照。必须保留当前未引用类别归入p/c的计费真值原则；待计费语言升级明确后整体迁移。
 - AI risks: 缓存文本/图片重叠可能双计；数量与Token价不能重复乘n；旧表达式快照需向后兼容。
 - AI dependencies: commit-064ed943e1ac
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/billingexpr/types.go:30](https://github.com/QuantumNous/new-api/blob/f362c7c51b86a97e1fc72e4d48280cf53a5d2cb9/pkg/billingexpr/types.go#L30) — Token参数新增图片缓存维度；代码：ImgCR float64 // image cache read tokens, separated only when explicitly priced
 - AI evidence: [downstream:pkg/billingexpr/types.go:26](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/pkg/billingexpr/types.go#L26) — 本地已有图片输出变量，但尚无图片缓存和数量语义；代码：ImgO float64 // image output tokens
 
@@ -2596,7 +2596,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(billing): validate image quantities before reserving quota
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/model.go`, `common/model_test.go`, `relay/channel/ali/adaptor_test.go`, `relay/channel/ali/dto.go`, `relay/channel/ali/image.go`, `relay/channel/ali/image_wan.go`, `relay/channel/openai/image_stream_test.go`, `relay/channel/openai/relay_image.go`, `relay/common/relay_info.go`, `relay/convert_request_error_test.go`, `relay/helper/billing_expr_request.go`, `relay/helper/openai_image_request_test.go`, `relay/helper/price.go`, `relay/helper/valid_request.go`, `relay/image_handler.go`, `relaykit/dto/legacy_dalle_image.go`, `relaykit/dto/openai_image.go`, `service/billing_session.go`, `service/image_billing.go`, `service/log_info_generate.go`, `service/quota.go`, `service/text_quota.go`, `service/text_quota_test.go`, `service/tiered_settle.go`, `service/tiered_settle_test.go`
 - Overlap with downstream changes: relay/common/relay_info.go, service/billing_session.go, service/quota.go, service/text_quota.go
@@ -2617,7 +2617,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(billing): add expression defaults for GPT image models
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `setting/billing_setting/builtin_billing.go`, `setting/billing_setting/builtin_billing_test.go`, `setting/billing_setting/tiered_billing.go`
 - Overlap with downstream changes: (none detected)
@@ -2628,7 +2628,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 为GPT图片内置文字/图片缓存及输出价格，并保留管理员覆盖。依赖未采用的内置默认价格和img_cr变量；必须先确认本平台销售策略及来源价格，不能由同步默认启用真实收费。
 - AI risks: 上游代码中的价目并不等于已核验的当前供应商价格；历史销售与成本策略需隔离。
 - AI dependencies: commit-eb99ab1b4034, commit-f362c7c51b86
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:setting/billing_setting/builtin_billing.go:8](https://github.com/QuantumNous/new-api/blob/f256e40bcb29292376edb5f0ba2e74ffa463aced/setting/billing_setting/builtin_billing.go#L8) — 默认表达式分别计文本缓存和图片缓存；代码："gpt-image-2":            `tier("standard", p * 5 + cr * 1.25 + img * 8 + img_cr * 2 + c * 30)`,
 
 #### commit-25ec832faa48
@@ -2637,7 +2637,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(pricing): convert legacy prices into expression drafts
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/model_management_test.go`, `controller/model_pricing_config.go`, `model/legacy_dalle_pricing.go`, `model/model_pricing_config.go`, `model/model_pricing_conversion.go`, `router/api-router.go`, `setting/ratio_setting/cache_ratio.go`, `setting/ratio_setting/model_ratio.go`
 - Overlap with downstream changes: router/api-router.go, setting/ratio_setting/model_ratio.go
@@ -2648,7 +2648,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 提供预览接口把旧比例/按次价格推导为表达式草稿，保留旧DALL-E兼容规则。该转换应显式预览并经人工确认，不能在升级中自动写入；依赖新模型定价与固定/图片数量语义。
 - AI risks: 价格转换无法无损推导的模型必须拒绝，别名、零值、缓存写入与通道协议需证据。
 - AI dependencies: commit-0c76e4dae77a, commit-064ed943e1ac, commit-f362c7c51b86
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/model_pricing_config.go:21](https://github.com/QuantumNous/new-api/blob/25ec832faa48031dd74f6fff0f58390e29a79f7c/controller/model_pricing_config.go#L21) — 新增只预览的旧价格转换入口；代码：func PreviewModelPricingConversion(c *gin.Context) {
 
 #### commit-39294418af4c
@@ -2657,7 +2657,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): extend expression pricing editors and usage details
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/__tests__/task-matrix.test.ts`, `web/src/features/pricing/components/cached-price-cell.tsx`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-price-cell.tsx`, `web/src/features/pricing/lib/__tests__/billing-expression.test.ts`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/billing-expression/README.md`, `web/src/features/pricing/lib/billing-expression/display.ts`, `web/src/features/pricing/lib/billing-expression/parser.ts`, `web/src/features/pricing/lib/billing-expression/runtime.ts`, `web/src/features/pricing/lib/billing-expression/types.ts`, `web/src/features/pricing/lib/billing-expression/visual.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/task-expr.ts`, `web/src/features/pricing/lib/tier-expr.ts`, `web/src/features/system-settings/models/__tests__/request-simulation.test.tsx`, `web/src/features/system-settings/models/__tests__/task-pricing-copy.test.tsx`, `web/src/features/system-settings/models/__tests__/visual-billing-editor.test.tsx`, `web/src/features/system-settings/models/request-simulation.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/system-settings/models/tier-price-fields.tsx`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/features/system-settings/models/visual-billing-document-editor.tsx`, `web/src/features/usage-logs/components/__tests__/usage-facts.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/usage-logs/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/lib/format.ts, web/src/features/usage-logs/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -2668,7 +2668,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 前端增加图片缓存、按张/按请求单位、复杂表达式解析及日志明细，与后端fixed和img_cr升级成套。当前本地动态价格格式较旧，不应只更新展示让用户误以为可计费。
 - AI risks: 前后端单位不一致会造成错误报价；历史计价证据和下游调账投影必须保留。
 - AI dependencies: commit-d52bdc0b4087, commit-064ed943e1ac, commit-f362c7c51b86
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/components/cached-price-cell.tsx:70](https://github.com/QuantumNous/new-api/blob/39294418af4c920950be1b8c1fed0ed0d2bea52e/web/src/features/pricing/components/cached-price-cell.tsx#L70) — 缓存价区分文本和图片缓存；代码：entry.field === 'cacheReadPrice' || entry.field === 'imageCachePrice'
 
 #### commit-b3e279464c82
@@ -2677,7 +2677,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): review legacy pricing conversion before applying drafts
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/model-pricing/__tests__/editor-currency.test.tsx`, `web/src/features/model-pricing/__tests__/editor-layout.test.tsx`, `web/src/features/model-pricing/api.ts`, `web/src/features/model-pricing/model-pricing-panel.tsx`, `web/src/features/model-pricing/pricing-conversion-dialog.tsx`, `web/src/features/model-pricing/pricing.ts`, `web/src/features/system-settings/models/model-pricing-core.ts`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/model-pricing-snapshots.ts`, `web/src/features/system-settings/models/model-ratio-visual-editor.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2688,7 +2688,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 增加旧配置与转换草稿对照、差异说明和确认应用，是旧价转换的必要交互。当前无对应转换API和新定价面板，应随98一起评估，禁止自动替换存量售价。
 - AI risks: 批量转换应有乐观版本与审计，不能修改既有冻结账单或历史成本。
 - AI dependencies: commit-0c76e4dae77a, commit-75e533209490, commit-25ec832faa48, commit-39294418af4c
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/model-pricing/pricing-conversion-dialog.tsx:44](https://github.com/QuantumNous/new-api/blob/b3e279464c82d6b1bd9fca6ce27f67c4c9246fec/web/src/features/model-pricing/pricing-conversion-dialog.tsx#L44) — 新增独立转换复核对话框；代码：export type PricingConversionPreview = {
 
 #### commit-505805a4c3ab
@@ -2697,7 +2697,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): unify channel setup and refine model and settings editors
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/task_plugin.go`, `controller/task_plugin_test.go`, `web/src/components/multi-select.tsx`, `web/src/components/multi-select/__tests__/selection.test.tsx`, `web/src/components/ui/__tests__/label.test.tsx`, `web/src/components/ui/label.tsx`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/model-mapping-editor.test.tsx`, `web/src/features/channels/components/__tests__/provider-selection.test.tsx`, `web/src/features/channels/components/__tests__/upstream-model-selection.test.tsx`, `web/src/features/channels/components/dialogs/configure-models-dialog.tsx`, `web/src/features/channels/components/dialogs/fetch-models-dialog.tsx`, `web/src/features/channels/components/dialogs/param-override-editor-dialog.tsx`, `web/src/features/channels/components/drawers/channel-configuration.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/components/drawers/channel-provider-picker.tsx`, `web/src/features/channels/components/model-mapping-editor.tsx`, `web/src/features/channels/components/upstream-model-selection.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/hooks/use-channel-model-discovery.ts`, `web/src/features/channels/lib/channel-configuration.ts`, `web/src/features/keys/components/dialogs/cc-switch-dialog.tsx`, `web/src/features/models/components/dialogs/vendor-mutate-dialog.tsx`, `web/src/features/models/components/drawers/model-mutate-drawer.tsx`, `web/src/features/system-settings/auth/__tests__/passkey-settings.test.tsx`, `web/src/features/system-settings/auth/passkey-section.tsx`, `web/src/features/system-settings/general/channel-affinity/rule-editor-dialog.tsx`, `web/src/features/system-settings/integrations/waffo-settings-section.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: web/src/features/channels/api.ts, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/constants.ts, web/src/features/models/components/drawers/model-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -2708,7 +2708,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 37 文件把渠道编辑拆成连接/模型/路由/请求等阶段，并涉及上游 task plugin 描述。本地下游有 Volc/Kimi、原生任务与凭据特殊编辑，不宜整页替换。
 - AI risks: 需逐项保留敏感字段权限、专有渠道参数、历史配置兼容与提交payload；先完成渠道能力矩阵。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/components/drawers/channel-configuration.tsx:39](https://github.com/QuantumNous/new-api/blob/505805a4c3ab55fbcf6227ec110226ff1c193e0b/web/src/features/channels/components/drawers/channel-configuration.tsx#L39) — 固定源码：statuses: Record<ChannelConfigurationSection, ChannelConfigurationStatus>
 - AI evidence: [downstream:web/src/features/channels/components/drawers/channel-mutate-drawer.tsx:621](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/drawers/channel-mutate-drawer.tsx#L621) — 下游对照：export function ChannelMutateDrawer({
 
@@ -2718,7 +2718,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(channels): allow editing multi-key selection strategy
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/hooks/use-channel-mutate-form.ts`
 - Overlap with downstream changes: web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/hooks/use-channel-mutate-form.ts
@@ -2739,7 +2739,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channels): add plugin extensions to provider and model selection
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/task_plugin.go`, `controller/task_plugin_test.go`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/provider-selection.test.tsx`, `web/src/features/channels/components/channel-plugin-extensions.tsx`, `web/src/features/channels/components/dialogs/configure-models-dialog.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/components/drawers/channel-provider-picker.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/channel-plugin-extensions.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: web/src/features/channels/api.ts, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/constants.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -2750,7 +2750,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 在现有供应商选择器中列出插件支持的渠道类型与模型扩展，依赖插件元数据与渠道绑定。应跟随插件渠道迁移，保留 NovaMaaS 渠道类型及本地参数。
 - AI risks: 选项重排不能改变既有渠道数值 ID、隔离和权限。
 - AI dependencies: commit-eb48396d5fe9, commit-99974a814f00, commit-eb76b136b85e
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/components/channel-plugin-extensions.tsx:28](https://github.com/QuantumNous/new-api/blob/ab489ab8842b26f3dbc2d7a384e7c0ab0f700e0e/web/src/features/channels/components/channel-plugin-extensions.tsx#L28) — 新增渠道插件扩展组件；代码：export function ChannelPluginExtensions(props: {
 
 #### commit-251b76d8633e
@@ -2759,7 +2759,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): add administrator update reminders
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/layout/components/app-header.tsx`, `web/src/components/layout/components/public-header.tsx`, `web/src/components/layout/components/system-brand.tsx`, `web/src/features/system-settings/maintenance/update-checker-section.tsx`, `web/src/features/system-update/__tests__/releases.test.ts`, `web/src/features/system-update/__tests__/update-checking.test.tsx`, `web/src/features/system-update/api.ts`, `web/src/features/system-update/releases.ts`, `web/src/features/system-update/store.ts`, `web/src/features/system-update/system-update-action.tsx`, `web/src/features/system-update/system-update-dialog.tsx`, `web/src/features/system-update/use-system-update.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/components/layout/components/public-header.tsx, web/src/components/layout/components/system-brand.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2770,7 +2770,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游提醒直接读取QuantumNous/new-api Releases，版本解析也不接受-novamaas后缀。该机制不能作为下游产品更新状态，更不能把部分上游同步提示成已完成升级；需要区分本仓库发布与上游评估目标后另设计。
 - AI risks: 保留上游归属信息，但提醒来源和版本判断必须符合fork语义；不得创建平台上游同步操作页。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-update/api.ts:45](https://github.com/QuantumNous/new-api/blob/251b76d8633ec4eeb1064dcdb5eb806ecf1a8668/web/src/features/system-update/api.ts#L45) — 提醒固定读取上游发布来源；代码：'https://api.github.com/repos/QuantumNous/new-api/releases?per_page=100',
 - AI evidence: [downstream:VERSION:1](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/VERSION#L1) — 下游使用独立novamaas版本号而非单一上游标签；代码：v1.0.0-rc.26-novamaas.2
 
@@ -2780,7 +2780,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): enhance task streaming and model pricing
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `controller/billing_option_test.go`, `controller/model_management_test.go`, `controller/option.go`, `controller/relay.go`, `controller/relay_task_plugin_test.go`, `controller/task_plugin.go`, `controller/task_plugin_test.go`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `dto/channel_constraints.go`, `dto/task.go`, `i18n/keys.go`, `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `middleware/distributor.go`, `middleware/distributor_test.go`, `middleware/task_plugin.go`, `middleware/task_plugin_test.go`, `model/channel_constraint.go`, `model/model_pricing_config.go`, `model/pricing.go`, `model/pricing_usage_schema_test.go`, `model/task_plugin_channel_select_test.go`, `pkg/billingexpr/expr.md`, `pkg/jsplugin/engine.go`, `pkg/jsplugin/engine_test.go`, `pkg/jsplugin/json_state.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_test.go`, `pkg/jsplugin/routing.go`, `pkg/jsplugin/routing_test.go`, `pkg/jsplugin/utils.go`, `plugins/alibaba_responses_test.go`, `plugins/tasks/alibaba/plugin.js`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/channel/task/jsplugin/performance_test.go`, `relay/channel/task/jsplugin/submit_stream.go`, `relay/helper/stream_scanner.go`, `relay/helper/stream_scanner_test.go`, `relay/relay_task.go`, `relay/relay_task_test.go`, `service/channel_select.go`, `service/channel_select_test.go`, `service/task_billing.go`, `service/task_polling.go`, `setting/billing_setting/tiered_billing.go`, `web/src/features/model-pricing/__tests__/editor-layout.test.tsx`, `web/src/features/model-pricing/__tests__/pricing.test.ts`, `web/src/features/model-pricing/api.ts`, `web/src/features/model-pricing/model-pricing-panel.tsx`, `web/src/features/model-pricing/pricing.ts`, `web/src/features/pricing/__tests__/dynamic-price.test.ts`, `web/src/features/pricing/__tests__/task-price-display.test.tsx`, `web/src/features/pricing/components/cached-price-cell.tsx`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/components/model-price-cell.tsx`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/plugin-pricing.ts`, `web/src/features/pricing/lib/task-price-display.ts`, `web/src/features/pricing/types.ts`, `web/src/features/system-settings/billing/index.tsx`, `web/src/features/system-settings/billing/section-registry.tsx`, `web/src/features/system-settings/models/__tests__/plugin-pricing.test.tsx`, `web/src/features/system-settings/models/__tests__/task-pricing-copy.test.tsx`, `web/src/features/system-settings/models/index.tsx`, `web/src/features/system-settings/models/model-pricing-core.ts`, `web/src/features/system-settings/models/model-pricing-sheet.tsx`, `web/src/features/system-settings/models/model-pricing-snapshots.ts`, `web/src/features/system-settings/models/model-ratio-form.tsx`, `web/src/features/system-settings/models/model-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/ratio-settings-card.tsx`, `web/src/features/system-settings/models/task-plugin-pricing-editor.tsx`, `web/src/features/system-settings/models/task-pricing-matrix.tsx`, `web/src/features/system-settings/models/task-usage-pricing-editor.tsx`, `web/src/features/system-settings/types.ts`, `web/src/features/task-plugins/__tests__/plugin-detail-sheet.test.tsx`, `web/src/features/task-plugins/__tests__/usage-schema-table.test.tsx`, `web/src/features/task-plugins/components/plugin-detail-sheet.tsx`, `web/src/features/task-plugins/components/usage-schema-table.tsx`, `web/src/features/task-plugins/types.ts`, `web/src/features/usage-logs/components/__tests__/detail-preview.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: AGENTS.md, controller/option.go, controller/relay.go, dto/task.go, i18n/keys.go, i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, middleware/distributor.go, relay/relay_task.go, service/task_billing.go, service/task_polling.go, web/src/features/system-settings/billing/section-registry.tsx, web/src/features/system-settings/models/index.tsx, web/src/features/system-settings/types.ts, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -2791,7 +2791,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增提交 SSE 增量、任务流式响应、插件维度表达式和共享模型定价，对约 96 文件的路由、用量、账务及前端同时改造。当前任务计费含成本快照和调账证据，必须先定义冻结契约及中断退款行为。
 - AI risks: 同名模型多插件不能误取价格；断流/提交成功后退款和历史冻结表达式必须正确。
 - AI dependencies: commit-eb48396d5fe9, commit-6c22550ea325, commit-064ed943e1ac
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/option.go:371](https://github.com/QuantumNous/new-api/blob/74629e29f83f506bb523c5542aa851947bd423eb/controller/option.go#L371) — 新增按插件命名空间存储计费表达式；代码：billing_setting.PluginBillingExprOption: variants,
 
 #### commit-385d2dfd10d8
@@ -2800,7 +2800,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): add safe multi-RP ID passkey support
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/audit.go`, `controller/login_verification.go`, `controller/misc.go`, `controller/option.go`, `controller/passkey.go`, `controller/passkey_test.go`, `controller/secure_verification.go`, `controller/security_enrollment_test.go`, `i18n/keys.go`, `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `model/option.go`, `model/passkey.go`, `model/passkey_option.go`, `model/user_authentication_test.go`, `router/api-router.go`, `service/account_security.go`, `service/passkey/service.go`, `service/passkey/session.go`, `service/security_verification.go`, `setting/system_setting/passkey.go`, `web/src/features/auth/passkey/__tests__/domain-verification.test.tsx`, `web/src/features/auth/passkey/api.ts`, `web/src/features/auth/passkey/assertion.ts`, `web/src/features/auth/passkey/components/passkey-domain-selector.tsx`, `web/src/features/auth/passkey/types.ts`, `web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx`, `web/src/features/auth/secure-verification/api.ts`, `web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx`, `web/src/features/auth/secure-verification/hooks/use-secure-verification.ts`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/auth/sign-in/components/user-auth-form.tsx`, `web/src/features/system-settings/api.ts`, `web/src/features/system-settings/auth/__tests__/passkey-settings.test.tsx`, `web/src/features/system-settings/auth/index.tsx`, `web/src/features/system-settings/auth/passkey-section.tsx`, `web/src/features/system-settings/hooks/use-update-option.ts`, `web/src/features/system-settings/types.ts`, `web/src/features/usage-logs/lib/format.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/lib/server-error-message.ts`
 - Overlap with downstream changes: controller/audit.go, controller/misc.go, controller/option.go, controller/secure_verification.go, i18n/keys.go, i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, model/option.go, model/user_authentication_test.go, router/api-router.go, web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx, web/src/features/auth/secure-verification/types.ts, web/src/features/auth/sign-in/components/user-auth-form.tsx, web/src/features/system-settings/api.ts, web/src/features/system-settings/hooks/use-update-option.ts, web/src/features/system-settings/types.ts, web/src/features/usage-logs/lib/format.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/lib/server-error-message.ts
@@ -2811,7 +2811,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游新增凭据 RPID、兼容域名、删除影响预览及确认；本地只有单 RPID，并从 ServerAddress 推导。此能力有价值，但应连同凭据迁移、域名移除和后续修复成组实施。
 - AI risks: RP/Origin 选择、旧 NULL RPID 凭据、域名变更并发与多数据库迁移必须有确定性回归。
 - AI dependencies: commit-6f2333990613, commit-b6566f33d908
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/passkey.go:26](https://github.com/QuantumNous/new-api/blob/385d2dfd10d821b25c8a6766bd16eea248cb1652/model/passkey.go#L26) — 固定源码：RPID            *string        `json:"rp_id,omitempty" gorm:"column:rp_id;type:varchar(253)"`
 - AI evidence: [downstream:setting/system_setting/passkey.go:14](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/setting/system_setting/passkey.go#L14) — 下游对照：RPID                 string `json:"rp_id"`
 
@@ -2821,7 +2821,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugins): normalize invalid UTF-8 in JSON state
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/jsplugin/engine_test.go`, `pkg/jsplugin/json_state.go`
 - Overlap with downstream changes: (none detected)
@@ -2832,7 +2832,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 对跨 JS 边界的字符串做 UTF-8 标准化，保证 JSON 克隆及比较稳定。当前无插件 JSON 状态边界，不应单独添加新模块；若启用插件需纳入基础可靠性。
 - AI risks: 需验证字符串归一化不会改变被签名原文或跨请求共享可变状态。
 - AI dependencies: commit-eb48396d5fe9, commit-74629e29f83f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/json_state.go:130](https://github.com/QuantumNous/new-api/blob/129f21b6942ed433fd7eea1239b4a24d8b58b48b/pkg/jsplugin/json_state.go#L130) — 插件状态检查非 UTF-8 字符串；代码：if !utf8.ValidString(key) || len(key) > budget.bytes {
 
 #### commit-c9a110190c52
@@ -2841,7 +2841,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(channels): show built-in base URLs as placeholders
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `constant/channel.go`, `controller/channel.go`, `controller/channel_test_internal_test.go`, `router/channel-router.go`, `router/channel_router_test.go`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/lib/channel-actions.ts`, `web/src/features/channels/lib/channel-type-config.ts`
 - Overlap with downstream changes: constant/channel.go, controller/channel.go, router/channel-router.go, router/channel_router_test.go, web/src/features/channels/api.ts, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/lib/channel-type-config.ts
@@ -2862,7 +2862,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: test(security): provide query client for passkey verification tests
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/security/__tests__/account-security.test.tsx`, `web/src/features/security/__tests__/enrollment.test.tsx`
 - Overlap with downstream changes: (none detected)
@@ -2873,7 +2873,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 只为已扩展的 Passkey 验证测试补 QueryClientProvider；本地下游没有同版本安全页测试，不应为不存在的测试引入样板。
 - AI risks: 迁入多 RP 后应在真实现有 fixture 中补 QueryClient，不能用空测试冒充兼容。
 - AI dependencies: commit-385d2dfd10d8
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx:19](https://github.com/QuantumNous/new-api/blob/be36cbb8facf99d523197f9e18d02b7605331048/web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx#L19) — 固定源码：import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 - AI evidence: [downstream:setting/system_setting/passkey.go:14](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/setting/system_setting/passkey.go#L14) — 下游对照：RPID                 string `json:"rp_id"`
 
@@ -2883,7 +2883,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(model): migrate renamed prefill group unique indexes
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/prefill_group_migration.go`, `model/prefill_group_migration_test.go`
 - Overlap with downstream changes: (none detected)
@@ -2904,7 +2904,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): share collapsible mobile table filters
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/data-table/index.ts`, `web/src/components/data-table/toolbar/__tests__/mobile-filter.test.tsx`, `web/src/components/data-table/toolbar/mobile-filter-panel.tsx`, `web/src/components/data-table/toolbar/toolbar.tsx`, `web/src/features/channels/components/channels-table.tsx`, `web/src/features/usage-logs/components/logs-filter-toolbar.tsx`
 - Overlap with downstream changes: web/src/features/channels/components/channels-table.tsx
@@ -2915,7 +2915,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 MobileFilterPanel 并同时改渠道/日志工具栏。下游日志和渠道工具栏有额外操作，建议待移动日志布局和渠道编辑方案后一起评审。
 - AI risks: 折叠后已生效过滤器仍需可发现，主操作、筛选清空和键盘焦点不能消失。
 - AI dependencies: commit-a5e41a893379, commit-505805a4c3ab
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/data-table/toolbar/toolbar.tsx:85](https://github.com/QuantumNous/new-api/blob/2ba61576146f0583f789ee6845f2280cb86819ce/web/src/components/data-table/toolbar/toolbar.tsx#L85) — 固定源码：collapsibleOnMobile?: boolean
 - AI evidence: [downstream:web/src/components/data-table/toolbar/toolbar.tsx:154](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/components/data-table/toolbar/toolbar.tsx#L154) — 下游对照：export function DataTableToolbar<TData>(props: DataTableToolbarProps<TData>) {
 
@@ -2925,7 +2925,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: handle legacy database constraints and scoped policies
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `model/migration_dialector.go`, `model/migration_dialector_test.go`, `service/authz/adapter.go`, `service/authz/authz_test.go`, `service/authz/seed.go`
 - Overlap with downstream changes: service/authz/authz_test.go
@@ -2947,7 +2947,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: refine sign-in page behavior
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/misc.go`, `controller/passkey_test.go`, `web/src/features/auth/passkey/__tests__/domain-verification.test.tsx`, `web/src/features/auth/passkey/components/passkey-domain-selector.tsx`
 - Overlap with downstream changes: controller/misc.go
@@ -2958,7 +2958,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 删除多 RP 选择器的外站链接和 status 中 passkey_origins；本地为单 RP 且可能有现存消费者。需在多 RP 升级中核查公开字段兼容后统一落地。
 - AI risks: 避免无意暴露内部域名，同时不能直接破坏旧 Passkey 配置页面。
 - AI dependencies: commit-385d2dfd10d8
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/auth/passkey/components/passkey-domain-selector.tsx:61](https://github.com/QuantumNous/new-api/blob/33142f0aee7c87b2110f25dbddcb861dbdc2c44e/web/src/features/auth/passkey/components/passkey-domain-selector.tsx#L61) — 固定源码：if (available.length < 2) return null
 - AI evidence: [downstream:setting/system_setting/passkey.go:14](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/setting/system_setting/passkey.go#L14) — 下游对照：RPID                 string `json:"rp_id"`
 
@@ -2968,7 +2968,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(auth): restore saved compatible passkey domains
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/auth/__tests__/passkey-settings.test.tsx`, `web/src/features/system-settings/auth/passkey-section.tsx`, `web/src/features/system-settings/auth/section-registry.tsx`
 - Overlap with downstream changes: web/src/features/system-settings/auth/section-registry.tsx
@@ -2979,7 +2979,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 把 legacy_rp_ids 加入设置 section-registry 默认值，修复新增多 RP 后保存值丢失；本地尚无该配置字段。
 - AI risks: 应与多 RP 主项一起测试保存、刷新、再次编辑和删除确认。
 - AI dependencies: commit-385d2dfd10d8, commit-33142f0aee7c
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-settings/auth/section-registry.tsx:91](https://github.com/QuantumNous/new-api/blob/7fd06381976cbea126d1f20973548bf60f20e37d/web/src/features/system-settings/auth/section-registry.tsx#L91) — 固定源码：'passkey.legacy_rp_ids': settings['passkey.legacy_rp_ids'],
 - AI evidence: [downstream:setting/system_setting/passkey.go:14](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/setting/system_setting/passkey.go#L14) — 下游对照：RPID                 string `json:"rp_id"`
 
@@ -2989,7 +2989,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: test(web): stabilize flaky frontend suite timeouts and motion visibility races (#7367)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/test-setup.ts`, `web/vitest.config.ts`
 - Overlap with downstream changes: (none detected)
@@ -3000,7 +3000,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游增加 asyncUtilTimeout/testTimeout 并让 matchMedia 命中reduced-motion；本地下游当前测试通过，不能仅按上游超时数字掩盖慢测或改动画分支。建议发生可复现CI波动后迁入适用fixture。
 - AI risks: 测试应验证真实行为，减少动画不能屏蔽依赖实际过渡的回归；保留失败定位能力。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/test-setup.ts:29](https://github.com/QuantumNous/new-api/blob/815217ba648ff800c4f583fbfa36ba286cee6b2d/web/src/test-setup.ts#L29) — 固定源码：configure({ asyncUtilTimeout: 5000 })
 - AI evidence: [downstream:web/src/test-setup.ts:41](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/test-setup.ts#L41) — 下游对照：Object.defineProperty(window, 'matchMedia', {
 
@@ -3010,7 +3010,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: unify model provider detection and add Wan icon (#7373)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/assets/custom/icon-wan.tsx`, `web/src/assets/custom/wan.png`, `web/src/features/channels/lib/model-categories.ts`, `web/src/features/usage-logs/components/__tests__/model-badge.test.tsx`, `web/src/features/usage-logs/components/model-badge.tsx`, `web/src/lib/lobe-icon.tsx`, `web/src/lib/model-provider.ts`
 - Overlap with downstream changes: (none detected)
@@ -3031,7 +3031,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(dashboard): align weekly default range (#7355)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/dashboard/constants.ts`
 - Overlap with downstream changes: (none detected)
@@ -3052,7 +3052,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): prevent combobox dropdowns opening on dialog autofocus (#7365)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/ui/__tests__/combobox.test.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/features/task-plugins/__tests__/marketplace-install-dialog.test.tsx`
 - Overlap with downstream changes: (none detected)
@@ -3063,7 +3063,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 补丁修改上游新 OptionCombobox 的 onOpenChange(details.reason)/onFocus；本地 legacy options 仍委托 LegacyComboboxInput，没有该实现。需先复现本地自动聚焦问题，再按实际组件修复。
 - AI risks: 不能仅为套补丁替换共用 combobox；搜索输入变化、首次聚焦、点击和键盘选择应分别验证。
 - AI dependencies: commit-387a40914853, commit-8f72ecbbfd86
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/ui/combobox.tsx:119](https://github.com/QuantumNous/new-api/blob/2509e25fa0601d26f5b8fbb3194ec76689a91a77/web/src/components/ui/combobox.tsx#L119) — 固定源码：if (details.reason !== 'input-change') setSearch('')
 - AI evidence: [downstream:web/src/components/ui/combobox.tsx:65](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/components/ui/combobox.tsx#L65) — 下游对照：<LegacyComboboxInput
 
@@ -3073,7 +3073,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(audio): normalize file extension case in GetAudioDuration (#7321)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/audio.go`, `common/audio_case_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3094,7 +3094,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): keep model status bar spacing uniform (#7284)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/components/model-perf-badge.tsx`
 - Overlap with downstream changes: (none detected)
@@ -3105,7 +3105,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只针对上游新的24槽状态条固定高度和间距，本地仍是三柱紧凑设计，不存在该布局问题。本轮保留现有展示；如果日后采用小时序列，再从最终目标版本统一设计。
 - AI risks: 不能为了样式一行改动带入不存在的24槽界面。
 - AI dependencies: commit-5c7cca015525
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/components/model-perf-badge.tsx:99](https://github.com/QuantumNous/new-api/blob/04c64734cc7c2e58a9efd0b247182330f3f52cce/web/src/features/pricing/components/model-perf-badge.tsx#L99) — 修复目标是上游24槽状态条容器；代码：className='mt-1 flex h-3 w-24 items-center gap-px'
 - AI evidence: [downstream:web/src/features/pricing/components/model-perf-badge.tsx:70](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/pricing/components/model-perf-badge.tsx#L70) — 下游当前为三柱状态；代码：...Array(Math.max(0, 3 - statusRates.length)).fill(null),
 
@@ -3115,7 +3115,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: Add Responses WebSocket relay support (#5062)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/json.go`, `controller/channel.go`, `controller/channel_multi_key_test.go`, `controller/relay.go`, `controller/responses_websocket.go`, `controller/responses_websocket_test.go`, `dto/channel_constraints.go`, `main.go`, `middleware/auth.go`, `middleware/auth_test.go`, `middleware/task_plugin_origin_task_test.go`, `model/channel.go`, `model/channel_constraint.go`, `pkg/wsmanager/wsmanager.go`, `pkg/wsmanager/wsmanager_test.go`, `relay/channel/openai/relay_responses.go`, `relay/chat_completions_via_responses_test.go`, `relay/helper/valid_request.go`, `relay/mjproxy_handler.go`, `relay/relay_task_test.go`, `relay/request_billing.go`, `relay/responses_handler.go`, `relay/responses_request.go`, `relay/responses_websocket.go`, `relay/responses_websocket_test.go`, `relay/websocket.go`, `relaykit/dto/channel_settings.go`, `relaykit/dto/openai_response.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_resp_test.go`, `router/relay-router.go`, `service/channel.go`, `service/relay_error.go`, `service/relay_error_test.go`, `service/responses_usage.go`, `service/responses_usage_test.go`, `service/ws_close.go`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/responses-websocket-setting.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/components/responses-websocket-setting.tsx`, `web/src/features/channels/lib/channel-configuration.ts`, `web/src/features/channels/lib/channel-form-errors.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/channels/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: controller/channel.go, controller/relay.go, main.go, model/channel.go, relay/chat_completions_via_responses_test.go, relay/mjproxy_handler.go, relay/responses_handler.go, relaykit/dto/channel_settings.go, router/relay-router.go, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/lib/channel-form-errors.ts, web/src/features/channels/lib/channel-form.ts, web/src/features/channels/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3126,7 +3126,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 本地只有HTTP Responses与Realtime WS，没有本提交新增的Responses WS会话、每请求鉴权、多密钥断连和计费生命周期。52文件功能需独立设计并包含后续关联错误/关闭帧/渠道保存修复，不能当普通路由补丁。
 - AI risks: 必须覆盖每个response.create授权、取消/断连结算一次、上下文大小上限、渠道禁用、Moonshot HTTP入口隔离。
 - AI dependencies: commit-0ed497f066a6, commit-7bbe85bcb095
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/channel.go:86](https://github.com/QuantumNous/new-api/blob/9fe0457ee1f4b9de407a254500d54f5a8f41ee29/controller/channel.go#L86) — 渠道关闭新增活动WebSocket撤销机制。
 - AI evidence: [downstream:router/relay-router.go:136](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/relay-router.go#L136) — 本地只注册HTTP Responses入口。
 
@@ -3136,7 +3136,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: vllm channel && sglang channel (#7332)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.gitignore`, `common/advanced_custom_presets.go`, `common/api_type.go`, `common/endpoint_type.go`, `constant/channel.go`, `controller/channel.go`, `controller/channel_inference.go`, `controller/channel_inference_test.go`, `controller/channel_upstream_update.go`, `model/channel.go`, `model/channel_constraint.go`, `model/channel_settings_test.go`, `relay/channel/advancedcustom/adaptor.go`, `relay/channel/advancedcustom/presets_test.go`, `relay/channel/advancedcustom/rerank.go`, `relay/channel/openai/chat_via_responses.go`, `relay/channel/openai/relay_responses.go`, `relay/channel/openai/relay_responses_billing_test.go`, `relay/common/relay_info.go`, `relay/helper/max_tokens_bounds_test.go`, `relay/helper/valid_request.go`, `relaykit/dto/channel_settings.go`, `relaykit/dto/claude.go`, `relaykit/dto/openai_compaction.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/openai_request_zero_value_test.go`, `relaykit/dto/openai_response.go`, `relaykit/dto/values.go`, `relaykit/dto/values_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_resp.go`, `router/channel-router.go`, `router/channel_router_test.go`, `web/src/assets/brand-icons/sglang.svg`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/inference-status.test.tsx`, `web/src/features/channels/components/channels-columns.tsx`, `web/src/features/channels/components/channels-dialogs.tsx`, `web/src/features/channels/components/channels-provider.tsx`, `web/src/features/channels/components/dialogs/inference-status-dialog.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/__tests__/inference-status.test.ts`, `web/src/features/channels/lib/__tests__/new-api-channel.test.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/channels/lib/channel-type-config.ts`, `web/src/features/channels/lib/channel-utils.ts`, `web/src/features/channels/lib/inference-status.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/lobe-icon.tsx`
 - Overlap with downstream changes: .gitignore, common/api_type.go, constant/channel.go, controller/channel.go, model/channel.go, model/channel_settings_test.go, relay/common/relay_info.go, relaykit/dto/channel_settings.go, relaykit/dto/openai_request.go, relaykit/dto/openai_request_zero_value_test.go, relaykit/dto/values.go, relaykit/dto/values_test.go, router/channel-router.go, router/channel_router_test.go, web/src/features/channels/api.ts, web/src/features/channels/components/channels-provider.tsx, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/constants.ts, web/src/features/channels/lib/channel-form.ts, web/src/features/channels/lib/channel-type-config.ts, web/src/features/channels/lib/channel-utils.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -3147,7 +3147,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该提交同时增加两个渠道类型、advanced custom预设、推理状态接口、compaction及多处前端配置。本地没有对应预设文件，现有渠道还承载下游Volc/资产扩展；应先确定产品需求和只引入哪些推理端点。
 - AI risks: 需核验渠道类型编号、身份过滤、模型列表/推理状态权限、compact和rerank协议，保留三数据库Channel设置兼容。
 - AI dependencies: commit-9fe0457ee1f4
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/advanced_custom_presets.go:9](https://github.com/QuantumNous/new-api/blob/8529f209c85913de9ec98c5af49dcfce4a41361a/common/advanced_custom_presets.go#L9) — 新增两个推理渠道的路由和认证预设。
 - AI evidence: [downstream:common/api_type.go:78](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/common/api_type.go#L78) — 本地AdvancedCustom API类型尚未包含新渠道。
 
@@ -3157,7 +3157,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): prevent sort menu layout shift (#7145)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/components/pricing-toolbar.tsx`
 - Overlap with downstream changes: (none detected)
@@ -3178,7 +3178,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(ollama): preserve tool calls from final stream frame | 保留流式末尾帧的 tool calls (#7376)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/ollama/stream.go`, `relay/channel/ollama/stream_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3199,7 +3199,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channel): 修复获取DeepSeek余额错误 (#6814)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel-billing.go`, `controller/channel_billing_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3220,7 +3220,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(rate-limit): optimize in-memory limiter allocation and cleanup (#6807)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/rate-limit.go`, `common/rate-limit_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3241,7 +3241,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(ollama): add per-channel OpenAI-compatible chat switch (#7382)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/ollama/adaptor.go`, `relaykit/dto/channel_settings.go`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/channel-configuration.ts`, `web/src/features/channels/lib/channel-form-errors.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/channels/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: relaykit/dto/channel_settings.go, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/constants.ts, web/src/features/channels/lib/channel-form-errors.ts, web/src/features/channels/lib/channel-form.ts, web/src/features/channels/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3262,7 +3262,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(gemini): accept case-insensitive thinkingLevel and log canonical effort (#7387)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/common/relay_info.go`, `relay/common/relay_info_test.go`, `relaykit/relayconvert/internal/shared/gemini/request.go`, `relaykit/relayconvert/reasoning/gemini.go`, `relaykit/relayconvert/reasoning/intent_test.go`, `relaykit/relayconvert/request_registry_test.go`
 - Overlap with downstream changes: relay/common/relay_info.go
@@ -3273,7 +3273,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 补丁改变统一reasoning.ParseEffort验证及日志规范化，本地还没有上游那套reasoning状态/模型能力验证接口。可保留需求，但应随推理重构整体迁移，避免仅日志小写而请求验证仍拒绝的半修复。
 - AI risks: 原生请求的未知值应保留，跨协议转换需返回确定性错误；日志effort不能伪造不同实际推理力度。
 - AI dependencies: commit-0ed497f066a6, commit-7c044d7c5c2d, commit-6b659fd61c50
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/reasoning/gemini.go:216](https://github.com/QuantumNous/new-api/blob/fa90b2312cfb686aaa6010f9280bffcf0bf6d391/relaykit/relayconvert/reasoning/gemini.go#L216) — 上游比较规范化后的思考力度。
 - AI evidence: [downstream:relay/common/relay_info.go:469](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/common/relay_info.go#L469) — 本地仍直接记录原始thinkingLevel。
 
@@ -3283,7 +3283,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(gemini): reject :countTokens as an unknown route instead of relaying it as generateContent (#7388)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `router/relay-router.go`
 - Overlap with downstream changes: router/relay-router.go
@@ -3304,7 +3304,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): request stream usage on every cross-protocol conversion to OpenAI chat (#7389)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/advancedcustom/adaptor.go`, `relay/channel/advancedcustom/adaptor_test.go`, `relay/channel/openai/adaptor.go`
 - Overlap with downstream changes: relay/channel/openai/adaptor.go
@@ -3325,7 +3325,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channel): per-route pass-through for advanced custom channels (#7386)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/advancedcustom/adaptor.go`, `relay/common/relay_info.go`, `relay/common/relay_info_test.go`, `relaykit/dto/channel_settings.go`, `relaykit/dto/channel_settings_test.go`, `web/src/features/channels/components/dialogs/advanced-custom-editor-dialog.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/lib/advanced-custom.ts`, `web/src/features/channels/lib/channel-configuration.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/channels/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: relay/common/relay_info.go, relaykit/dto/channel_settings.go, relaykit/dto/channel_settings_test.go, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/lib/channel-form.ts, web/src/features/channels/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3346,7 +3346,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(middleware): 隐藏无可用渠道错误中的任务插件标识 (#7414)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `middleware/distributor.go`, `middleware/distributor_test.go`
 - Overlap with downstream changes: i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, middleware/distributor.go
@@ -3357,7 +3357,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 从无可用渠道错误中去掉内部插件标识和管理说明，保留模型与组信息。该修复应随插件启用，覆盖早期 32c261923a 的信息泄露；当前没有插件认领分支。
 - AI risks: 外部用户只应获得可操作且不泄露内部路由布局的信息。
 - AI dependencies: commit-eb48396d5fe9, commit-32c261923a97
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:middleware/distributor.go:225](https://github.com/QuantumNous/new-api/blob/7209b6db95ef33bfb0f6344ebf61c1fec9af780c/middleware/distributor.go#L225) — 插件无渠道分支仍使用脱敏消息；代码：return i18n.T(c, i18n.MsgDistributorNoAvailableChannelTaskPlugin, map[string]any{"Group": group, "Model": modelName})
 
 #### commit-57791e31c62b
@@ -3366,7 +3366,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs(github): tighten issue and PR templates for pass-through and unfiltered AI text (#7438)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.agents/github/ISSUE.md`, `.agents/github/PR.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/bug_report_en.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/ISSUE_TEMPLATE/feature_request_en.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/PULL_REQUEST_TEMPLATE/en.md`, `AGENTS.md`
 - Overlap with downstream changes: .github/PULL_REQUEST_TEMPLATE.md, AGENTS.md
@@ -3377,7 +3377,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只调整受保护治理/提交模板，包含上游自身不接受的业务范围。下游不能通过版本同步继承为当前用户的额外限制。
 - AI risks: 继续保留本地人工描述、AI披露、模板结构与已有授权规则；需要治理改动另行审查。
 - AI dependencies: commit-e468b73915e5, commit-d8ca0ed0bb59
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.agents/github/PR.md:11](https://github.com/QuantumNous/new-api/blob/57791e31c62bdf97df855f3b7dc912046b3bc990/.agents/github/PR.md#L11) — 固定源码：Keep the body short and factual. Do not paste unfiltered AI-generated text
 - AI evidence: [downstream:AGENTS.md:162](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/AGENTS.md#L162) — 下游对照：**Pull requests:** When creating a pull request:
 
@@ -3387,7 +3387,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channels): add compact quick options to channel editor
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/channel-quick-options.tsx`, `web/src/features/channels/components/drawers/channel-configuration.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3398,7 +3398,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 向新增 ChannelConfiguration 插入 quickOptions，依赖本地不存在的分阶段编辑布局。暂缓，待渠道配置方案确认后可组合现有控件。
 - AI risks: 参数开关必须遵守渠道支持能力和敏感权限；不能因布局迁移丢失下游专有配置。
 - AI dependencies: commit-505805a4c3ab
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/components/drawers/channel-configuration.tsx:42](https://github.com/QuantumNous/new-api/blob/ed0ad6e3ff9f8785a19d93cba73cf06ef2219668/web/src/features/channels/components/drawers/channel-configuration.tsx#L42) — 固定源码：quickOptions: ReactNode
 - AI evidence: [downstream:web/src/features/channels/components/drawers/channel-mutate-drawer.tsx:621](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/drawers/channel-mutate-drawer.tsx#L621) — 下游对照：export function ChannelMutateDrawer({
 
@@ -3408,7 +3408,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(billing): count upstream images by payload instead of data length
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/openai/image_stream_test.go`, `relay/channel/openai/relay_image.go`
 - Overlap with downstream changes: (none detected)
@@ -3419,7 +3419,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 本地按data数组长度计费且保留MaxImageN上界；上游改为max(URL项数,b64项数)，还支持对象形data。不能直接认定URL项与Base64项属于同一张图：混合独立图片会产生少计费，须先确定供应商计数契约。
 - AI risks: 需覆盖同对象双字段、不同对象混合格式、空载荷、重复同图与恶意超大数组；迁移时保留本地updateOpenAIImageCount上界和AddOtherRatio。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/openai/relay_image.go:83](https://github.com/QuantumNous/new-api/blob/07578faf26d1a21c70bf0fbf29f12730a212c583/relay/channel/openai/relay_image.go#L83) — 上游以两类载荷较大者作为收费数量。
 - AI evidence: [downstream:relay/channel/openai/relay_image.go:26](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/openai/relay_image.go#L26) — 本地计数有独立上界保护，不可被新逻辑覆盖。
 
@@ -3429,7 +3429,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: move billing rules to .agents/rules/billing.md behind a read gate
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.agents/rules/billing.md`, `AGENTS.md`, `CLAUDE.md`
 - Overlap with downstream changes: AGENTS.md
@@ -3440,7 +3440,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 仅重组 AGENTS/CLAUDE 读门及 .agents/rules/billing.md，不新增业务功能。本地当前 AGENTS 已有完整账务不变量和表达式文档要求，禁止机械覆盖或挪走。
 - AI risks: 规则重组不得削弱任何下游钱包/饱和/审计约束；另行治理时要逐条比较。
 - AI dependencies: commit-d5803532bdcc, commit-fff0635bb14b
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.agents/rules/billing.md:3](https://github.com/QuantumNous/new-api/blob/d82678a9708b611d52386c01f04238ec01f07463/.agents/rules/billing.md#L3) — 固定源码：Mandatory conventions for quota, pricing, pre-consume, settlement, refund, and usage-quantity code in the Go backend. `AGENTS.md` defines when a task touches billing (see **Billing rules (mandatory read gate)**); any task that matches MUST read this whole file before planning, coding, or reviewing. Tasks that match none of those triggers may skip it. Rules use the same MUST / Do NOT wording as `AGENTS.md` and carry the same weight.
 - AI evidence: [downstream:AGENTS.md:105](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/AGENTS.md#L105) — 下游对照：**Billing safety invariants:** Quota/billing code MUST never produce a negative charge (a credit) from arithmetic overflow or unvalidated input. Apply defense in depth:
 
@@ -3450,7 +3450,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channels): add floating model redirect workbench to channel editor
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/floating-window.tsx`, `web/src/components/floating-window/__tests__/floating-window.test.tsx`, `web/src/components/multi-select.tsx`, `web/src/components/multi-select/__tests__/option-hint.test.tsx`, `web/src/components/ui/combobox-input.tsx`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/model-mapping-batch-dialog.test.tsx`, `web/src/features/channels/components/__tests__/model-mapping-editor.test.tsx`, `web/src/features/channels/components/__tests__/upstream-model-selection.test.tsx`, `web/src/features/channels/components/channel-quick-options.tsx`, `web/src/features/channels/components/dialogs/configure-models-dialog.tsx`, `web/src/features/channels/components/drawers/channel-configuration.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/components/model-mapping-batch-dialog.tsx`, `web/src/features/channels/components/model-mapping-editor.tsx`, `web/src/features/channels/components/model-redirect-panel.tsx`, `web/src/features/channels/components/upstream-model-selection.tsx`, `web/src/features/channels/hooks/__tests__/use-redirect-panel-placement.test.tsx`, `web/src/features/channels/hooks/use-redirect-panel-placement.ts`, `web/src/features/channels/lib/__tests__/model-mapping-rules.test.ts`, `web/src/features/channels/lib/__tests__/model-naming-patterns.test.ts`, `web/src/features/channels/lib/index.ts`, `web/src/features/channels/lib/model-mapping-rules.ts`, `web/src/features/channels/lib/model-naming-patterns.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3461,7 +3461,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 floating-window、重定向面板、命名建议、批量映射等31文件能力；涉及模型路由而非纯样式。需先确认下游公开/上游/计费模型命名边界，再评审最终形态。
 - AI risks: 自动别名/前缀建议不可悄悄改变真实 Kimi 名称和计费身份；触屏拖动与弹层焦点也需测试。
 - AI dependencies: commit-505805a4c3ab, commit-ed0ad6e3ff9f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/floating-window.tsx:45](https://github.com/QuantumNous/new-api/blob/0cde9d94f6d3b77d5258ca6b36959f895d26f2a4/web/src/components/floating-window.tsx#L45) — 固定源码：type FloatingWindowProps = {
 - AI evidence: [downstream:web/src/features/channels/components/drawers/channel-mutate-drawer.tsx:621](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/drawers/channel-mutate-drawer.tsx#L621) — 下游对照：export function ChannelMutateDrawer({
 
@@ -3471,7 +3471,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(relay): classify the protocol outcome on StreamStatus
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/common/stream_status.go`
 - Overlap with downstream changes: (none detected)
@@ -3482,7 +3482,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 本地StreamStatus仅记录传输结束原因和错误；上游新增completed/failed/incomplete/cancelled以及必须终帧标记。它是后续指标、成功限流和失败结算的基础，应成组设计后引入。
 - AI risks: 不能把HTTP200/SSE传输结束当成功；需要所有协议适配器统一标记终态，避免缺标记被误算失败或成功。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/common/stream_status.go:26](https://github.com/QuantumNous/new-api/blob/8b2c7105f91f2316f90eb86f9b1c6b98774c7105/relay/common/stream_status.go#L26) — 新增独立于传输的协议结果。
 - AI evidence: [downstream:relay/common/stream_status.go:31](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/common/stream_status.go#L31) — 本地仍为旧传输状态结构。
 
@@ -3492,7 +3492,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(policy): add request policies settings and routing decision records
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel.go`, `controller/channel_pin_retry_test.go`, `controller/relay.go`, `controller/relay_task_plugin_test.go`, `controller/request_policy.go`, `middleware/distributor.go`, `model/option.go`, `model/request_policy.go`, `model/request_policy_test.go`, `relay/mjproxy_handler.go`, `relay/request_billing.go`, `router/api-router.go`, `service/channel_affinity.go`, `service/channel_affinity_template_test.go`, `service/log_info_generate.go`, `service/midjourney.go`, `service/relay_error.go`, `service/relay_error_test.go`, `service/request_policy.go`, `setting/operation_setting/channel_affinity_setting.go`, `web/.oxlintrc.json`, `web/src/components/layout/config/system-settings.config.ts`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/inference-status.test.tsx`, `web/src/features/channels/components/channel-quick-options.tsx`, `web/src/features/channels/index.tsx`, `web/src/features/channels/types.ts`, `web/src/features/keys/components/api-keys-mutate-drawer.tsx`, `web/src/features/system-settings/components/settings-accordion.tsx`, `web/src/features/system-settings/components/settings-page.tsx`, `web/src/features/system-settings/general/channel-affinity/index.tsx`, `web/src/features/system-settings/general/channel-affinity/rule-editor-dialog.tsx`, `web/src/features/system-settings/general/channel-affinity/session-rules-table.tsx`, `web/src/features/system-settings/general/channel-affinity/types.ts`, `web/src/features/system-settings/models/index.tsx`, `web/src/features/system-settings/models/routing-reliability-section.tsx`, `web/src/features/system-settings/models/section-registry.tsx`, `web/src/features/system-settings/request-limits/sensitive-words-section.tsx`, `web/src/features/system-settings/request-policies/__tests__/routing.test.tsx`, `web/src/features/system-settings/request-policies/__tests__/settings.test.tsx`, `web/src/features/system-settings/request-policies/api.ts`, `web/src/features/system-settings/request-policies/channel-health-section.tsx`, `web/src/features/system-settings/request-policies/decision-record.tsx`, `web/src/features/system-settings/request-policies/defaults.ts`, `web/src/features/system-settings/request-policies/index.tsx`, `web/src/features/system-settings/request-policies/policy-label.ts`, `web/src/features/system-settings/request-policies/related-policy-link.tsx`, `web/src/features/system-settings/request-policies/request-checks-section.tsx`, `web/src/features/system-settings/request-policies/retry-section.tsx`, `web/src/features/system-settings/request-policies/routing-form.ts`, `web/src/features/system-settings/request-policies/routing-section.tsx`, `web/src/features/system-settings/request-policies/section-registry.tsx`, `web/src/features/system-settings/request-policies/use-save-policy.ts`, `web/src/features/system-settings/security/section-registry.tsx`, `web/src/features/system-settings/types.ts`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/routeTree.gen.ts`, `web/src/routes/_authenticated/system-settings/models/$section.tsx`, `web/src/routes/_authenticated/system-settings/operations/$section.tsx`, `web/src/routes/_authenticated/system-settings/request-policies/$section.tsx`, `web/src/routes/_authenticated/system-settings/request-policies/index.tsx`, `web/src/routes/_authenticated/system-settings/security/$section.tsx`
 - Overlap with downstream changes: controller/channel.go, controller/relay.go, middleware/distributor.go, model/option.go, relay/mjproxy_handler.go, router/api-router.go, service/midjourney.go, web/src/components/layout/config/system-settings.config.ts, web/src/features/channels/api.ts, web/src/features/channels/types.ts, web/src/features/system-settings/models/index.tsx, web/src/features/system-settings/models/section-registry.tsx, web/src/features/system-settings/types.ts, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/routeTree.gen.ts
@@ -3503,7 +3503,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 71文件引入RequestPolicy、全局/渠道自动禁用、重试决策和管理UI；本地仍用shouldRetry等既有路径，且有违规收费、任务回溯和下游通道约束。缺状态迁移与权限回归，暂缓整组。
 - AI risks: 重试/禁用政策影响可用性和收费；不能覆盖任务凭据延续、原任务渠道锁定、管理员审计与租户边界。
 - AI dependencies: commit-8b2c7105f91f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/relay.go:192](https://github.com/QuantumNous/new-api/blob/73a471f3a8b1cdf5dfe371184dfc3579cdcbefcc/controller/relay.go#L192) — 上游用显式策略决策替代shouldRetry。
 - AI evidence: [downstream:controller/relay.go:269](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/relay.go#L269) — 本地仍走现有重试策略。
 
@@ -3513,7 +3513,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(relaykit): surface reasoning conversion diagnostics
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/openai/adaptor.go`, `relay/convert_request_error_test.go`, `relay/helper/reasoning_suffix.go`, `relaykit/relayconvert/claude_default_max_tokens_test.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_responses_req.go`, `relaykit/relayconvert/internal/gemini_chat/to_oai_chat_req.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_req.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_req_test.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go`, `relaykit/relayconvert/internal/shared/claude/reasoning.go`, `relaykit/relayconvert/internal/shared/gemini/request.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/reasoning/gemini.go`, `relaykit/relayconvert/reasoning/gemini_test.go`, `relaykit/relayconvert/reasoning/intent.go`, `relaykit/relayconvert/reasoning/intent_test.go`, `relaykit/relayconvert/request_compat.go`, `relaykit/relayconvert/request_registry.go`, `relaykit/relayconvert/request_registry_test.go`
 - Overlap with downstream changes: relay/channel/openai/adaptor.go
@@ -3524,7 +3524,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游把FromOpenAIChat/FromClaude等签名改为同时返回diagnostics，并贯穿宿主日志；本地没有同一套reasoning Intent基础。应随7137与@修饰符整组迁移，不能只替换调用签名。
 - AI risks: 诊断需管理员可见且不得携带凭据/请求内容；relaykit公共API及外部嵌入者兼容尚未验证。
 - AI dependencies: commit-0ed497f066a6, commit-7c044d7c5c2d, commit-6b659fd61c50
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/openai/adaptor.go:270](https://github.com/QuantumNous/new-api/blob/8a11b4305ed139b55ee91f914c6a19d59c783d72/relay/channel/openai/adaptor.go#L270) — 上游推理API增加诊断返回值。
 - AI evidence: [downstream:relay/channel/openai/adaptor.go:257](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/openai/adaptor.go#L257) — 本地仍是旧推理适配代码。
 
@@ -3534,7 +3534,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf(metrics): record relay outcomes at the request boundary and classify stream results
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `constant/context_key.go`, `controller/perf_metrics.go`, `controller/relay.go`, `pkg/perf_metrics/metrics.go`, `pkg/perf_metrics/metrics_test.go`, `pkg/perf_metrics/outcome.go`, `pkg/perf_metrics/types.go`, `relay/channel/claude/relay-claude.go`, `relay/channel/claude/relay_responses.go`, `relay/channel/gemini/relay-gemini-native.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_responses.go`, `relay/channel/openai/chat_via_responses.go`, `relay/channel/openai/relay-openai.go`, `relay/channel/openai/relay_responses.go`, `relay/channel/openai/stream_tool_billing_test.go`, `relay/common/relay_info.go`, `relay/helper/stream_result.go`, `service/log_info_generate.go`, `service/quota.go`, `service/responses_usage.go`, `service/responses_usage_test.go`, `service/text_quota.go`, `web/src/features/dashboard/components/models/performance-overview.tsx`, `web/src/features/dashboard/components/overview/performance-health-panel.tsx`, `web/src/features/performance-metrics/__tests__/summary.test.tsx`, `web/src/features/performance-metrics/types.ts`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/components/model-card-grid.tsx`, `web/src/features/pricing/components/model-details-performance.tsx`, `web/src/features/pricing/components/model-details-uptime-sparkline.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/components/model-perf-badge.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: constant/context_key.go, controller/relay.go, relay/channel/openai/relay-openai.go, relay/common/relay_info.go, service/quota.go, service/text_quota.go, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3545,7 +3545,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游将指标从gopool异步样本移到请求defer，并按协议终态分类；本地有自有分类流量监控与当前RecordRelaySample。该40文件变更应与终态分类共同验证，避免重试/业务拒绝重复统计。
 - AI risks: 需验证panic、客户端取消、业务拒绝、每请求只计一次和自有监控口径，不能覆盖下游监控边界。
 - AI dependencies: commit-8b2c7105f91f, commit-73a471f3a8b1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/relay.go:134](https://github.com/QuantumNous/new-api/blob/a5b40663d3307fc5011c85b83eb18bbaa33dbad2/controller/relay.go#L134) — 上游在请求收尾统一记录结果。
 - AI evidence: [downstream:controller/relay.go:281](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/relay.go#L281) — 本地仍通过异步现有采样路径。
 
@@ -3555,7 +3555,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(rate-limit): reserve model rate-limit slots and judge success by response outcome
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/rate-limit.go`, `middleware/model-rate-limit.go`, `middleware/model_rate_limit_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3566,7 +3566,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游为并发中请求预占成功额度，并按真实响应终态释放/计入；本地旧队列没有reservation和协议Outcome。必须连同LRU改造、成功口径和取消/异常路径成组验证，不能单独替换中间件。
 - AI risks: 要覆盖并发抢占、淘汰中的预留、重复Complete、失败释放，以及Redis/内存两实现一致性。
 - AI dependencies: commit-d3874db61fce, commit-8b2c7105f91f, commit-a5b40663d330
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/rate-limit.go:170](https://github.com/QuantumNous/new-api/blob/6237d9d77eb0544329b88ff96d71c1715af4268f/common/rate-limit.go#L170) — 上游新增在途请求预留资源。
 - AI evidence: [downstream:common/rate-limit.go:45](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/common/rate-limit.go#L45) — 本地限流仍只有直接入队Request接口。
 
@@ -3576,7 +3576,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(responses-ws): carry stream_id through events and correlate errors
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/responses_websocket_test.go`, `relay/responses_websocket.go`, `relay/responses_websocket_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3587,7 +3587,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 本地尚无Responses WS；此修复把stream_id/event_id/response_id贯穿会话事件并结合策略与指标。仅在决定采用完整WS能力时纳入必需后续修复。
 - AI risks: 多次response.create与取消/错误不能串流；错误关联字段不能泄露另一请求内容。
 - AI dependencies: commit-9fe0457ee1f4, commit-73a471f3a8b1, commit-a5b40663d330
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/responses_websocket.go:46](https://github.com/QuantumNous/new-api/blob/75f3d246e2b1d6a3ea56342d9bc82cb3e1d0b6e2/relay/responses_websocket.go#L46) — 上游WS envelope开始保留stream_id。
 - AI evidence: [downstream:router/relay-router.go:136](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/relay-router.go#L136) — 本地仅有HTTP Responses路由。
 
@@ -3597,7 +3597,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(system-tasks): add filtered task history with cleanup
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/system_task.go`, `controller/system_task_test.go`, `model/system_task.go`, `model/system_task_test.go`, `router/api-router.go`, `web/src/features/system-info/__tests__/system-tasks-panel.test.tsx`, `web/src/features/system-info/api.ts`, `web/src/features/system-info/components/system-task-history.tsx`, `web/src/features/system-info/components/system-tasks-panel.tsx`, `web/src/features/system-info/components/system-tasks-table.tsx`, `web/src/features/system-info/constants.ts`, `web/src/features/system-info/types.ts`, `web/src/features/system-settings/api.ts`, `web/src/features/system-settings/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: controller/system_task.go, model/system_task.go, router/api-router.go, web/src/features/system-info/api.ts, web/src/features/system-info/components/system-tasks-panel.tsx, web/src/features/system-info/types.ts, web/src/features/system-settings/api.ts, web/src/features/system-settings/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3608,7 +3608,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 分页/类型/状态筛选有可观测性价值，但提交同时新增删除历史接口。下游系统任务执行账务与存储迁移，需先界定可清理运行历史与必须永久保留的审计/恢复证据，不能对所有完成任务默认启用清理。若采用可先拆只读列表。
 - AI risks: 清理需保留每类型最新调度记录、活动任务和快照后新建行；权限、任务关联证据和大表扫描成本需评审。
 - AI dependencies: commit-b7017c251bad
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/system_task.go:218](https://github.com/QuantumNous/new-api/blob/90134d5b6bff1a66affa35c5bd8e90e3d74a93f8/model/system_task.go#L218) — 该功能包含实际删除系统任务历史，不只是查询UI；代码：func DeleteSystemTaskHistory(filter SystemTaskFilter) (int64, error) {
 - AI evidence: [downstream:model/system_task.go:180](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/system_task.go#L180) — 下游已有系统任务表和列表，是否扩大删除范围需单独界定；代码：func ListSystemTasks(limit int) ([]*SystemTask, error) {
 
@@ -3618,7 +3618,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugins/hailuo): bill only the dimensions each model family supports
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/hailuo_responses_test.go`, `plugins/tasks/hailuo/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -3629,7 +3629,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 按 H3、2.3、02、01 系列分别声明有效分辨率与输入媒体维度，避免对旧模型收取 H3 专属输入费。应与 H3 驱动和用量表达式一起实施，当前不单独迁 JS 元数据。
 - AI risks: 已有价格表达式对移除维度的行为需保留/审查，不能静默变为免费或多收。
 - AI dependencies: commit-eb48396d5fe9, commit-aece11d2f7f0, commit-73afad588ca7
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/hailuo/plugin.js:1](https://github.com/QuantumNous/new-api/blob/a8ed7f7c5f24e56c2f1612126d82e9fec625056c/plugins/tasks/hailuo/plugin.js#L1) — 代码按模型族划分可计费维度；代码：// Billable dimensions differ per model family: only MiniMax-H3 charges for
 
 #### commit-e2471403c779
@@ -3638,7 +3638,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): adjust billing expression condition display
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/lib/__tests__/billing-expression.test.ts`, `web/src/features/pricing/lib/billing-expression/condition-display.ts`
 - Overlap with downstream changes: (none detected)
@@ -3649,7 +3649,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 日期条件显示统一用toIntlLocale并以UTC格式化，避免界面语言与时区改变日期文字。当前没有新condition-display模块，需在新版表达式显示组被选择后迁移，不能单加无人调用文件。
 - AI risks: 显示时区与表达式执行时区不能混淆；需要覆盖中文、繁中和非UTC客户端。
 - AI dependencies: commit-d52bdc0b4087
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/lib/billing-expression/condition-display.ts:109](https://github.com/QuantumNous/new-api/blob/e2471403c77957818b939ad86bbeccd051d2d042/web/src/features/pricing/lib/billing-expression/condition-display.ts#L109) — 日期显示固定UTC以免跨时区偏移；代码：timeZone: 'UTC',
 
 #### commit-42cbe6206a62
@@ -3658,7 +3658,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(web): add intl-locale lint plugin and update agent rules
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `web/.oxlintrc.json`, `web/AGENTS.md`, `web/scripts/oxlint/__tests__/intl-locale.test.ts`, `web/scripts/oxlint/intl-locale.mjs`, `web/src/features/system-settings/models/__tests__/visual-billing-editor.test.tsx`, `web/src/features/system-settings/models/billing-time-fields.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/tsconfig.node.json`, `web/vitest.config.ts`
 - Overlap with downstream changes: AGENTS.md, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3669,7 +3669,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 oxlint插件检测界面语言码直接进入Intl，并更新AGENTS/格式化约束。检测本身有价值，但这批还混合治理和依赖配置，建议单独工具PR只迁lint，保留当前准确locale函数。
 - AI risks: 要验证别名/透传/公共格式函数误报和现有lint版本，不照搬受保护规则文件或改变金额精度。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/scripts/oxlint/intl-locale.mjs:40](https://github.com/QuantumNous/new-api/blob/42cbe6206a62550896c8371d62a6f15bad5b3e05/web/scripts/oxlint/intl-locale.mjs#L40) — 固定源码：const interfaceLanguageProperties = new Set(['language', 'resolvedLanguage'])
 - AI evidence: [downstream:web/src/i18n/languages.ts:86](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/i18n/languages.ts#L86) — 下游对照：export function toIntlLocale(value?: string | null): string | undefined {
 
@@ -3679,7 +3679,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): tidy channel health policy layout
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/request-policies/__tests__/channel-health-layout.test.tsx`, `web/src/features/system-settings/request-policies/channel-health-section.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3690,7 +3690,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 只重排上游新增 request-policies/channel-health 设置页；下游尚无该同路径设置页。待后台健康策略能力评审完，再决定UI映射。
 - AI risks: 不要为布局补丁顺带启用未知健康/自动禁用策略，需与现有渠道监测规则对齐。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-settings/request-policies/channel-health-section.tsx:52](https://github.com/QuantumNous/new-api/blob/d8069436612e08bd0d96169222b10031556d09a7/web/src/features/system-settings/request-policies/channel-health-section.tsx#L52) — 固定源码：SettingsControlGroup,
 - AI evidence: [downstream:web/src/features/channels/components/drawers/channel-mutate-drawer.tsx:621](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/drawers/channel-mutate-drawer.tsx#L621) — 下游对照：export function ChannelMutateDrawer({
 
@@ -3700,7 +3700,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(responses-ws): extend channel support and share routing with HTTP
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/relay.go`, `controller/responses_websocket_test.go`, `middleware/distributor.go`, `middleware/distributor_test.go`, `model/channel_constraint.go`, `relay/channel/api_request.go`, `relay/channel/api_request_test.go`, `relay/responses_websocket.go`, `relay/responses_websocket_test.go`, `relaykit/dto/channel_settings.go`, `service/channel_select.go`
 - Overlap with downstream changes: controller/relay.go, middleware/distributor.go, relaykit/dto/channel_settings.go
@@ -3711,7 +3711,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游将分发器的锁定渠道、过滤和重试选择移入共享service，供HTTP与新WS使用。本地分发器叠加Volc Native、原任务凭据、资产租户等约束，必须先完成WS与任务约束全链路设计。
 - AI risks: 共享路由重构不能丢原任务渠道锁定、禁用渠道检查和task plugin身份过滤；暂无等价性测试证据。
 - AI dependencies: commit-9fe0457ee1f4, commit-73a471f3a8b1, commit-75f3d246e2b1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/relay.go:169](https://github.com/QuantumNous/new-api/blob/ae249f4ecbaf3ae9b1fc62cf377ca5a764b9a002/controller/relay.go#L169) — 上游把使用渠道记录移到共享service。
 - AI evidence: [downstream:controller/relay.go:230](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/relay.go#L230) — 本地仍调用原控制器路由辅助函数。
 
@@ -3721,7 +3721,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): offer the Responses WebSocket toggle for advanced custom, sub2api and new-api channels
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/channel-quick-options.tsx`, `web/src/features/channels/components/drawers/channel-provider-picker.tsx`, `web/src/features/channels/components/responses-websocket-setting.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/channel-configuration.ts`, `web/src/features/channels/lib/responses-websocket.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/channels/constants.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3732,7 +3732,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 此UI依赖尚未引入的ResponsesWebSocketSetting和共享WS路由；本地没有channel-quick-options等新组件。应在WS功能被选择后按本地表单结构适配，不能显示无效开关。
 - AI risks: 必须覆盖AdvancedCustom无转换路由限制、Sub2API/NewAPI、默认关闭、保存不丢值及多语言。
 - AI dependencies: commit-9fe0457ee1f4, commit-ae249f4ecbaf
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/components/responses-websocket-setting.tsx:41](https://github.com/QuantumNous/new-api/blob/fa3cc1c6b9b13f7bf25c3e896d439185d326ac9c/web/src/features/channels/components/responses-websocket-setting.tsx#L41) — 上游按渠道能力控制开关显示。
 - AI evidence: [downstream:web/src/features/channels/lib/channel-form.ts:656](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/lib/channel-form.ts#L656) — 本地表单序列化还没有Responses WS设置。
 
@@ -3742,7 +3742,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): add channel passthrough controls and usage guidance
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/channel-quick-options.test.tsx`, `web/src/features/channels/components/channel-quick-options.tsx`, `web/src/features/channels/components/dialogs/passthrough-warning-dialog.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/lib/__tests__/header-passthrough.test.ts`, `web/src/features/channels/lib/header-passthrough.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3763,7 +3763,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor: show subscription deductions and improve cost display (#7272)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/cost-display.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/log-cost-display.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/features/usage-logs/lib/columns.ts`
 - Overlap with downstream changes: web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/usage-logs-table.tsx
@@ -3774,7 +3774,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游将subscription_consumed作为订阅显示金额并统一费用组件；下游日志经过有效调账投影且保留工具附加费和财务权限，不能直接改为原始订阅字段。先定义最终费用来源，再合并后续160/161视觉改进。
 - AI risks: 原始金额覆盖修正投影会导致账单/日志金额不一致；保留管理员饱和及用户隐私提示。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/usage-logs/components/log-cost-display.tsx:82](https://github.com/QuantumNous/new-api/blob/9e905a83e1d6c369b3aa43de4f04ab244cce3205/web/src/features/usage-logs/components/log-cost-display.tsx#L82) — 上游订阅显示优先使用原始subscription_consumed；代码：? (props.other?.subscription_consumed ?? props.quota)
 - AI evidence: [downstream:web/src/features/usage-logs/components/log-cost-display.tsx:136](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/usage-logs/components/log-cost-display.tsx#L136) — 本地订阅展示沿用传入的有效quota与下游组件；代码：<SubscriptionBadge quota={props.quota} />
 
@@ -3784,7 +3784,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(log): flag upstream response model mismatches (#7418)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/claude/relay-claude.go`, `relay/channel/claude/relay_responses.go`, `relay/channel/gemini/relay-gemini-native.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_responses.go`, `relay/channel/openai/chat_via_responses.go`, `relay/channel/openai/helper.go`, `relay/channel/openai/relay-openai.go`, `relay/channel/openai/relay_responses.go`, `relay/channel/openai/responses_via_chat.go`, `relay/common/relay_info.go`, `relay/common/response_model.go`, `relay/response_model_test.go`, `service/log_info_generate.go`, `service/relay_error.go`, `service/responses_usage.go`, `web/src/features/usage-logs/components/__tests__/mobile-card.test.tsx`, `web/src/features/usage-logs/components/__tests__/model-badge.test.tsx`, `web/src/features/usage-logs/components/__tests__/usage-facts.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/common-log-mobile-card.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/components/model-badge.tsx`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/usage-logs/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: relay/channel/openai/helper.go, relay/channel/openai/relay-openai.go, relay/common/relay_info.go, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/lib/format.ts, web/src/features/usage-logs/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -3795,7 +3795,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增多协议ObserveResponseModel和日志UI共32文件，本地还没有该诊断对象。应与后续“由模型名推导偏差”修复一起设计，先明确公开名/映射名/供应商返回名关系及管理员可见范围。
 - AI risks: 观测模型只能诊断，不能改下游输出、客户计费或成本快照；供应商快照/前缀名易误报。
 - AI dependencies: commit-0ed497f066a6, commit-a5b40663d330
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/claude/relay-claude.go:327](https://github.com/QuantumNous/new-api/blob/ed7c4e35d4297962991ac5f00eea504ceac0fbd0/relay/channel/claude/relay-claude.go#L327) — 上游在原生响应转换前记录实际模型。
 - AI evidence: [downstream:relay/channel/claude/relay-claude.go:217](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/claude/relay-claude.go#L217) — 本地原生Claude响应尚无模型偏差观测。
 
@@ -3805,7 +3805,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): map Images output_tokens_details into img_o billing (#7410)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/openai/image_stream_test.go`, `relay/channel/openai/relay_image.go`
 - Overlap with downstream changes: (none detected)
@@ -3826,7 +3826,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(responses): estimate usage for streams cut before terminal usage (#7427)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `service/responses_usage.go`, `service/responses_usage_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3837,7 +3837,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游新的ResponsesUsageAccumulator将工具参数、推理和拒绝delta纳入估算，并对已启动但无usage流计入prompt；本地没有这个累加器。需与协议失败终态及本地退款/成本凭证共同核对，不能孤立套入。
 - AI risks: 客户端断连与上游明确失败收费不同；须保留实报优先、估算标记、预扣/结算安全和不可变账务证据。
 - AI dependencies: commit-9fe0457ee1f4, commit-8b2c7105f91f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:service/responses_usage.go:102](https://github.com/QuantumNous/new-api/blob/55a6cd2a44eaf189bbd565dd2cdfa591d19b06d6/service/responses_usage.go#L102) — 上游根据是否启动及失败结果决定缺失prompt的估算。
 - AI evidence: [downstream:relay/responses_handler.go:23](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/responses_handler.go#L23) — 本地Responses仍走现有handler结算链。
 
@@ -3847,7 +3847,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix issue template (#7441)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/bug_report_en.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/ISSUE_TEMPLATE/feature_request_en.yml`
 - Overlap with downstream changes: (none detected)
@@ -3858,7 +3858,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只将上游issue提示改为必填textarea，均为.github受保护内容；与下游运行时功能无关。
 - AI risks: 不能为了使上游模板一致而改变本地下游问题提交流程。
 - AI dependencies: commit-57791e31c62b
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.github/ISSUE_TEMPLATE/bug_report.yml:14](https://github.com/QuantumNous/new-api/blob/3524fe0b15794d8d19378827d36a7edc0b0e91ea/.github/ISSUE_TEMPLATE/bug_report.yml#L14) — 固定源码：id: read-first
 
 #### commit-2906e4f779b7
@@ -3867,7 +3867,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(oauth): require account evidence before migrating legacy GitHub bindings
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/auth_flow_test.go`, `controller/auth_session_test.go`, `controller/login_verification.go`, `controller/model_list_test.go`, `controller/oauth.go`, `controller/passkey_test.go`, `controller/user.go`, `controller/wechat.go`, `i18n/keys.go`, `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `model/account_security.go`, `model/login_verification.go`, `model/user.go`, `oauth/github.go`, `oauth/provider.go`, `service/login_verification.go`
 - Overlap with downstream changes: controller/model_list_test.go, controller/user.go, i18n/keys.go, i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, model/user.go
@@ -3878,7 +3878,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游不再仅凭可变 login 名自动认领旧 GitHub 绑定，增加账号证据与登录挑战内延迟迁移。本地下游仍保留 legacy_id；需优先独立安全设计并结合本地已验证手机和微信身份，不能移植整套登录重构。
 - AI risks: 涉及账号接管风险与旧用户可登录性；验证证据、冲突、无邮箱、两步验证完成前不落库必须测试。
 - AI dependencies: commit-45c3fbe8aeb0, commit-6f2333990613
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/oauth.go:453](https://github.com/QuantumNous/new-api/blob/2906e4f779b715f282ae11203211dca77051d5af/controller/oauth.go#L453) — 固定源码：reason, matched := "no_matching_evidence", false
 - AI evidence: [downstream:oauth/github.go:158](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/oauth/github.go#L158) — 下游对照："legacy_id": githubUser.Login, // Store login for migration from old accounts
 
@@ -3888,7 +3888,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: forward reasoning_effort to zhipu upstream (#7124)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/zhipu_4v/relay-zhipu_v4.go`
 - Overlap with downstream changes: (none detected)
@@ -3909,7 +3909,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf: avoid repeated Claude tool-name lookups (#7447)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/dto/claude.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/request_registry_test.go`
 - Overlap with downstream changes: (none detected)
@@ -3930,7 +3930,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(log): hide funding source labels when subscriptions are not in play (#7450)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/cost-display.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/log-cost-display.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/features/usage-logs/lib/__tests__/billing-source.test.ts`, `web/src/features/usage-logs/lib/billing-source.ts`, `web/src/features/usage-logs/lib/columns.ts`
 - Overlap with downstream changes: web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/usage-logs-table.tsx
@@ -3941,7 +3941,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增用户/日志上下文判断是否显示钱包或订阅标签，需与订阅金额及费用展示改造一起选。当前本地没有showBillingSource参数且有专属费用设计，不能直接带入中间版本。
 - AI risks: 取订阅状态需有界缓存且不能泄露他人信息；金额仍应使用下游有效投影。
 - AI dependencies: commit-9e905a83e1d6
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/usage-logs/components/log-cost-display.tsx:84](https://github.com/QuantumNous/new-api/blob/ea336ed6654a97c0c27e004581578231e0d92824/web/src/features/usage-logs/components/log-cost-display.tsx#L84) — 是否展示来源由上下文显式控制；代码：const billingSource = props.showBillingSource
 
 #### commit-96b0da2273a1
@@ -3950,7 +3950,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(log): 恢复费用气泡并用图标区分订阅来源 (#7451)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/billing-source-visibility.test.tsx`, `web/src/features/usage-logs/components/__tests__/cost-display.test.tsx`, `web/src/features/usage-logs/components/log-cost-display.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/features/usage-logs/lib/__tests__/billing-source.test.ts`, `web/src/features/usage-logs/lib/billing-source.ts`
 - Overlap with downstream changes: web/src/features/usage-logs/components/usage-logs-table.tsx
@@ -3961,7 +3961,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 恢复费用气泡，使用图标区分钱包/订阅并按用户上下文控制来源。依赖前两项展示链，与下游当前金额Badge和工具附加费标记的取舍需要产品确认，不宜作为正确性修复隐式覆盖。
 - AI risks: 必须保留可访问名称、有效调账金额、工具费提示和财务权限。
 - AI dependencies: commit-9e905a83e1d6, commit-ea336ed6654a
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/usage-logs/components/log-cost-display.tsx:120](https://github.com/QuantumNous/new-api/blob/96b0da2273a187b3fd9621f77b10dcebd046e2f6/web/src/features/usage-logs/components/log-cost-display.tsx#L120) — 扣费来源改用有提示的图标；代码：icon={isSubscription ? CrownIcon : Wallet01Icon}
 
 #### commit-1ea24a050d5e
@@ -3970,7 +3970,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: refresh project README across languages
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `README.en.md`, `README.fr.md`, `README.ja.md`, `README.md`, `README.zh_CN.md`, `README.zh_TW.md`
 - Overlap with downstream changes: README.md, README.zh_CN.md
@@ -3981,7 +3981,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 上游整篇重写能力介绍、导航和合作方；本地 README 有下游产品定位、来源说明及长期差异台账，不能整体覆盖。
 - AI risks: 保留 new-api/QuantumNous 署名；已采用能力可在专门文档PR中按真实下游情况描述。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:README.en.md:10](https://github.com/QuantumNous/new-api/blob/1ea24a050d5e276584d744122810b8dc57b10f0e/README.en.md#L10) — 固定源码：<a href="./README.zh_CN.md">简体中文</a> |
 - AI evidence: [downstream:README.md:11](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/README.md#L11) — 下游对照：[![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
@@ -3991,7 +3991,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): 修复小数输入限制和日志分组选项未遮挡的问题 (#7453)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/ui/combobox-input.tsx`, `web/src/components/ui/combobox.tsx`, `web/src/features/system-settings/models/__tests__/group-pricing-decimals.test.tsx`, `web/src/features/system-settings/models/__tests__/tool-price-validation.test.tsx`, `web/src/features/system-settings/models/group-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/tool-price-settings.tsx`, `web/src/features/usage-logs/components/__tests__/group-filter.test.tsx`, `web/src/features/usage-logs/components/common-logs-filter-bar.tsx`
 - Overlap with downstream changes: web/src/features/usage-logs/components/common-logs-filter-bar.tsx
@@ -4012,7 +4012,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: restore README badge and partner placement
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `README.en.md`, `README.fr.md`, `README.ja.md`, `README.md`, `README.zh_CN.md`, `README.zh_TW.md`
 - Overlap with downstream changes: README.md, README.zh_CN.md
@@ -4023,7 +4023,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只恢复上游项目徽章和伙伴顺序，没有运行时功能；README在自动同步保护范围且本地有独立首页说明。
 - AI risks: 不删除或替换任何已存在的归属内容，排版需求单独审查。
 - AI dependencies: commit-1ea24a050d5e
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:README.en.md:36](https://github.com/QuantumNous/new-api/blob/b0bf2580e2491869ee9fe861c12b86153c3fe5f4/README.en.md#L36) — 固定源码：<a href="https://trendshift.io/repositories/20180" target="_blank">
 - AI evidence: [downstream:README.md:11](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/README.md#L11) — 下游对照：[![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
@@ -4033,7 +4033,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(log): derive response model mismatch from names instead of a stored flag (#7464)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/common/response_model.go`, `relay/response_model_test.go`, `service/log_info_generate.go`, `web/src/features/usage-logs/components/__tests__/mobile-card.test.tsx`, `web/src/features/usage-logs/components/__tests__/model-badge.test.tsx`, `web/src/features/usage-logs/components/__tests__/usage-facts.test.tsx`, `web/src/features/usage-logs/components/model-badge.tsx`, `web/src/features/usage-logs/lib/__tests__/response-model.test.ts`, `web/src/features/usage-logs/lib/index.ts`, `web/src/features/usage-logs/lib/response-model.ts`, `web/src/features/usage-logs/types.ts`
 - Overlap with downstream changes: web/src/features/usage-logs/types.ts
@@ -4044,7 +4044,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 这是153的持久化语义修正：只保存三种模型名，按当前规则算Mismatch，新增供应商命名空间匹配。本地尚无前置观测能力，应与其一并采用最终表示，避免先存易过期bool。
 - AI risks: 前后缀宽松匹配可能遮蔽真实不同模型；需明确快照、路由别名和命名空间匹配边界及历史日志兼容。
 - AI dependencies: commit-ed7c4e35d429
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/common/response_model.go:32](https://github.com/QuantumNous/new-api/blob/972aed1972820389ea0b603ca58f03f846fbf790/relay/common/response_model.go#L32) — 上游按保留模型名实时计算偏差。
 - AI evidence: [downstream:relay/common/relay_info.go:84](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/common/relay_info.go#L84) — 本地RelayInfo尚无ResponseModel对象。
 
@@ -4054,7 +4054,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): start linked-account verification from the provider button
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/auth/secure-verification/__tests__/verification-flow.test.tsx`, `web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx`, `web/src/features/auth/secure-verification/hooks/use-secure-verification.ts`
 - Overlap with downstream changes: web/src/features/auth/secure-verification/components/secure-verification-dialog.tsx
@@ -4065,7 +4065,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 这是统一验证 UI 的交互修复，通过 provider 按钮直接传 override VerificationInput；本地验证 hook/页面结构不同且扩展短信验证，需随验证体系迁移。
 - AI risks: 必须防重复提交/过期回调，取消后不能完成另一次敏感操作。
 - AI dependencies: commit-45c3fbe8aeb0, commit-6f2333990613
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/auth/secure-verification/hooks/use-secure-verification.ts:281](https://github.com/QuantumNous/new-api/blob/a89037d0b9b065da8582959018321abbc48db549/web/src/features/auth/secure-verification/hooks/use-secure-verification.ts#L281) — 固定源码：async (override?: VerificationInput) => {
 - AI evidence: [downstream:service/auth_token.go:160](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/auth_token.go#L160) — 下游对照：func VerifySecurityProof(raw string, identity AuthIdentity, requiredScope string, allowedMethods []string) (string, error) {
 
@@ -4075,7 +4075,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore: drop trailing blank line from .gitignore
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.gitignore`
 - Overlap with downstream changes: .gitignore
@@ -4086,7 +4086,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只有删除末尾空白行，既不修功能也不更新依赖。无需为样式差异产生迁移提交，保留本地新增测试缓存与评估计划规则。
 - AI risks: 不能套用旧上游.gitignore覆盖本地规则；本项不代表已升级任何能力。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.gitignore:46](https://github.com/QuantumNous/new-api/blob/ef70d1b79998db9bb32b6b79205afbc4b9f8716b/.gitignore#L46) — 固定源码：go.work.sum
 - AI evidence: [downstream:.gitignore:49](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/.gitignore#L49) — 下游对照：go.work.sum
 
@@ -4096,7 +4096,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): robustly display conditional task billing prices
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/__tests__/task-matrix-display.test.ts`, `web/src/features/pricing/__tests__/task-price-display.test.tsx`, `web/src/features/pricing/components/dynamic-pricing-breakdown.tsx`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/pricing/lib/billing-expr.ts`, `web/src/features/pricing/lib/billing-expression/display.ts`, `web/src/features/pricing/lib/billing-expression/task-display.ts`, `web/src/features/pricing/lib/breakdown-tier-match.ts`, `web/src/features/pricing/lib/dynamic-price.ts`, `web/src/features/pricing/lib/task-matrix-display.ts`, `web/src/features/pricing/lib/task-price-display.ts`, `web/src/features/system-settings/models/__tests__/request-simulation.test.tsx`, `web/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -4107,7 +4107,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增可显示/特殊表达式/无法推导价格的回落分类，统一任务价格矩阵和条件档位选择。它依赖任务usage_schema和新表达式模块，本地尚未采用，需和计费语言升级一致后迁入。
 - AI risks: 无法静态推导的表达式不能显示为免费或错误档位；日志应优先用冻结的matched_tier。
 - AI dependencies: commit-eb48396d5fe9, commit-d52bdc0b4087, commit-39294418af4c
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/lib/task-price-display.ts:39](https://github.com/QuantumNous/new-api/blob/b932e6d876cda4fa49528b5cdb873d9fc5e31b6f/web/src/features/pricing/lib/task-price-display.ts#L39) — 新增任务价格显示策略模块；代码：export function taskPriceLabel(
 
 #### commit-9c3d3aeb3c30
@@ -4116,7 +4116,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf(web): lazy-load provider icons and reduce page rerenders
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/api-keys-columns.tsx`, `web/src/features/models/components/models-columns.tsx`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/__tests__/pricing-controls.test.tsx`, `web/src/features/pricing/components/model-card-grid.tsx`, `web/src/features/pricing/components/model-card.tsx`, `web/src/features/pricing/components/pricing-sidebar.tsx`, `web/src/features/usage-logs/components/__tests__/detail-preview.test.tsx`, `web/src/features/usage-logs/components/__tests__/model-badge.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/columns/drawing-logs-columns.tsx`, `web/src/features/usage-logs/components/columns/task-logs-columns.tsx`, `web/src/features/usage-logs/components/usage-logs-table.tsx`, `web/src/features/users/components/users-columns.tsx`, `web/src/lib/__tests__/lobe-icon.test.tsx`, `web/src/lib/lobe-icon.tsx`
 - Overlap with downstream changes: web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/columns/task-logs-columns.tsx, web/src/features/usage-logs/components/usage-logs-table.tsx
@@ -4137,7 +4137,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): isolate OIDC discovery when saving OAuth settings
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/auth/__tests__/oauth-settings.test.tsx`, `web/src/features/system-settings/auth/oauth-section.tsx`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4158,7 +4158,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channel): bind multiple task plugins to New API channels
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel.go`, `controller/channel_task_plugin_bind_test.go`, `controller/channel_task_plugin_validation_test.go`, `controller/task_plugin.go`, `controller/task_plugin_test.go`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `middleware/distributor.go`, `middleware/distributor_test.go`, `middleware/task_plugin.go`, `model/channel_constraint.go`, `model/task.go`, `model/task_plugin.go`, `model/task_plugin_channel_select_test.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_test.go`, `plugins/builtin_plugins_test.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`, `plugins/tasks/jimeng/plugin.js`, `plugins/tasks/kling/plugin.js`, `plugins/tasks/sora/plugin.js`, `plugins/tasks/sunoapi/plugin.js`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/channel/task/jsplugin/auth_test.go`, `relaykit/dto/channel_settings.go`, `service/task_polling.go`, `service/task_polling_test.go`, `web/src/components/multi-select.tsx`, `web/src/components/multi-select/__tests__/option-icon.test.tsx`, `web/src/features/channels/api.ts`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/__tests__/new-api-channel.test.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/channels/lib/channel-plugin-extensions.ts`, `web/src/features/channels/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: controller/channel.go, middleware/distributor.go, model/task.go, relaykit/dto/channel_settings.go, service/task_polling.go, service/task_polling_test.go, web/src/features/channels/api.ts, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/constants.ts, web/src/features/channels/lib/channel-form.ts, web/src/features/channels/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -4169,7 +4169,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 允许网关渠道绑定多个任务插件，禁用插件只解绑对应扩展而不关闭整个普通渠道。当前无插件路由，该能力会改变渠道模型匹配与重试，应先评估与本地稳定别名和权限隔离的组合。
 - AI risks: 禁用插件不得误停普通中继；多插件认领相同模型必须确定价格和选择规则。
 - AI dependencies: commit-eb48396d5fe9, commit-ab489ab8842b, commit-74629e29f83f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/channel.go:541](https://github.com/QuantumNous/new-api/blob/4c34f25a49f1cf491479e3842b2251e8a6908851/controller/channel.go#L541) — 多插件键数量有上限并专用于 New API 渠道；代码：// maxTaskExtendPluginKeys bounds the plugins one New API channel can be
 
 #### commit-2d7aef7414e8
@@ -4178,7 +4178,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): restore CC Switch model dropdown
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/dialogs/__tests__/cc-switch-dialog.test.tsx`, `web/src/features/keys/components/dialogs/cc-switch-dialog.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4199,7 +4199,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(channels): preview upstream model changes before applying
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/upstream-update-dialog.test.tsx`, `web/src/features/channels/components/channels-dialogs.tsx`, `web/src/features/channels/components/data-table-row-actions.tsx`, `web/src/features/channels/components/dialogs/upstream-update-dialog.tsx`, `web/src/features/channels/hooks/use-channel-upstream-updates.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4220,7 +4220,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(channels): simplify model redirects and clarify panel controls
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/floating-window.tsx`, `web/src/components/floating-window/__tests__/floating-window.test.tsx`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/model-mapping-batch-dialog.test.tsx`, `web/src/features/channels/components/__tests__/upstream-model-selection.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/components/model-mapping-batch-dialog.tsx`, `web/src/features/channels/components/model-mapping-editor.tsx`, `web/src/features/channels/components/model-redirect-panel.tsx`, `web/src/features/channels/components/upstream-model-selection.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4231,7 +4231,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 清理上一悬浮工作台的自动命名启发式并增加展开控制，证明主项仍有后续修正；下游未迁主项，待按最终实现统一设计。
 - AI risks: 避免先导入已删除的自动别名策略；保留映射方向、批量去重与持久化位置语义。
 - AI dependencies: commit-0cde9d94f6d3
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/floating-window.tsx:66](https://github.com/QuantumNous/new-api/blob/db536ec8bcbbc63034d009a7257ecee0f3468abf/web/src/components/floating-window.tsx#L66) — 固定源码：expandRequest?: number
 - AI evidence: [downstream:web/src/features/channels/components/drawers/channel-mutate-drawer.tsx:621](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/drawers/channel-mutate-drawer.tsx#L621) — 下游对照：export function ChannelMutateDrawer({
 
@@ -4241,7 +4241,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: style: refresh logo
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/icon.png`, `electron/tray-icon-windows.png`, `electron/tray-iconTemplate.png`, `electron/tray-iconTemplate@2x.png`, `web/index.html`, `web/public/favicon.ico`, `web/public/logo.png`, `web/rsbuild.config.ts`
 - Overlap with downstream changes: web/index.html, web/public/favicon.ico, web/public/logo.png, web/rsbuild.config.ts
@@ -4252,7 +4252,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 二进制图标、tray图标和favicon路径变更属于上游品牌呈现，下游保留自己的界面与发布资源，不把品牌替换作为版本同步。
 - AI risks: 所有现存 new-api/QuantumNous 归属必须保留；不得导入上游资源覆盖下游品牌和OSS资源规则。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/rsbuild.config.ts:67](https://github.com/QuantumNous/new-api/blob/58a9eff4c8421a6bbb04855e561310d3eeabd107/web/rsbuild.config.ts#L67) — 固定源码：favicon: './public/favicon.ico',
 - AI evidence: [downstream:web/index.html:10](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/index.html#L10) — 下游对照：<title>New API</title>
 
@@ -4262,7 +4262,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(settings): move documentation link to site settings
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/billing/index.tsx`, `web/src/features/system-settings/billing/section-registry.tsx`, `web/src/features/system-settings/general/quota-settings-section.tsx`, `web/src/features/system-settings/general/system-info-section.tsx`, `web/src/features/system-settings/site/index.tsx`, `web/src/features/system-settings/site/section-registry.tsx`, `web/src/features/system-settings/types.ts`
 - Overlap with downstream changes: web/src/features/system-settings/billing/section-registry.tsx, web/src/features/system-settings/general/system-info-section.tsx, web/src/features/system-settings/site/index.tsx, web/src/features/system-settings/site/section-registry.tsx, web/src/features/system-settings/types.ts
@@ -4283,7 +4283,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(channels): align card metrics and remove badge spacing
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/channel-card.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4294,7 +4294,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 重排渠道卡片 priority/response、weight/last-tested 并统一 badge context。属于视觉偏好且本地下游卡片还有额外监控信息，先确认布局需求。
 - AI risks: 不能用压缩布局隐藏余额、状态原因和敏感字段权限；需实机/窄屏验证。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/components/channel-card.tsx:89](https://github.com/QuantumNous/new-api/blob/da2540dda1328040193f279a58c3e315083e416c/web/src/features/channels/components/channel-card.tsx#L89) — 固定源码：className='flex min-w-0 flex-col gap-3'
 - AI evidence: [downstream:web/src/features/channels/components/channel-card.tsx:42](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/components/channel-card.tsx#L42) — 下游对照：function ChannelCardComponent({
 
@@ -4304,7 +4304,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(settings): improve group configuration UX and drag sorting
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/auto-group-order-item.tsx`, `web/src/features/keys/components/auto-group-order-editor.tsx`, `web/src/features/system-settings/models/__tests__/group-settings.test.tsx`, `web/src/features/system-settings/models/group-ratio-form.tsx`, `web/src/features/system-settings/models/group-ratio-visual-editor.tsx`, `web/src/features/system-settings/models/group-special-usable-editor.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4315,7 +4315,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 AutoGroupOrderItem 并重构组倍率表单；自动分组优先级影响路由，需确认当前下游可用组/特殊倍率与键盘重排规则，避免把表现优化混入业务变更。
 - AI risks: 拖动后保存顺序必须稳定；对不可用/重复组和继承倍率不能静默重写。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/components/auto-group-order-item.tsx:38](https://github.com/QuantumNous/new-api/blob/d904b9700015ad73285b0f0030c88eb6683fbeda/web/src/components/auto-group-order-item.tsx#L38) — 固定源码：onMove: (index: number, direction: 'up' | 'down') => void
 - AI evidence: [downstream:web/src/features/keys/components/auto-group-order-editor.tsx:157](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/auto-group-order-editor.tsx#L157) — 下游对照：export function AutoGroupOrderEditor(props: AutoGroupOrderEditorProps) {
 
@@ -4325,7 +4325,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(keys): show and copy configured API addresses
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/__tests__/api-addresses.test.tsx`, `web/src/features/keys/components/api-keys-primary-buttons.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4346,7 +4346,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): keep mobile dialog actions within visible viewport
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/dialog.tsx`, `web/src/components/ui/__tests__/dialog-layout.test.tsx`, `web/src/components/ui/alert-dialog.tsx`, `web/src/components/ui/dialog.tsx`, `web/src/features/channels/components/dialogs/advanced-custom-editor-dialog.tsx`, `web/src/features/channels/components/dialogs/channel-test-dialog.tsx`, `web/src/features/channels/components/dialogs/edit-tag-dialog.tsx`, `web/src/features/channels/components/dialogs/multi-key-manage-dialog.tsx`, `web/src/features/channels/components/dialogs/param-override-editor-dialog.tsx`, `web/src/features/channels/components/dialogs/upstream-update-dialog.tsx`, `web/src/features/model-pricing/pricing-conversion-dialog.tsx`, `web/src/features/models/components/dialogs/missing-models-dialog.tsx`, `web/src/features/models/components/dialogs/update-config-dialog.tsx`, `web/src/features/models/components/dialogs/view-details-dialog.tsx`, `web/src/features/system-settings/auth/custom-oauth/components/provider-form-dialog.tsx`, `web/src/features/system-settings/models/channel-selector-dialog.tsx`, `web/src/features/system-settings/models/conflict-confirm-dialog.tsx`, `web/src/features/task-plugins/__tests__/marketplace-install-dialog.test.tsx`, `web/src/features/task-plugins/__tests__/upload-dialog.test.tsx`, `web/src/features/usage-logs/audit/components/audit-log-details-dialog.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/wallet/components/dialogs/billing-history-dialog.tsx`, `web/src/styles/index.css`
 - Overlap with downstream changes: web/src/features/channels/components/dialogs/channel-test-dialog.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/styles/index.css
@@ -4367,7 +4367,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): serve OpenAI Images API through task plugins
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.agents/rules/billing.md`, `common/model.go`, `constant/channel.go`, `controller/model_management_test.go`, `controller/plugin_protocol.go`, `controller/plugin_protocol_image.go`, `controller/plugin_protocol_test.go`, `controller/relay.go`, `controller/relay_task_plugin_test.go`, `controller/task.go`, `controller/task_generic_test.go`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `dto/task.go`, `middleware/task_plugin.go`, `middleware/task_plugin_test.go`, `model/model_pricing_conversion.go`, `model/task.go`, `pkg/billingexpr/expr.md`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_test.go`, `pkg/jsplugin/routing.go`, `pkg/jsplugin/routing_test.go`, `plugins/alibaba_responses_test.go`, `plugins/builtin_plugins_test.go`, `plugins/doubao_responses_test.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`, `relay/channel/ali/adaptor.go`, `relay/channel/ali/adaptor_test.go`, `relay/channel/ali/dto.go`, `relay/channel/ali/image.go`, `relay/channel/ali/image_wan.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/convert_request_error_test.go`, `relay/helper/billing_expr_request.go`, `relay/helper/openai_image_request_test.go`, `relay/helper/price.go`, `relay/helper/valid_request.go`, `relay/image_handler.go`, `relay/relay_task.go`, `relay/relay_task_test.go`, `router/relay-router.go`, `router/task-plugin-protocol-router.go`, `router/task_plugin_protocol_router_test.go`, `service/image_billing.go`, `service/task_billing.go`, `service/task_billing_test.go`, `service/text_quota_test.go`, `setting/model_setting/qwen.go`, `web/public/favicon.ico`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/__tests__/provider-selection.test.tsx`, `web/src/features/channels/constants.ts`, `web/src/features/channels/lib/channel-utils.ts`, `web/src/features/task-plugins/__tests__/plugin-detail-sheet.test.tsx`, `web/src/features/task-plugins/lib/host-protocols.ts`, `web/src/features/usage-logs/__tests__/artifacts.test.ts`, `web/src/features/usage-logs/components/__tests__/billing-source-visibility.test.tsx`, `web/src/features/usage-logs/components/__tests__/cost-display.test.tsx`, `web/src/features/usage-logs/components/__tests__/mobile-card.test.tsx`, `web/src/features/usage-logs/components/__tests__/task-artifacts-cell.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/common-log-mobile-card.tsx`, `web/src/features/usage-logs/components/dialogs/audio-preview-dialog.tsx`, `web/src/features/usage-logs/components/log-cost-display.tsx`, `web/src/features/usage-logs/components/task-artifacts.tsx`, `web/src/features/usage-logs/components/timing-metrics-cell.tsx`, `web/src/features/usage-logs/lib/task-artifacts.ts`, `web/src/features/usage-logs/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: constant/channel.go, controller/relay.go, controller/task.go, dto/task.go, model/task.go, relay/relay_task.go, router/relay-router.go, service/task_billing.go, service/task_billing_test.go, web/public/favicon.ico, web/src/features/channels/constants.ts, web/src/features/channels/lib/channel-utils.ts, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -4378,7 +4378,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 扩展任务插件承接同步/异步图片协议、文件占位、下载与产物返回，对现有图片中继是架构性分流。需要先验证 multipart、图片数量、response_format、流式计费和授权内容访问，再决定与 Go 图片适配器共存方式。
 - AI risks: 不能跳过图片数量预扣、重试补预留和对象存储权限；不应导入 .agents 规则文件。
 - AI dependencies: commit-eb48396d5fe9, commit-f064bffa2b65, commit-74629e29f83f, commit-4c34f25a49f1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/plugin_protocol_image.go:30](https://github.com/QuantumNous/new-api/blob/03563a4a791629a811076f1cbcbecfbe2716eac2/controller/plugin_protocol_image.go#L30) — 新增独立的插件图片协议处理入口；代码：func serveTaskPluginImageProtocol(c *gin.Context, pinned pluginruntime.PinnedEndpoint, deps pluginProtocolBridgeDeps) {
 
 #### commit-a5bf94022060
@@ -4387,7 +4387,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): correct dialog viewport fallbacks and editor gutter alignment
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/ai-elements/__tests__/code-block-editor.test.tsx`, `web/src/components/ai-elements/code-block.tsx`, `web/src/components/dialog.tsx`, `web/src/components/ui/__tests__/dialog-layout.test.tsx`, `web/src/components/ui/alert-dialog.tsx`, `web/src/components/ui/dialog.tsx`, `web/src/features/system-settings/models/__tests__/group-pricing-decimals.test.tsx`, `web/src/features/task-plugins/__tests__/marketplace-install-dialog.test.tsx`, `web/src/features/task-plugins/__tests__/upload-dialog.test.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4408,7 +4408,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(models): add bulk field selection to metadata sync
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/models/__tests__/metadata-sync.test.tsx`, `web/src/features/models/components/dialogs/sync-wizard-dialog.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4419,7 +4419,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 现有模型允许按字段批量确认覆盖，新模型展示的全部元数据直接导入。当前没有前述新元数据同步API和可见性状态，待统一模型管理方案选定后纳入。
 - AI risks: 未选字段必须保持原样；新增模型默认导入的敏感/协议字段需要明确。
 - AI dependencies: commit-0c76e4dae77a, commit-71c1fd7caad7
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/models/components/dialogs/sync-wizard-dialog.tsx:204](https://github.com/QuantumNous/new-api/blob/2fddb863f2219d9eacea5b899ee39b46f11adf33/web/src/features/models/components/dialogs/sync-wizard-dialog.tsx#L204) — 批量修改只面向选中既有模型；代码：const selectedExistingModels = selected.filter(
 
 #### commit-3abbb8198e04
@@ -4428,7 +4428,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: record perf metrics when async tasks reach terminal status (#7481)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/perf_metrics/metrics.go`, `pkg/perf_metrics/metrics_test.go`, `service/task_polling.go`
 - Overlap with downstream changes: service/task_polling.go
@@ -4439,7 +4439,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游把终态采样与计费/失败退款统一放入finalizeTerminalTask并声明CAS赢家恰好一次；下游任务轮询包含实时快照、归档、取消与成本凭证扩展，不能只搬helper就假设幂等。
 - AI risks: 先证明状态CAS、重复轮询、主动取消、补偿结算和退款仍恰好一次，再接入现有分类监控口径。
 - AI dependencies: commit-a5b40663d330
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:service/task_polling.go:626](https://github.com/QuantumNous/new-api/blob/3abbb8198e0468ac6e16eb0103c1d3642e2e7668/service/task_polling.go#L626) — 上游在终态统一采样、结算和退款。
 - AI evidence: [downstream:service/task_polling.go:442](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/task_polling.go#L442) — 本地下游视频任务终态处理是现有扩展流程。
 
@@ -4449,7 +4449,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugins): price only the resolutions each Seedance and Wan model offers
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/alibaba_responses_test.go`, `plugins/doubao_responses_test.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -4460,7 +4460,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 按实际型号能力缩小可报价的分辨率与视频输入维度，避免展示或收取不支持的档位。下游已有 Seedance 2.5 的独立分档计费和调账证据，应在同一能力矩阵中比对并迁移缺口，暂不导入整个插件体系。
 - AI risks: 不能用上游新能力表抹掉下游公开别名和历史档位成本证据。
 - AI dependencies: commit-eb48396d5fe9, commit-a20574136b27
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/doubao/plugin.js:14](https://github.com/QuantumNous/new-api/blob/65d3a2171fd11c65ad2e2e1f1d65723926659c81/plugins/tasks/doubao/plugin.js#L14) — 上游为 Seedance2.5 限定分辨率和视频输入能力；代码："doubao-seedance-2-5-260628": { resolutions: ["480p", "720p", "1080p"], videoInput: true },
 - AI evidence: [downstream:relay/channel/task/doubao/adaptor.go:154](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/doubao/adaptor.go#L154) — 下游已通过独立能力表校验 Seedance2.5 档位；代码：if _, ok := seedancepricing.Lookup(req.Model, resolution, false); !ok {
 
@@ -4470,7 +4470,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(billing): configure trust threshold and input pre-consume multiplier
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/constants.go`, `common/quota.go`, `controller/billing_option_test.go`, `model/option.go`, `pkg/billingexpr/expr.md`, `pkg/billingexpr/types.go`, `relay/helper/price.go`, `relay/helper/price_test.go`, `service/billing_session.go`, `service/image_billing.go`, `setting/operation_setting/quota_setting.go`, `web/src/features/system-settings/billing/index.tsx`, `web/src/features/system-settings/billing/section-registry.tsx`, `web/src/features/system-settings/general/__tests__/pre-consume-settings.test.tsx`, `web/src/features/system-settings/general/quota-settings-section.tsx`, `web/src/features/system-settings/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: common/constants.go, model/option.go, service/billing_session.go, web/src/features/system-settings/billing/section-registry.tsx, web/src/features/system-settings/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4481,7 +4481,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该变更除了可配信任门槛，还把文本预扣改为输入费用×倍率并将预计输出C设为0，是信用风险/并发额度策略变化。下游已有付费组输出估算和钱包持久结算，不建议在维护同步中直接放宽；须由业务明确接受风险后单独迁移。
 - AI risks: 长输出/并发请求可能预留不足；必须验证组重试、免费转付费、补预留和退款，不能只看最终结算正确。
 - AI dependencies: commit-064ed943e1ac, commit-f064bffa2b65
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/helper/price.go:370](https://github.com/QuantumNous/new-api/blob/9978ee1e25a647bfe004e96c8719a2cb62c24732/relay/helper/price.go#L370) — 表达式预扣不再估算输出Token；代码：C:   0,
 - AI evidence: [downstream:relay/helper/price.go:277](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/helper/price.go#L277) — 下游对付费组未给max_tokens的请求仍保留输出估算；代码：estimatedCompletionTokens = defaultTieredPreConsumeMaxTokens
 
@@ -4491,7 +4491,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: update plugins
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/tasks/jimeng/plugin.js`, `plugins/tasks/kling/plugin.js`, `plugins/tasks/sora/plugin.js`, `plugins/tasks/sunoapi/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -4502,7 +4502,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该提交只将 Jimeng/Kling/Sora/SunoAPI 的版本号更新到 1.1.0，没有独立运行时修复；如果未来整套驱动迁移，应保留最终版本及升级关系，不应为本地无插件驱动单独提交版本。
 - AI risks: 单独改版本会宣称未实际实现的能力。
 - AI dependencies: commit-eb48396d5fe9, commit-74629e29f83f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/jimeng/plugin.js:10](https://github.com/QuantumNous/new-api/blob/47713bcb1749f81c3a48127c0150e4c6d4da35f1/plugins/tasks/jimeng/plugin.js#L10) — 此提交的实际变动是插件版本号；代码：version: "1.1.0",
 
 #### commit-9a0be8750a6d
@@ -4511,7 +4511,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): keep task pricing editable after a plugin narrows its enum values
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/__tests__/task-expr.test.ts`, `web/src/features/pricing/__tests__/task-matrix-display.test.ts`, `web/src/features/pricing/__tests__/task-matrix.test.ts`, `web/src/features/pricing/lib/billing-expression/README.md`, `web/src/features/pricing/lib/billing-expression/display.ts`, `web/src/features/pricing/lib/billing-expression/task-display.ts`, `web/src/features/system-settings/models/__tests__/task-pricing-copy.test.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4522,7 +4522,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 把不可能命中的旧枚举分支标记为 unreachable 并跳过显示，避免插件能力收窄后整个表达式无法编辑。依赖新的表达式解析器与任务 usage_schema，当前旧解析器没有对应契约。
 - AI risks: 必须区分无法命中和解析失败，保留未改旧价格的业务语义；不能直接删除保存表达式分支。
 - AI dependencies: commit-d52bdc0b4087, commit-b932e6d876cd, commit-65d3a2171fd1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/lib/billing-expression/display.ts:356](https://github.com/QuantumNous/new-api/blob/9a0be8750a6d736d9692535ed2cd68f8eec46529/web/src/features/pricing/lib/billing-expression/display.ts#L356) — 解析结果区分不可达分支和无效表达式；代码：return reachable ? conditions : 'unreachable'
 
 #### commit-9c293e8c0237
@@ -4531,7 +4531,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: test(billing): fix websocket rejection refund test after pre-consume dropped output estimation (#7491)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/responses_websocket_test.go`
 - Overlap with downstream changes: (none detected)
@@ -4542,7 +4542,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 此项只改Responses WebSocket退款测试中的估算前提，以匹配上游取消输出预留。下游未采用WebSocket入口和新预扣策略，不能移植测试来迫使生产逻辑接受不同信用策略。
 - AI risks: 测试必须保护实际付费/退款行为，不能仅为对齐上游断言修改正确的本地策略。
 - AI dependencies: commit-9fe0457ee1f4, commit-9978ee1e25a6
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/responses_websocket_test.go:429](https://github.com/QuantumNous/new-api/blob/9c293e8c02371bda844af79e3500ff2d516d1dda/controller/responses_websocket_test.go#L429) — 测试改用固定请求价格触发预留和退款；代码：fixture := newResponsesWSBillingTest(t, `tier("request", fixed(0.002))`, func(ws *websocket.Conn, _ *http.Request) {
 
 #### commit-474ed66fb14b
@@ -4551,7 +4551,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugins/alibaba): keep upstream metadata in openai_image render (#7507)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/alibaba_responses_test.go`, `plugins/tasks/alibaba/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -4562,7 +4562,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — OpenAI Images 渲染增加 metadata 原始上游对象，依赖插件图片协议。未来移植时需要审查响应暴露字段与租户敏感数据，当前 Go 阿里图片中继不具备此任务视图接口。
 - AI risks: 不能直接把含凭据/内部错误的整份上游对象返回用户。
 - AI dependencies: commit-eb48396d5fe9, commit-03563a4a7916
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/alibaba/plugin.js:1469](https://github.com/QuantumNous/new-api/blob/474ed66fb14b0de30f82a1729b4f7cf3dab19d63/plugins/tasks/alibaba/plugin.js#L1469) — 图片协议响应附带原始任务数据；代码：return { created: task.created_at, data: data, metadata: artifactData(task) };
 
 #### commit-00e8a00cb4ae
@@ -4571,7 +4571,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): include provider icons in Windows builds
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/lib/__tests__/lobe-icon.test.tsx`, `web/src/lib/lobe-icon.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4592,7 +4592,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): expose plugin activation after upload
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/upload-dialog.test.tsx`, `web/src/features/task-plugins/components/upload-dialog.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4603,7 +4603,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上传成功后提供明确激活操作、状态反馈与焦点，解决上传完成却未启用的交互缺口。只在插件生命周期与权限审批存在后才有意义。
 - AI risks: 上传成功不能隐式等于受信任并可立即执行；激活仍须管理员权限。
 - AI dependencies: commit-eb48396d5fe9, commit-984330920061
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/components/upload-dialog.tsx:90](https://github.com/QuantumNous/new-api/blob/e537dc380bb253d4f902ac033ab39dd2ca462b5e/web/src/features/task-plugins/components/upload-dialog.tsx#L90) — 上传成功后的激活由独立 mutation 处理；代码：const activateMutation = useMutation({
 
 #### commit-c0cff23a3af8
@@ -4612,7 +4612,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(plugins): store task plugin source as longtext on MySQL and raise the upload cap to 8 MiB
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/task_plugin.go`, `controller/task_plugin_test.go`, `model/task_plugin.go`, `web/src/features/task-plugins/__tests__/plugin-url.test.ts`, `web/src/features/task-plugins/__tests__/upload-dialog.test.tsx`, `web/src/features/task-plugins/components/marketplace-install-dialog.tsx`, `web/src/features/task-plugins/components/plugin-source-picker.tsx`, `web/src/features/task-plugins/components/plugin-url-import-field.tsx`, `web/src/features/task-plugins/components/upload-dialog.tsx`, `web/src/features/task-plugins/lib/plugin-url.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -4623,7 +4623,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增按方言返回 MySQL longtext、其他数据库 text 的类型并统一 8MiB 上限，以修复源码超过 TEXT 容量。现有仓库无 task_plugins 表，迁入引擎时必须连同三数据库存储和体积测试一起采用。
 - AI risks: MySQL schema 升级与回滚、图标体积、编译内存/CPU 和并发上传均需有界。
 - AI dependencies: commit-eb48396d5fe9, commit-984330920061
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/task_plugin.go:71](https://github.com/QuantumNous/new-api/blob/c0cff23a3af8e68809647bd39ec204bedbea28af/model/task_plugin.go#L71) — 存储类型按数据库方言选择；代码：func (LongText) GormDBDataType(db *gorm.DB, _ *schema.Field) string {
 
 #### commit-2c175190c44a
@@ -4632,7 +4632,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf(plugins): sync task plugins from hashes and load source only for changed rows
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/task_plugin.go`, `controller/task_plugin_test.go`, `model/task_plugin.go`
 - Overlap with downstream changes: (none detected)
@@ -4643,7 +4643,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 节点轮询只读取活动插件元数据及哈希，发生变化再取源码编译，减少大字段重复读取。依赖插件持久化和注册器，须随架构方案测试多节点版本切换与失败保留。
 - AI risks: 哈希不变不能遗漏禁用/版本切换；新源码编译失败不能污染当前生效集合。
 - AI dependencies: commit-eb48396d5fe9, commit-c0cff23a3af8
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/task_plugin.go:188](https://github.com/QuantumNous/new-api/blob/2c175190c44a95c6af4877e901dc5211ef706979/model/task_plugin.go#L188) — 周期轮询查询排除大源码和图标列；代码：if err := DB.Omit("source", "icon").Where(&TaskPlugin{Active: true}).
 
 #### commit-d61d6be7593f
@@ -4652,7 +4652,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(task): accept any 2xx upstream status on task submission
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `docs/plugin-api/v1.md`, `relay/relay_task.go`, `relay/relay_task_test.go`
 - Overlap with downstream changes: relay/relay_task.go
@@ -4673,7 +4673,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): isolate theme preferences in local storage
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/context/__tests__/theme-preferences.test.tsx`, `web/src/context/theme-customization-provider.tsx`, `web/src/context/theme-provider.tsx`, `web/src/lib/frontend-cache.ts`, `web/src/lib/theme-customization.ts`, `web/src/lib/theme-storage.ts`
 - Overlap with downstream changes: web/src/lib/frontend-cache.ts
@@ -4694,7 +4694,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): hoist Responses tool-output media into a user message (#7510)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go`
 - Overlap with downstream changes: (none detected)
@@ -4715,7 +4715,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): hoist Claude tool_result images and segment Responses reasoning items (#7512)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`
 - Overlap with downstream changes: (none detected)
@@ -4736,7 +4736,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): resolve safe constants in plugin metadata previews
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/marketplace-install-dialog.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-meta-preview.test.ts`, `web/src/features/task-plugins/lib/plugin-meta-preview.ts`
 - Overlap with downstream changes: (none detected)
@@ -4747,7 +4747,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 静态预览只解析不逃逸、不被修改的本地 const，避免运行插件就能展示元数据。依赖市场源码预览，没有插件 UI 时不应新增 JS 语法分析面。
 - AI risks: 必须持续禁止执行源代码、getter 或任意函数；常量引用循环及别名修改需测试。
 - AI dependencies: commit-eb48396d5fe9, commit-984330920061
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/lib/plugin-meta-preview.ts:89](https://github.com/QuantumNous/new-api/blob/b6809a52df88e8db5c8591b2d3788a05401271b7/web/src/features/task-plugins/lib/plugin-meta-preview.ts#L89) — 预览限定不可变局部常量；代码：/** Only local constants whose containers cannot escape or be mutated are previewable. */
 
 #### commit-0aec08fee811
@@ -4756,7 +4756,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore: credit #7444 author for the Claude tool_result fix landed in #7512
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: (none)
 - Overlap with downstream changes: (none detected)
@@ -4767,7 +4767,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 这是为前面#7512修复补充作者归属的空提交，git树无文件差异，不存在可实施功能。应在实际迁移198时保存来源与作者关系，无需生成运行时代码提交。
 - AI risks: 不得因空提交跳过真实工具图片修复，也不得删除已有new-api/QuantumNous或贡献者署名。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go:219](https://github.com/QuantumNous/new-api/blob/0aec08fee811ec6136828fda790551b49e410301/relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go#L219) — 本空提交的树沿用前述工具图片修复；仅用于关联来源。
 
 #### commit-9310231b3c27
@@ -4776,7 +4776,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(logs): keep model badge text readable and compact (#7504)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/mobile-card.test.tsx`, `web/src/features/usage-logs/components/model-badge.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4787,7 +4787,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游对新增 wrapText 模式减少padding并加 leading-5；下游同一徽标仍没有 wrapText 属性，需随日志移动布局方案适配，不能单独照搬这两行。
 - AI risks: 需检查长模型名、图标、两行截断和复制，不能让真实模型名与重定向名称混淆。
 - AI dependencies: commit-a5e41a893379
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/usage-logs/components/model-badge.tsx:82](https://github.com/QuantumNous/new-api/blob/9310231b3c27fea933e939b46cf26e0ce67192e3/web/src/features/usage-logs/components/model-badge.tsx#L82) — 固定源码：? 'line-clamp-2 leading-5 [overflow-wrap:anywhere]'
 - AI evidence: [downstream:web/src/features/usage-logs/components/model-badge.tsx:150](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/usage-logs/components/model-badge.tsx#L150) — 下游对照：<span className='whitespace-nowrap'>{props.modelName}</span>
 
@@ -4797,7 +4797,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: move force operation into confirm slot so plugin-in-use dialog has one cancel button (#7528)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/plugins-table.test.tsx`, `web/src/features/task-plugins/components/plugins-table.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4808,7 +4808,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 调整停用/删除确认弹窗，把强制操作置于确认动作，避免重复取消按钮。当前没有插件占用关系与页面，应和插件管理功能一起引入。
 - AI risks: 强制解绑不能删除历史任务的必需执行/查询版本。
 - AI dependencies: commit-eb48396d5fe9, commit-984330920061, commit-4c34f25a49f1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/components/plugins-table.tsx:448](https://github.com/QuantumNous/new-api/blob/8cb88ebd17a072691f39705ae72c786f8bb5c4e0/web/src/features/task-plugins/components/plugins-table.tsx#L448) — 确认界面统一阻止并发停用/删除动作；代码：isLoading={statusMutation.isPending || deleteMutation.isPending}
 
 #### commit-996adffe5165
@@ -4817,7 +4817,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): keep text selection when opening a model pricing row for editing (#7403)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/models/__tests__/model-ratio-table-selection.test.tsx`, `web/src/features/system-settings/models/model-ratio-visual-editor.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4838,7 +4838,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(ci): align ldflags -X package path with module path so release binaries embed the real version (#7536)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.github/workflows/electron-build.yml`, `.github/workflows/release.yml`
 - Overlap with downstream changes: .github/workflows/electron-build.yml, .github/workflows/release.yml
@@ -4849,7 +4849,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 只修上游 release/electron-build 工作流中的 new-api/common.Version；下游采用自己的构建流程，并在 Dockerfile.dev 使用正确完整模块路径。保护CI不通过本功能迁入。
 - AI risks: 若现存某个下游发布入口遗漏，应另行按真实流程修，不重建上游release工作流。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:.github/workflows/electron-build.yml:58](https://github.com/QuantumNous/new-api/blob/5401874c6387b52149b7e5b0f61d9dafea5f5b7a/.github/workflows/electron-build.yml#L58) — 固定源码：#     go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(git describe --tags)' -extldflags '-static'" -o new-api
 - AI evidence: [downstream:Dockerfile.dev:22](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/Dockerfile.dev#L22) — 下游对照：RUN go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
 
@@ -4859,7 +4859,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: match current price column width to source columns so expressions wrap alike (#7542)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/models/upstream-ratio-sync-columns.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4870,7 +4870,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 调整新上游价格同步表的当前价/来源价宽度及复选框缩进。当前没有upstream-price-cells新组件，需要先选定模型价格管理重构；不应导入孤立样式片段。
 - AI risks: 只影响新价格同步页展示，不能误解为本次上游代码版本同步页面。
 - AI dependencies: commit-0c76e4dae77a, commit-0e0ba152bdcc
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-settings/models/upstream-ratio-sync-columns.tsx:64](https://github.com/QuantumNous/new-api/blob/a46f045d6d146b1e7e17616974bbf37e32885850/web/src/features/system-settings/models/upstream-ratio-sync-columns.tsx#L64) — 对齐当前价格和来源价格的布局；代码：// Offset source cells' checkbox (pl-7) and ui/table's checkbox pr-0 (-mr-3).
 
 #### commit-6c14c0762dc7
@@ -4879,7 +4879,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: highlight differing values in source price expressions (#7543)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/system-settings/models/upstream-price-cells.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4890,7 +4890,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 对相同形状的价格表达式按词位置高亮数值差异，供价格同步人工判断。依赖新价格单元格组件，不能把字符串高亮当计费表达式语义等价结论；待新定价页面确定后采用。
 - AI risks: 不同形状回落为原文本；用户仍需审查实际收费和并发保存。
 - AI dependencies: commit-0c76e4dae77a, commit-a46f045d6d14
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/system-settings/models/upstream-price-cells.tsx:96](https://github.com/QuantumNous/new-api/blob/6c14c0762dc7f3bc77d0c80585f974e65ac2a571/web/src/features/system-settings/models/upstream-price-cells.tsx#L96) — 高亮只在词数量相同的表达式形状上工作；代码：function highlightExprDiff(expr: string, base: unknown) {
 
 #### commit-c76452d22412
@@ -4899,7 +4899,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(playground): add break-all to playground input (#6600)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/ai-elements/prompt-input.tsx`
 - Overlap with downstream changes: (none detected)
@@ -4920,7 +4920,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(channel): preserve Responses WebSocket setting on save (#7468)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/responses-websocket-setting.test.tsx`, `web/src/features/channels/lib/channel-form.ts`
 - Overlap with downstream changes: web/src/features/channels/lib/channel-form.ts
@@ -4931,7 +4931,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该提交让设置序列化与supportsResponsesWebSocket共用渠道能力判断，修复新渠道保存丢开关；本地尚未有WS设置。若选择WS，须作为150的必需后续一起迁入。
 - AI risks: 只更新显示、不更新保存会静默关闭；需覆盖AdvancedCustom/Sub2API/NewAPI原值保留和默认值。
 - AI dependencies: commit-9fe0457ee1f4, commit-fa3cc1c6b9b1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/channels/lib/channel-form.ts:663](https://github.com/QuantumNous/new-api/blob/d04c118c8803f49e0c9bab74dcf5b5efeab9464a/web/src/features/channels/lib/channel-form.ts#L663) — 上游持久化使用统一能力判断。
 - AI evidence: [downstream:web/src/features/channels/lib/channel-form.ts:656](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/lib/channel-form.ts#L656) — 本地没有Responses WS序列化项。
 
@@ -4941,7 +4941,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(claude): preserve per-message output_config in Claude messages (#7561)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/claude/adaptor_test.go`, `relaykit/dto/claude.go`
 - Overlap with downstream changes: (none detected)
@@ -4962,7 +4962,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(claude): preserve auto mode safeguards in native requests (#7598)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/dto/claude.go`
 - Overlap with downstream changes: (none detected)
@@ -4983,7 +4983,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): revalidate marketplace fetches so stale caches do not fail integrity checks
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/marketplace-panel.test.tsx`, `web/src/features/task-plugins/__tests__/marketplace-plugin-logo.test.tsx`, `web/src/features/task-plugins/__tests__/plugin-icon-file.test.ts`, `web/src/features/task-plugins/__tests__/plugin-url.test.ts`, `web/src/features/task-plugins/components/marketplace-panel.tsx`, `web/src/features/task-plugins/lib/plugin-icon-file.ts`, `web/src/features/task-plugins/lib/plugin-url.ts`
 - Overlap with downstream changes: (none detected)
@@ -4994,7 +4994,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 市场索引、源码和图标请求使用 no-cache 再验证，避免浏览器陈旧内容触发哈希失败。未来市场上线时应采用，不能用放宽哈希校验掩盖缓存错误。
 - AI risks: 必须保留完整性失败即拒绝安装；离线及重定向来源策略需明确。
 - AI dependencies: commit-eb48396d5fe9, commit-984330920061
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/lib/plugin-icon-file.ts:105](https://github.com/QuantumNous/new-api/blob/f5e54ccdb203e8d4469035e72cc48dfd25b4314d/web/src/features/task-plugins/lib/plugin-icon-file.ts#L105) — 图标请求要求重新验证缓存；代码：response = await fetchImpl(url, { cache: 'no-cache' })
 
 #### commit-87bb71e7fc83
@@ -5003,7 +5003,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): serve Seedream images through the OpenAI Images protocol in doubao
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/doubao_responses_test.go`, `plugins/tasks/doubao/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -5014,7 +5014,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 在 Doubao 插件新增 openai_image 解码、multipart 文件引用和与原生 Ark 一致的校验/计费。下游当前独立 VolcNative 图片路由和对象存储边界需保留，是否扩展 OpenAI Images 入口应单独确定。
 - AI risks: 不可互通越权原生/兼容路由；文件体积、n、base64、签名地址和真实计价必须一致。
 - AI dependencies: commit-eb48396d5fe9, commit-03563a4a7916
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/doubao/plugin.js:281](https://github.com/QuantumNous/new-api/blob/87bb71e7fc83121fc995a048077e5c0e209b789f/plugins/tasks/doubao/plugin.js#L281) — Seedream 插件声明 OpenAI Images 兼容协议；代码：{ name: "openai_image", models: Object.keys(IMAGE_MODELS) },
 - AI evidence: [downstream:relay/channel/task/doubao/adaptor.go:265](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/doubao/adaptor.go#L265) — 下游现有素材处理在Go提交路径上，插件迁移不能覆盖；代码：data, _, err = assetLibraryService.ResolveRequestAssetIDs(data, info.UserId, info.GetChannelID())
 
@@ -5024,7 +5024,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): keep prices saved before a usage profile narrows editable
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `docs/plugin-api/v1.md`, `model/model_pricing_config.go`, `model/pricing_usage_schema_test.go`, `pkg/billingexpr/expr.md`, `web/src/features/pricing/__tests__/task-matrix.test.ts`, `web/src/features/pricing/lib/billing-expression/display.ts`
 - Overlap with downstream changes: (none detected)
@@ -5035,7 +5035,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 保留单一供应商未修改的旧表达式，即使插件收窄usage_schema，避免管理员编辑无关字段时被拒；共享模型仍按当前profile校验。需要插件多价格和新定价模型，现阶段不具备直接落点。
 - AI risks: 保留旧价格不等于允许新建无效表达式；共享模型不能绕过当前有效用量校验。
 - AI dependencies: commit-0c76e4dae77a, commit-74629e29f83f, commit-9a0be8750a6d
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/model_pricing_config.go:387](https://github.com/QuantumNous/new-api/blob/3509ae7c194dcc0011cc4ec20cd495b198a7ed6d/model/model_pricing_config.go#L387) — 按未修改旧表达式及模型共享状态决定兼容；代码：if previousVariants[key] == expression && (!declared || !generation.SharedModel(name)) {
 
 #### commit-6cbb1c7edba4
@@ -5044,7 +5044,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): require step-up verification for admin user management
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/admin_user_verification_test.go`, `controller/custom_oauth.go`, `controller/passkey.go`, `controller/secure_verification.go`, `controller/security_enrollment_test.go`, `controller/twofa.go`, `controller/user.go`, `controller/user_manage_test.go`, `docs/authentication.md`, `middleware/secure_verification.go`, `service/security_verification.go`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/users/api.ts`, `web/src/features/users/components/__tests__/permissions.test.tsx`, `web/src/features/users/components/__tests__/step-up-verification.test.tsx`, `web/src/features/users/components/data-table-row-actions.tsx`, `web/src/features/users/components/dialogs/__tests__/user-binding-dialog.test.tsx`, `web/src/features/users/components/dialogs/user-binding-dialog.tsx`, `web/src/features/users/components/users-delete-dialog.tsx`, `web/src/features/users/components/users-mutate-drawer.tsx`, `web/src/features/users/components/users-provider.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: controller/secure_verification.go, controller/user.go, controller/user_manage_test.go, web/src/features/auth/secure-verification/types.ts, web/src/features/users/api.ts, web/src/features/users/components/data-table-row-actions.tsx, web/src/features/users/components/dialogs/user-binding-dialog.tsx, web/src/features/users/components/users-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -5055,7 +5055,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游为改密码/权限/身份绑定/停用2FA等操作增加目标绑定证明。本地已有手机管理证明、微信解绑和管理员权限矩阵，必须合并为一致策略，而非把现有专用证明绕开。
 - AI risks: 应绑定目标用户、提供者和新权限内容，拒绝跨用户重放；额度普通编辑与安全操作边界需明确。
 - AI dependencies: commit-45c3fbe8aeb0, commit-0973dc2b8f55, commit-6f2333990613
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/secure_verification.go:140](https://github.com/QuantumNous/new-api/blob/6cbb1c7edba4d634ba637a6e6f111115d6de9c9a/controller/secure_verification.go#L140) — 固定源码：func requireAdminUserProof(c *gin.Context, scope string, context any) *model.AuthFlowAuthorization {
 - AI evidence: [downstream:controller/user.go:768](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/user.go#L768) — 下游对照：if !commitManagedPhoneMutation(c, request, updatedUser.Phone, originUser, save) {
 
@@ -5065,7 +5065,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): replace the dashboard access token with scoped access tokens
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/access_token.go`, `controller/access_token_audit_test.go`, `controller/admin_user_verification_test.go`, `controller/audit.go`, `controller/auth_session.go`, `controller/custom_oauth.go`, `controller/email_binding.go`, `controller/passkey.go`, `controller/passkey_test.go`, `controller/secure_verification.go`, `controller/security_account_test.go`, `controller/security_enrollment_test.go`, `controller/twofa.go`, `controller/user.go`, `controller/user_manage_test.go`, `controller/wechat.go`, `docs/authentication.md`, `i18n/keys.go`, `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `middleware/access_token_routes.go`, `middleware/audit.go`, `middleware/auth.go`, `middleware/auth_test.go`, `middleware/header_nav_test.go`, `middleware/secure_verification.go`, `model/audit_log.go`, `model/auth_flow.go`, `model/main.go`, `model/option.go`, `model/task_cas_test.go`, `model/user.go`, `model/user_access_token.go`, `model/user_authentication_test.go`, `model/user_update_test.go`, `router/access_token_scope_test.go`, `router/api-router.go`, `router/channel-router.go`, `router/plugin_router_test.go`, `service/access_token_scope.go`, `service/auth_cleanup.go`, `service/auth_session.go`, `service/auth_session_test.go`, `service/auth_token_test.go`, `service/security_verification.go`, `web/src/components/permission-matrix.tsx`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/security/__tests__/page.test.tsx`, `web/src/features/security/api.ts`, `web/src/features/security/components/__tests__/access-token-card.test.tsx`, `web/src/features/security/components/__tests__/access-token-create-dialog.test.tsx`, `web/src/features/security/components/__tests__/access-tokens-card.test.tsx`, `web/src/features/security/components/access-token-card.tsx`, `web/src/features/security/components/access-token-item.tsx`, `web/src/features/security/components/access-tokens-card.tsx`, `web/src/features/security/components/dialogs/access-token-create-dialog.tsx`, `web/src/features/security/components/dialogs/access-token-dialog.tsx`, `web/src/features/security/hooks/use-access-token.ts`, `web/src/features/security/hooks/use-access-tokens.ts`, `web/src/features/security/index.tsx`, `web/src/features/security/lib/access-token-schema.ts`, `web/src/features/usage-logs/audit/__tests__/details.test.tsx`, `web/src/features/usage-logs/audit/__tests__/viewer.test.tsx`, `web/src/features/usage-logs/audit/components/audit-log-details-dialog.tsx`, `web/src/features/usage-logs/audit/components/audit-log-filter-bar.tsx`, `web/src/features/usage-logs/audit/components/audit-log-viewer.tsx`, `web/src/features/usage-logs/audit/lib/audit-details.ts`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/users/components/users-mutate-drawer.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`, `web/src/lib/admin-permissions.ts`
 - Overlap with downstream changes: controller/audit.go, controller/secure_verification.go, controller/user.go, controller/user_manage_test.go, i18n/keys.go, i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, model/auth_flow.go, model/main.go, model/option.go, model/task_cas_test.go, model/user.go, model/user_authentication_test.go, model/user_update_test.go, router/api-router.go, router/channel-router.go, service/auth_cleanup.go, service/auth_session.go, service/auth_session_test.go, web/src/features/auth/secure-verification/types.ts, web/src/features/usage-logs/lib/format.ts, web/src/features/users/components/users-mutate-drawer.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts, web/src/lib/admin-permissions.ts
@@ -5076,7 +5076,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增摘要存储 PAT、逐路由 scope、数量/有效期限制和旧令牌过渡；本地还有 miniapp、资产、财务纠错等上游没有的路由。应先列全下游路由授权矩阵及迁移/撤销计划。
 - AI risks: 默认拒绝未声明路由不能封死已授权下游功能，也不能默认放行；PAT 不得混成 API 模型 key 或小程序 session。
 - AI dependencies: commit-d8cb177440ce, commit-45c3fbe8aeb0, commit-a8729b5c3709, commit-0973dc2b8f55, commit-6f2333990613, commit-6cbb1c7edba4
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/user_access_token.go:45](https://github.com/QuantumNous/new-api/blob/caca52f8dea0436d63bacc0dd3e0a73ba7b6b094/model/user_access_token.go#L45) — 固定源码：TokenHash  string `json:"token_ref" gorm:"type:varchar(64);uniqueIndex"`
 - AI evidence: [downstream:middleware/auth.go:166](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/middleware/auth.go#L166) — 下游对照：patUser, err := model.ValidateAccessToken(raw)
 
@@ -5086,7 +5086,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): keep Responses custom tools on Chat Completions upstreams
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/openai/chat_via_responses_test.go`, `relay/common/relay_info.go`, `relay/common/relay_info_test.go`, `relaykit/dto/openai_response.go`, `relaykit/relayconvert/convmeta/meta.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/internal/toolconv/policy_test.go`, `relaykit/relayconvert/request_registry.go`, `relaykit/relayconvert/request_registry_test.go`, `relaykit/relayconvert/response_registry.go`, `relaykit/relayconvert/response_registry_test.go`
 - Overlap with downstream changes: relay/common/relay_info.go
@@ -5097,7 +5097,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 16文件引入ResponsesToolState、custom_tool_call专用输出和请求/响应复原，本地只具基础custom字段但没有状态映射。应与后续Claude/Gemini支持及失败流修复成组，先明确是否接受freeform工具降级为function的契约。
 - AI risks: 命名冲突、非JSON输入、工具名分片、事件顺序和原始input必须无损；公共convmeta接口变化需独立模块兼容。
 - AI dependencies: commit-0ed497f066a6, commit-8a11b4305ed1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/common/relay_info.go:205](https://github.com/QuantumNous/new-api/blob/335ebcff71b843655bf2c64f7a9a33ca21b792ea/relay/common/relay_info.go#L205) — 上游增加请求到响应的工具还原状态。
 - AI evidence: [downstream:relaykit/dto/openai_request.go:307](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/dto/openai_request.go#L307) — 本地只有基础custom请求字段，并非完整还原机制。
 
@@ -5107,7 +5107,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(jsplugin): run task plugins on moejs
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `AGENTS.md`, `THIRD-PARTY-LICENSES.md`, `controller/plugin_protocol.go`, `docs/plugin-api/README.md`, `docs/plugin-api/v1.md`, `dto/task_plugin.go`, `go.mod`, `go.sum`, `middleware/task_plugin.go`, `pkg/jsplugin/engine.go`, `pkg/jsplugin/engine_test.go`, `pkg/jsplugin/json_state.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/routing.go`, `pkg/jsplugin/routing_test.go`, `pkg/jsplugin/utils.go`, `plugins/builtin_plugins_test.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/channel/task/jsplugin/performance_test.go`, `relay/channel/task/jsplugin/submit_stream.go`, `relay/plugin_protocol.go`, `relay/plugin_protocol_test.go`, `service/task_plugin_view_test.go`
 - Overlap with downstream changes: AGENTS.md, THIRD-PARTY-LICENSES.md, go.mod, go.sum
@@ -5118,7 +5118,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 替换首版 Sobek 引擎为 moejs，连同数据转换、资源管理、编译和任务调用调整。当前既没有首版引擎也未批准插件架构，不能把新运行时当普通依赖升级；需独立安全、内存隔离及平台构建评审。
 - AI risks: alpha运行时引入新的原生/平台和资源释放边界；保留原超时、并发、无任意导入等沙箱约束。
 - AI dependencies: commit-eb48396d5fe9, commit-129f21b6942e
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/engine.go:18](https://github.com/QuantumNous/new-api/blob/2ffc59590115bb99d5252ceaeb3e73f06dfcd1ae/pkg/jsplugin/engine.go#L18) — 引擎实现开始依赖 moejs；代码："github.com/Calcium-Ion/moejs"
 
 #### commit-c71eefbcd194
@@ -5127,7 +5127,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs: update readme
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `README.en.md`, `README.fr.md`, `README.ja.md`, `README.md`, `README.zh_CN.md`, `README.zh_TW.md`, `assets/screenshots/dashboard.en.jpg`, `assets/screenshots/dashboard.zh-CN.jpg`, `assets/screenshots/models.en.jpg`, `assets/screenshots/models.zh-CN.jpg`, `assets/screenshots/plugin-marketplace.en.jpg`, `assets/screenshots/plugin-marketplace.zh-CN.jpg`, `assets/screenshots/usage-logs.en.jpg`, `assets/screenshots/usage-logs.zh-CN.jpg`
 - Overlap with downstream changes: README.md, README.zh_CN.md
@@ -5138,7 +5138,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 加入上游插件市场/模型广场等模拟截图并移除伙伴展示；下游没有同等已迁能力且README受保护。不能发布不代表当前产品的截图。
 - AI risks: 保留身份归属和下游差异台账，截图文档需基于下游真实界面另行维护。
 - AI dependencies: commit-1ea24a050d5e, commit-b0bf2580e249
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:README.en.md:93](https://github.com/QuantumNous/new-api/blob/c71eefbcd194ea3caca8476e399ae580b275470c/README.en.md#L93) — 固定源码：| [![Usage dashboard with simulated requests, costs, and performance metrics](assets/screenshots/dashboard.en.jpg)](assets/screenshots/dashboard.en.jpg) | [![Official plugin marketplace with simulated installation status](assets/screenshots/plugin-marketplace.en.jpg)](assets/screenshots/plugin-marketplace.en.jpg) |
 - AI evidence: [downstream:README.md:11](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/README.md#L11) — 下游对照：[![Upstream](https://img.shields.io/badge/upstream-QuantumNous%2Fnew--api-7357d9.svg)](https://github.com/QuantumNous/new-api)
 
@@ -5148,7 +5148,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(auth): reject non-standard roles when creating a user
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/admin_user_verification_test.go`, `controller/user.go`
 - Overlap with downstream changes: controller/user.go
@@ -5169,7 +5169,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(auth): edit the name and permissions of an access token
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/access_token.go`, `controller/access_token_audit_test.go`, `controller/audit.go`, `controller/security_enrollment_test.go`, `model/user_access_token.go`, `model/user_update_test.go`, `router/api-router.go`, `service/access_token_scope.go`, `service/security_verification.go`, `web/src/components/permission-matrix.tsx`, `web/src/features/auth/secure-verification/types.ts`, `web/src/features/security/api.ts`, `web/src/features/security/components/__tests__/access-token-create-dialog.test.tsx`, `web/src/features/security/components/__tests__/access-tokens-card.test.tsx`, `web/src/features/security/components/access-token-item.tsx`, `web/src/features/security/components/access-tokens-card.tsx`, `web/src/features/security/components/dialogs/access-token-create-dialog.tsx`, `web/src/features/security/components/dialogs/access-token-edit-dialog.tsx`, `web/src/features/security/hooks/use-access-tokens.ts`, `web/src/features/security/lib/access-token-catalog.ts`, `web/src/features/security/lib/access-token-schema.ts`, `web/src/features/usage-logs/audit/__tests__/details.test.tsx`, `web/src/features/usage-logs/audit/components/audit-log-details-dialog.tsx`, `web/src/features/usage-logs/audit/lib/audit-details.ts`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/users/components/__tests__/permissions.test.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/i18n/static-keys.ts`
 - Overlap with downstream changes: controller/audit.go, model/user_update_test.go, router/api-router.go, web/src/features/auth/secure-verification/types.ts, web/src/features/usage-logs/lib/format.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/i18n/static-keys.ts
@@ -5180,7 +5180,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 PAT 更新请求中的可选 scopes，并绑定 TokenID+授权集合进行安全验证；本地尚无具名 PAT 模型，不能单独迁入。
 - AI risks: nil scopes 与空 scopes 语义不同；授权只能缩放到操作者可用权限，审计不能含明文令牌。
 - AI dependencies: commit-caca52f8dea0
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:service/security_verification.go:115](https://github.com/QuantumNous/new-api/blob/4924361aef733ed724cfdb77ccf35690d9629971/service/security_verification.go#L115) — 固定源码：type AccessTokenUpdateContext struct {
 - AI evidence: [downstream:middleware/auth.go:166](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/middleware/auth.go#L166) — 下游对照：patUser, err := model.ValidateAccessToken(raw)
 
@@ -5190,7 +5190,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): add Seedream 5.0 flash and price each Seedream model by its own tiers
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/doubao_responses_test.go`, `plugins/tasks/doubao/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -5201,7 +5201,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增模型并按最小像素、输入参考图和分层拆分能力生成各自 usage_schema，避免所有型号共用不真实价格档。依赖 Seedream 插件图片协议及用量表达式，价格体系需先确认。
 - AI risks: 新增模型名不能自动套用未经确认的售价/成本；存量表达式与历史价单须保留。
 - AI dependencies: commit-eb48396d5fe9, commit-87bb71e7fc83
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/doubao/plugin.js:190](https://github.com/QuantumNous/new-api/blob/ae73ef8e25b957ea3291512b66664f418f33c180/plugins/tasks/doubao/plugin.js#L190) — 根据型号能力生成图片计费字段；代码：function seedreamUsageSchema(profile) {
 
 #### commit-2035a82aeb54
@@ -5210,7 +5210,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): add a refresh button to the channels table
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/table-refresh.test.tsx`, `web/src/features/channels/components/channels-table.tsx`
 - Overlap with downstream changes: web/src/features/channels/components/channels-table.tsx
@@ -5231,7 +5231,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: isolate TLS configs across HTTP transports (#7627)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/init.go`, `controller/model_sync.go`, `controller/ratio_sync.go`, `service/http_client.go`, `service/protected_fetch_client.go`, `service/waffo_pancake.go`
 - Overlap with downstream changes: service/http_client.go, service/protected_fetch_client.go
@@ -5253,7 +5253,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: use max_completion_tokens for gpt-6-sol and gpt-6-luna (#7559)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel_test_request_test.go`, `relaykit/dto/openai_request.go`
 - Overlap with downstream changes: relaykit/dto/openai_request.go
@@ -5274,7 +5274,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): Add class to wrap the long strings at auto-disable status tooltip content in channel manage page (#7604)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/channels/components/__tests__/channels-columns-status-tooltip-content.test.tsx`, `web/src/features/channels/components/channels-columns.tsx`
 - Overlap with downstream changes: (none detected)
@@ -5295,7 +5295,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): hide system settings from non-root admins (#7513)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/hooks/use-sidebar-data.ts`
 - Overlap with downstream changes: web/src/hooks/use-sidebar-data.ts
@@ -5316,7 +5316,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(i18n): keep cached zhTW/zhCN interface codes stable across page loads (#7139)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/i18n/languages.test.ts`, `web/src/i18n/languages.ts`
 - Overlap with downstream changes: (none detected)
@@ -5337,7 +5337,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): correct translations, chart ordering, and font loading (#7628)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/dashboard/lib/__tests__/charts.test.ts`, `web/src/features/dashboard/lib/charts.ts`, `web/src/features/pricing/components/model-details.tsx`, `web/src/features/redemption-codes/components/redemptions-primary-buttons.tsx`, `web/src/features/security/__tests__/account-security.test.tsx`, `web/src/features/security/components/dialogs/delete-account-dialog.tsx`, `web/src/features/security/components/dialogs/two-fa-setup-dialog.tsx`, `web/src/features/subscriptions/components/subscriptions-columns.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/users/components/users-columns.tsx`, `web/src/features/wallet/__tests__/copy.test.tsx`, `web/src/features/wallet/components/dialogs/billing-history-dialog.tsx`, `web/src/features/wallet/components/recharge-form-card.tsx`, `web/src/features/wallet/lib/format.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/styles/theme.css`
 - Overlap with downstream changes: web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/styles/theme.css
@@ -5348,7 +5348,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 22文件混合翻译插值/Trans、图表排序、钱包文案和字体。价值应按模块拆解；下游钱包/账务展示不同，不能整体替换文案与金额显示。
 - AI risks: 需补齐七语言并保留金额精度、退款/修正含义，图表排序不能改变时间桶含义。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/pricing/components/model-details.tsx:1336](https://github.com/QuantumNous/new-api/blob/56758edf95ec162033a6b73b553ac789404f87c9/web/src/features/pricing/components/model-details.tsx#L1336) — 固定源码：: t('Prices shown per {{unit}} tokens', { unit: tokenUnitLabel })}
 - AI evidence: [downstream:web/src/features/pricing/components/model-details.tsx:1017](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/pricing/components/model-details.tsx#L1017) — 下游对照：{t('Prices shown per')} {tokenUnitLabel} tokens
 
@@ -5358,7 +5358,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): keep Responses custom tools on Claude and Gemini upstreams (#7636)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/gemini/adaptor_responses_test.go`, `relaykit/relayconvert/convmeta/meta.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp_test.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req_preprocess.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/internal/toolconv/policy_test.go`, `relaykit/relayconvert/request_registry.go`, `relaykit/relayconvert/request_registry_test.go`, `relaykit/relayconvert/response_registry_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5369,7 +5369,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 在216的状态还原机制上扩展Claude/Gemini并修正无名流式工具公告；本地前置状态机制未引入。建议同custom-tool功能组评估，不能仅凭现有ToolCallRequest.Custom判断covered。
 - AI risks: 须保证两个协议到Responses的input完整复原、工具名分片不产生空工具，保留每请求状态隔离。
 - AI dependencies: commit-335ebcff71b8
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/convmeta/meta.go:94](https://github.com/QuantumNous/new-api/blob/1a4166d8e8ba9802d2ca56fe8ecf0ed5404e80d5/relaykit/relayconvert/convmeta/meta.go#L94) — 本修复继续依赖跨请求/响应工具映射状态。
 - AI evidence: [downstream:relaykit/relayconvert/convmeta/meta.go:18](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/relayconvert/convmeta/meta.go#L18) — 本地公共Meta还没有这套Responses工具状态接口。
 
@@ -5379,7 +5379,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(jsplugin): decode hook results with moejs ToGoInto
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `THIRD-PARTY-LICENSES.md`, `go.mod`, `go.sum`, `pkg/jsplugin/engine.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`
 - Overlap with downstream changes: THIRD-PARTY-LICENSES.md, go.mod, go.sum
@@ -5390,7 +5390,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 使用 ToGoInto 直接解码插件 hook 输出并升级到 moejs alpha.5，减少中间转换。此项只能在引擎选型完成后衡量，不独立新增未使用依赖。
 - AI risks: 需验证整数、RawJSON、null/缺失、深度和超大对象语义与旧引擎一致。
 - AI dependencies: commit-2ffc59590115
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/engine.go:408](https://github.com/QuantumNous/new-api/blob/b48b74ab77cf289ccaaa8d99c067ce50cced4a82/pkg/jsplugin/engine.go#L408) — hook输出使用 moejs 类型化解码；代码：err = instance.runtime.ToGoInto(value, target)
 
 #### commit-973cf8ef4600
@@ -5399,7 +5399,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(keys): prevent rounded clipping of group names (#7645)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/keys/components/api-key-group-cell.tsx`
 - Overlap with downstream changes: (none detected)
@@ -5410,7 +5410,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 只在前面新增 ApiKeyGroupCell 调用 GroupBadge 时设置 type=text；本地尚未引入该 cell，需随额度/分组展示重组确认。
 - AI risks: 保留组名完整性、倍率和权限继承标识；不可借此扩大可见组范围。
 - AI dependencies: commit-2bec370629aa, commit-ea7cb0ba4e0f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/keys/components/api-key-group-cell.tsx:60](https://github.com/QuantumNous/new-api/blob/973cf8ef4600947a4270e95ada7916740fa8264c/web/src/features/keys/components/api-key-group-cell.tsx#L60) — 固定源码：type='text'
 - AI evidence: [downstream:web/src/features/keys/components/api-keys-columns.tsx:194](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/keys/components/api-keys-columns.tsx#L194) — 下游对照：accessorKey: 'group',
 
@@ -5420,7 +5420,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relaykit): Gemini stream token details, Responses tool-output media on Gemini, Opus 5.5 default effort (#7687)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/dto/usage_merge.go`, `relaykit/dto/usage_merge_test.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go`, `relaykit/relayconvert/internal/shared/claude/reasoning.go`, `relaykit/relayconvert/internal/shared/gemini/request.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/reasoning/intent_test.go`, `relaykit/relayconvert/request_registry_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5431,7 +5431,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 同一提交混合Gemini累计模态usage覆盖、Responses→Gemini媒体能力和Claude Opus默认effort，本地缺usage_merge及统一reasoning模块。应拆成计费、媒体和推理三个选择项后再确认，不能整包标记小修。
 - AI risks: 流累计快照不能重复相加；Gemini MIME/模型版本能力与Opus默认力度各需独立测试，不能改变下游表达式token归一化。
 - AI dependencies: commit-0ed497f066a6, commit-3cea2bf799a6, commit-8a11b4305ed1, commit-1a4166d8e8ba
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/dto/usage_merge.go:272](https://github.com/QuantumNous/new-api/blob/78bd5b1cbf7bffc462a515a6c6e27567ace7a4d8/relaykit/dto/usage_merge.go#L272) — 上游把累计模态usage由相加改为按已报告模态覆盖。
 - AI evidence: [downstream:relay/channel/gemini/relay-gemini.go:209](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/gemini/relay-gemini.go#L209) — 本地仍走现有Gemini流式usage路径，无对应合并模块。
 
@@ -5441,7 +5441,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): stop frontend build files from exhausting the web rate limit
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/constants.go`, `common/init.go`, `middleware/frontend_static.go`, `middleware/frontend_static_test.go`, `middleware/rate-limit.go`, `middleware/rate_limit_test.go`, `router/web-router.go`
 - Overlap with downstream changes: common/constants.go, router/web-router.go
@@ -5462,7 +5462,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): filter the user list by group
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/users/components/__tests__/group-filter.test.tsx`, `web/src/features/users/components/__tests__/quota-display.test.tsx`, `web/src/features/users/components/users-table.tsx`, `web/src/routes/_authenticated/users/index.tsx`
 - Overlap with downstream changes: web/src/features/users/components/users-table.tsx
@@ -5483,7 +5483,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relaykit): make the thinking suffix adapter toggle cover effort suffixes
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/helper/reasoning_suffix_test.go`, `relaykit/relayconvert/convmeta/options.go`, `relaykit/relayconvert/reasoning/suffix.go`, `relaykit/relayconvert/reasoning/suffix_test.go`, `web/src/features/system-settings/models/claude-settings-card.tsx`, `web/src/features/system-settings/models/gemini-settings-card.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -5494,7 +5494,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游让ThinkingAdapterEnabled同时控制-thinking和-high等effort尾缀；本地已有思考适配选项，但没有该统一ParseClaude/ParseGemini意图实现。应随模型修饰符组引入，并保持明确@参数不受开关影响。
 - AI risks: 关闭适配时必须原样保留真实模型ID，尤其Kimi与厂商自有后缀；跨供应商默认值不可偷偷生效。
 - AI dependencies: commit-0ed497f066a6, commit-7c044d7c5c2d, commit-6b659fd61c50, commit-8a11b4305ed1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/reasoning/suffix.go:148](https://github.com/QuantumNous/new-api/blob/c6bac617d46ad2d63fa7cb692942fe6d21e264f7/relaykit/relayconvert/reasoning/suffix.go#L148) — 上游后缀解析统一遵守适配开关。
 - AI evidence: [downstream:relaykit/relayconvert/convmeta/options.go:26](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/relayconvert/convmeta/options.go#L26) — 本地有相同配置概念但使用旧适配路径。
 
@@ -5504,7 +5504,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(epay): upgrade go-epay to v0.0.5
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/payment_webhook_availability_test.go`, `go.mod`, `go.sum`
 - Overlap with downstream changes: go.mod, go.sum
@@ -5525,7 +5525,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(tokenkit): move token counting into a module calibrated on agent traffic
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.github/workflows/ci.yml`, `.github/workflows/electron-build.yml`, `.github/workflows/release.yml`, `AGENTS.md`, `Dockerfile`, `Dockerfile.dev`, `common/model.go`, `go.mod`, `go.sum`, `main.go`, `makefile`, `relay/channel/claude/relay-claude.go`, `relay/channel/claude/relay_claude_test.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_gemini_usage_test.go`, `relay/channel/openai/relay-openai.go`, `relaykit/dto/claude.go`, `relaykit/dto/gemini.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/token_count_meta_test.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_resp.go`, `service/responses_usage.go`, `service/responses_usage_test.go`, `service/token_counter.go`, `service/token_estimator.go`, `service/tokenizer.go`, `service/usage_helpr.go`, `tokenkit/README.md`, `tokenkit/go.mod`, `tokenkit/go.sum`, `tokenkit/image.go`, `tokenkit/image_test.go`, `tokenkit/tokenizer.go`, `tokenkit/tokenkit.go`, `tokenkit/tokenkit_test.go`
 - Overlap with downstream changes: .github/workflows/ci.yml, .github/workflows/electron-build.yml, .github/workflows/release.yml, AGENTS.md, Dockerfile, go.mod, go.sum, main.go, makefile, relay/channel/openai/relay-openai.go, relaykit/dto/openai_request.go
@@ -5536,7 +5536,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新tokenkit模块迁出Token计数、改根模块依赖及多项CI/构建治理；下游计数还涉及Kimi动态工具、音频时长上界、财务预扣和显式安全界限。需专门模块迁移评估及真实流量校准后决定。
 - AI risks: 原提交包含受保护AGENTS/工作流，不能自动整包引入；校准系数变化会改变预扣/估算结算，不得覆盖饱和与审计边界。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:tokenkit/go.mod:1](https://github.com/QuantumNous/new-api/blob/bb28f2ccad3f6286a9dc4a0ad9e20f571f57533b/tokenkit/go.mod#L1) — 上游增加独立Token计数模块。
 - AI evidence: [downstream:service/token_counter.go:179](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/token_counter.go#L179) — 本地估算仍由根service模块承载。
 
@@ -5546,7 +5546,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(plugins): add an xAI Grok Imagine video plugin
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/builtin_plugins_test.go`, `plugins/tasks/xai/plugin.js`, `plugins/xai_responses_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5557,7 +5557,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 增加 xAI 文生/图生、编辑及延长任务，并按输出秒数、图片输入、视频输入和被审核计费建模。是全新供应商任务能力，当前无驱动和对应定价，需先确认业务需求及账务策略。
 - AI risks: 编辑和延长的分辨率后续由 c8d234baa1 修正，须按最终版本审查；不能根据未知输入媒体元数据裸转整数。
 - AI dependencies: commit-eb48396d5fe9, commit-2ffc59590115
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/xai/plugin.js:6](https://github.com/QuantumNous/new-api/blob/0a532f7f7d1b507cc6657d6bc140f73d4298e46a/plugins/tasks/xai/plugin.js#L6) — 插件能力表新增 xAI 视频模型；代码："grok-imagine-video": { resolutions: ["480p", "720p"], videoInput: true },
 
 #### commit-0a03088e0e73
@@ -5566,7 +5566,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): fix lossy conversions and converted-stream failure billing
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/openai/chat_via_responses.go`, `relay/channel/openai/responses_via_chat.go`, `relaykit/dto/openai_request.go`, `relaykit/dto/openai_response.go`, `relaykit/relayconvert/convmeta/meta.go`, `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/internal/gemini_chat/to_oai_chat_req.go`, `relaykit/relayconvert/internal/media/media.go`, `relaykit/relayconvert/internal/oai_chat/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_req.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_resp.go`, `relaykit/relayconvert/internal/oai_chat/to_oai_responses_stream_resp.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req.go`, `relaykit/relayconvert/internal/shared/claude/media.go`, `relaykit/relayconvert/internal/shared/gemini/schema.go`, `relaykit/relayconvert/internal/toolconv/decode.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/internal/toolconv/model.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/request_registry.go`
 - Overlap with downstream changes: relaykit/dto/openai_request.go
@@ -5577,7 +5577,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 22文件同时改工具schema/媒体/Responses失败事件和客户端断连收费；本地现有转换流将写失败视为服务端错误，且有不可变客户账务/成本快照。应与协议终态、usage累加和转换基础整组验证后迁移。
 - AI risks: 明确上游response.failed、客户端取消、已输出部分内容、未收到usage时各自收费/退款语义，防止负扣费、漏费或重复凭证。
 - AI dependencies: commit-0ed497f066a6, commit-8b2c7105f91f, commit-55a6cd2a44ea, commit-335ebcff71b8, commit-1a4166d8e8ba
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/openai/chat_via_responses.go:192](https://github.com/QuantumNous/new-api/blob/0a03088e0e737e99bc7ca936d3d2276e8d636fb8/relay/channel/openai/chat_via_responses.go#L192) — 上游开始分离上游失败与客户端写失败的usage语义。
 - AI evidence: [downstream:relay/channel/openai/chat_via_responses.go:109](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/openai/chat_via_responses.go#L109) — 本地写失败仍按原服务端错误结算。
 
@@ -5587,7 +5587,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(relay): web search encoding per channel and vendor-reported search billing (#7690)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/alpha_search_handler.go`, `relay/channel/advancedcustom/adaptor.go`, `relay/channel/advancedcustom/adaptor_test.go`, `relay/channel/ali/adaptor.go`, `relay/channel/ali/adaptor_test.go`, `relay/channel/ali/web_search.go`, `relay/channel/claude/relay-claude.go`, `relay/channel/claude/relay_responses.go`, `relay/channel/claude/tool_billing_test.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_responses.go`, `relay/channel/moonshot/adaptor.go`, `relay/channel/moonshot/adaptor_test.go`, `relay/channel/openai/adaptor.go`, `relay/channel/openai/relay-openai.go`, `relay/channel/openai/relay_responses.go`, `relay/channel/openai/relay_responses_billing_test.go`, `relay/channel/openai/web_search.go`, `relay/channel/xai/adaptor.go`, `relay/channel/xai/web_search.go`, `relay/channel/zhipu_4v/adaptor.go`, `relay/channel/zhipu_4v/web_search.go`, `relay/common/relay_info.go`, `relay/common/tool_usage.go`, `relay/common/tool_usage_test.go`, `relay/response_model_test.go`, `relay/responses_websocket.go`, `relaykit/dto/channel_settings.go`, `relaykit/dto/openai_request.go`, `relaykit/relayconvert/convmeta/options.go`, `relaykit/relayconvert/convmeta/websearch.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/internal/toolconv/model.go`, `relaykit/relayconvert/request_registry.go`, `relaykit/relayconvert/request_registry_test.go`, `relaykit/relayconvert/text_converter_registry.go`, `service/responses_usage.go`, `service/responses_usage_test.go`, `service/text_quota.go`, `service/text_quota_test.go`, `setting/operation_setting/tools.go`, `setting/operation_setting/tools_price_test.go`, `web/src/features/channels/lib/advanced-custom.ts`, `web/src/features/channels/types.ts`, `web/src/features/system-settings/models/tool-price-settings.tsx`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: relay/channel/openai/adaptor.go, relay/channel/openai/relay-openai.go, relay/common/relay_info.go, relaykit/dto/channel_settings.go, relaykit/dto/openai_request.go, service/text_quota.go, web/src/features/channels/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -5598,7 +5598,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 52文件引入每渠道web-search编码、工具计数API及供应商实报搜索费，连带Claude/Gemini→Responses路由；本地仍以现有BuiltInTools计数收费。应先明确按调用/按查询及客户售价/上游成本契约。
 - AI risks: 供应商搜索费用单位、汇率、缓存及表达式单一事实源必须一致，不能把供应商成本直接当客户售价或双计工具费用。
 - AI dependencies: commit-0ed497f066a6, commit-335ebcff71b8, commit-1a4166d8e8ba, commit-0a03088e0e73
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/alpha_search_handler.go:104](https://github.com/QuantumNous/new-api/blob/acb347a197ff0e22f651be9813b4a1a867342941/relay/alpha_search_handler.go#L104) — 上游改为统一可计费工具API。
 - AI evidence: [downstream:relay/alpha_search_handler.go:112](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/alpha_search_handler.go#L112) — 本地仍手动记录一次web_search_preview。
 
@@ -5608,7 +5608,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): 修复 OriginOS 6 设备渠道页白屏
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/lib/motion.ts`
 - Overlap with downstream changes: (none detected)
@@ -5629,7 +5629,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat: support regex conditions in advanced parameter overrides (#7698)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/common/override.go`, `relay/common/override_test.go`, `web/src/features/channels/components/__tests__/param-override-editor.test.tsx`, `web/src/features/channels/components/dialogs/param-override-editor-dialog.tsx`
 - Overlap with downstream changes: (none detected)
@@ -5650,7 +5650,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(gemini): bill Google Search grounding per query or per grounded prompt
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/gemini/relay-gemini-native.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/gemini/relay_gemini_usage_test.go`, `relay/channel/gemini/relay_responses.go`, `relay/common/tool_usage.go`, `relay/common/tool_usage_test.go`, `relaykit/dto/gemini.go`, `service/text_quota_test.go`, `setting/operation_setting/tools.go`, `setting/operation_setting/tools_price_test.go`, `web/src/features/system-settings/models/tool-price-settings.tsx`
 - Overlap with downstream changes: (none detected)
@@ -5661,7 +5661,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游按Gemini模型区分唯一搜索查询与grounded prompt，并承认供应商未回报精确账单数；本地仅用gemini_google_search_call布尔标记。须先审定计价表和证据归档，不能直接改变客户消费口径。
 - AI risks: 跨帧去重、空查询、image/web查询及老模型按prompt收费都要覆盖；唯一query只是估计，需在客户日志和成本核算中保留来源。
 - AI dependencies: commit-acb347a197ff
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/gemini/relay-gemini.go:100](https://github.com/QuantumNous/new-api/blob/d10f11ffff20688b8e3e745268cc0036e896d068/relay/channel/gemini/relay-gemini.go#L100) — 上游以唯一查询集合累积搜索证据。
 - AI evidence: [downstream:relay/channel/gemini/relay-gemini.go:85](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/gemini/relay-gemini.go#L85) — 本地按是否grounded计一次标记。
 
@@ -5671,7 +5671,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf(jsplugin): stop rebuilding the usage-key replacer and request body on every hook call
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5682,7 +5682,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 为单次任务请求缓存已经标准化的 hook 请求体，减少序列化和键替换。没有现有插件开销可优化，且依赖引擎输入不可变假设，待插件运行指标和语义验证后再采用。
 - AI risks: 共享可变 map 或重试覆盖参数时缓存可能串用旧数据；需按请求隔离。
 - AI dependencies: commit-eb48396d5fe9, commit-2ffc59590115
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/task/jsplugin/adaptor.go:93](https://github.com/QuantumNous/new-api/blob/0cce21db0283304d139bf22588f4dc31bdc5ae67/relay/channel/task/jsplugin/adaptor.go#L93) — 缓存绑定到当前适配器请求对象；代码：hookRequestSource map[string]any
 
 #### commit-bc823579294f
@@ -5691,7 +5691,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: test(relaykit): keep format-conversion tests out of the repository
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go`, `relaykit/relayconvert/reasoning/intent_test.go`, `relaykit/relayconvert/reasoning/suffix_test.go`, `relaykit/relayconvert/request_registry_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5702,7 +5702,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 该提交删除多项真实媒体/schema转换回归测试并将相关测试排除出仓库；这些恰是本次迁移需要的协议契约证据，不建议照搬。应在功能适配时保留或重写确定性边界测试。
 - AI risks: 删除后会掩盖工具媒体、schema及转换诊断回归；AGENTS要求保留真实行为覆盖，不以降低测试范围获得绿CI。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go:473](https://github.com/QuantumNous/new-api/blob/bc823579294fbca0064b622c22477d3d04ca1bd8/relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go#L473) — 上游保留媒体基础测试但删除大量扩展格式回归。
 - AI evidence: [downstream:relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go:91](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/relayconvert/internal/oai_responses/to_oai_chat_req_test.go#L91) — 本地仍有应保留的真实多模态回归。
 
@@ -5712,7 +5712,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: build: upgrade moejs to v0.1.0-alpha.6
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `go.mod`, `go.sum`
 - Overlap with downstream changes: go.mod, go.sum
@@ -5723,7 +5723,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 只提升未采用的 moejs 到 alpha.6。若未来选择任务插件，应以已审计的最终引擎版本统一锁定依赖，不为当前没有引用的模块单独升级。
 - AI risks: 不能把 alpha 更新视为已通过下游跨平台、资源隔离与计费兼容性验证。
 - AI dependencies: commit-2ffc59590115, commit-b48b74ab77cf
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:go.mod:169](https://github.com/QuantumNous/new-api/blob/b23471112d8f7e5848f70f30b798ee417d1ec75c/go.mod#L169) — 依赖版本由alpha.5升到alpha.6；代码：github.com/Calcium-Ion/moejs v0.1.0-alpha.6
 
 #### commit-192802ee0691
@@ -5732,7 +5732,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: build: build release binaries with moejs's PGO profile
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.github/workflows/electron-build.yml`, `.github/workflows/release.yml`, `Dockerfile`, `electron/build.sh`
 - Overlap with downstream changes: .github/workflows/electron-build.yml, .github/workflows/release.yml, Dockerfile
@@ -5743,7 +5743,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 该项仅给上游发布、Electron 和 Docker 构建加入 moejs 的 PGO profile；本地未采用 moejs，且仓库已有独立 GitHub Actions 发布链。本次不导入上游工作流，未来引擎方案确定后按本仓库构建做独立调整。
 - AI risks: 原样覆盖工作流会破坏现有发版和镜像约定；PGO模块路径在无依赖时不可解析。
 - AI dependencies: commit-2ffc59590115, commit-b23471112d8f
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:Dockerfile:29](https://github.com/QuantumNous/new-api/blob/192802ee0691900575a3c7a0cdb90b2d7e703035/Dockerfile#L29) — 构建使用moejs模块内的default.pgo；代码：RUN go build -pgo="$(go list -m -f '{{.Dir}}' github.com/Calcium-Ion/moejs)/default.pgo" -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
 
 #### commit-6370b2942416
@@ -5752,7 +5752,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(jsplugin): keep JSON member order for plugins that declare json-order@1
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `middleware/task_plugin.go`, `middleware/task_plugin_test.go`, `pkg/jsplugin/engine.go`, `pkg/jsplugin/json_state.go`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/routing.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5763,7 +5763,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 通过 json-order@1 能力保留 hook requestBody 原始成员顺序，适用于对键顺序敏感的供应商签名。它跨解码、存储和引擎接口，待插件架构确认后作为协议契约采用。
 - AI risks: 不得以保序绕过宿主参数校验、凭据隔离和大小限制；签名原文和标准化对象必须区分。
 - AI dependencies: commit-2ffc59590115, commit-b48b74ab77cf
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/engine.go:359](https://github.com/QuantumNous/new-api/blob/6370b29424168039e94d40d610191e7d2e65dbf4/pkg/jsplugin/engine.go#L359) — 引擎新增保留指定JSON成员原文的调用接口；代码：// CallPathWithMemberJSON is CallPathWithAdmissionTimeout that also returns the
 
 #### commit-7aa3531ef4c2
@@ -5772,7 +5772,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(task-plugin): set multipart content type for upstream requests (#7655)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5783,7 +5783,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 宿主重建 multipart 后必须使用新 boundary 的 Content-Type，而非插件提供的旧头。属于插件文件上传正确性修复，现有 Go 上传路径没有该 submit 描述符，随插件图片协议引入。
 - AI risks: 需验证多文件、重复字段、体积上限与请求头不能互相覆盖。
 - AI dependencies: commit-eb48396d5fe9, commit-03563a4a7916
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/channel/task/jsplugin/adaptor.go:274](https://github.com/QuantumNous/new-api/blob/7aa3531ef4c247ad4891c06cc8ed9d0ffb73fecc/relay/channel/task/jsplugin/adaptor.go#L274) — 重建后的multipart使用宿主请求头；代码：if a.submit.BodyType == "multipart" {
 
 #### commit-e0483122c7d3
@@ -5792,7 +5792,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): drop trailing assistant text from Responses input on Claude and Gemini
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/oai_responses/req_helpers.go`, `relaykit/relayconvert/internal/oai_responses/to_claude_messages_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`
 - Overlap with downstream changes: (none detected)
@@ -5813,7 +5813,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(i18n): translate web console messages in the frontend and AI-client errors in the backend (#7712)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.env.example`, `AGENTS.md`, `common/audio.go`, `common/body_storage.go`, `common/constants.go`, `common/email.go`, `common/env.go`, `common/gin.go`, `common/gopool.go`, `common/init.go`, `common/limiter/limiter.go`, `common/log_text.go`, `common/log_text.zh-CN.json`, `common/message.go`, `common/pprof.go`, `common/redis.go`, `common/sys_log.go`, `common/topup-ratio.go`, `common/totp.go`, `common/utils.go`, `controller/access_token.go`, `controller/access_token_audit_test.go`, `controller/audit.go`, `controller/auth_session.go`, `controller/channel-billing.go`, `controller/channel-test.go`, `controller/channel.go`, `controller/channel_affinity_cache.go`, `controller/channel_test_internal_test.go`, `controller/channel_upstream_update.go`, `controller/channel_upstream_update_test.go`, `controller/checkin.go`, `controller/codex_usage.go`, `controller/custom_oauth.go`, `controller/group.go`, `controller/log.go`, `controller/login_verification.go`, `controller/midjourney.go`, `controller/misc.go`, `controller/model.go`, `controller/model_meta.go`, `controller/oauth.go`, `controller/option.go`, `controller/passkey.go`, `controller/passkey_test.go`, `controller/payment_compliance.go`, `controller/performance.go`, `controller/playground.go`, `controller/plugin_protocol.go`, `controller/plugin_protocol_image.go`, `controller/prefill_group.go`, `controller/pricing.go`, `controller/ratio_config.go`, `controller/ratio_sync.go`, `controller/redemption.go`, `controller/relay.go`, `controller/responses_websocket.go`, `controller/secure_verification.go`, `controller/security_enrollment_test.go`, `controller/setup.go`, `controller/subscription.go`, `controller/subscription_payment_creem.go`, `controller/subscription_payment_epay.go`, `controller/subscription_payment_stripe.go`, `controller/subscription_payment_waffo_pancake.go`, `controller/system_task_handlers.go`, `controller/task_plugin.go`, `controller/task_plugin_test.go`, `controller/theme_compat_test.go`, `controller/token.go`, `controller/topup.go`, `controller/topup_creem.go`, `controller/topup_quota_limit_test.go`, `controller/topup_stripe.go`, `controller/topup_waffo.go`, `controller/topup_waffo_pancake.go`, `controller/twofa.go`, `controller/usedata.go`, `controller/user.go`, `controller/user_quota.go`, `controller/vendor_meta.go`, `controller/video_proxy.go`, `controller/wechat.go`, `docker-compose.yml`, `i18n/i18n.go`, `i18n/i18n_test.go`, `i18n/keys.go`, `i18n/locales/en.yaml`, `i18n/locales/zh-CN.yaml`, `i18n/locales/zh-TW.yaml`, `logger/logger.go`, `main.go`, `middleware/auth.go`, `middleware/auth_test.go`, `middleware/distributor.go`, `middleware/email-verification-rate-limit.go`, `middleware/i18n.go`, `middleware/model-rate-limit.go`, `middleware/rate-limit.go`, `middleware/rate_limit_test.go`, `middleware/recover.go`, `middleware/secure_verification.go`, `middleware/task_plugin.go`, `middleware/trusted_proxies.go`, `middleware/turnstile-check.go`, `middleware/utils.go`, `model/ability.go`, `model/audit_log.go`, `model/channel.go`, `model/channel_cache.go`, `model/checkin.go`, `model/frontend_option_migration.go`, `model/gorm_logger.go`, `model/log.go`, `model/log_other.go`, `model/main.go`, `model/model_pricing_config.go`, `model/option.go`, `model/option_primary_key_migration.go`, `model/passkey.go`, `model/pricing.go`, `model/quota_reserve.go`, `model/redemption.go`, `model/subscription.go`, `model/subscription_auth_test.go`, `model/subscription_reset_test.go`, `model/task_model_alias.go`, `model/token.go`, `model/topup.go`, `model/twofa.go`, `model/usedata.go`, `model/user.go`, `model/user_access_token.go`, `model/user_cache.go`, `model/user_quota_adjustment.go`, `model/user_session.go`, `model/utils.go`, `oauth/discord.go`, `oauth/generic.go`, `oauth/github.go`, `oauth/linuxdo.go`, `oauth/oidc.go`, `oauth/registry.go`, `oauth/types.go`, `pkg/perf_metrics/flush.go`, `pkg/wsmanager/wsmanager.go`, `relay/audio_handler.go`, `relay/channel/api_request.go`, `relay/channel/aws/relay-aws.go`, `relay/channel/baidu/relay-baidu.go`, `relay/channel/claude/relay-claude.go`, `relay/channel/claude/relay_responses.go`, `relay/channel/cloudflare/relay_cloudflare.go`, `relay/channel/cohere/relay-cohere.go`, `relay/channel/coze/relay-coze.go`, `relay/channel/dify/relay-dify.go`, `relay/channel/gemini/relay-gemini-native.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/jimeng/sign.go`, `relay/channel/ollama/relay-ollama.go`, `relay/channel/ollama/stream.go`, `relay/channel/openai/audio.go`, `relay/channel/openai/chat_via_responses.go`, `relay/channel/openai/helper.go`, `relay/channel/openai/relay-openai.go`, `relay/channel/openai/relay_image.go`, `relay/channel/openai/relay_realtime.go`, `relay/channel/openai/relay_responses.go`, `relay/channel/openai/responses_via_chat.go`, `relay/channel/palm/relay-palm.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/tencent/relay-tencent.go`, `relay/channel/xai/text.go`, `relay/channel/xunfei/relay-xunfei.go`, `relay/channel/zhipu/relay-zhipu.go`, `relay/channel/zhipu_4v/image.go`, `relay/common/conversion_diagnostics.go`, `relay/common/relay_info.go`, `relay/common/tool_usage.go`, `relay/compatible_handler.go`, `relay/gemini_handler.go`, `relay/helper/common.go`, `relay/helper/price.go`, `relay/helper/stream_scanner.go`, `relay/helper/valid_request.go`, `relay/image_handler.go`, `relay/mjproxy_handler.go`, `relay/relay_task.go`, `relay/relay_task_test.go`, `relay/request_billing.go`, `relay/responses_handler.go`, `relay/websocket.go`, `router/main.go`, `router/plugin-router.go`, `service/auth_cleanup.go`, `service/authz/adapter.go`, `service/authz/enforcer.go`, `service/billing.go`, `service/billing_session.go`, `service/channel.go`, `service/channel_affinity.go`, `service/channel_select.go`, `service/codex_credential_refresh_task.go`, `service/download.go`, `service/error.go`, `service/file_decoder.go`, `service/file_service.go`, `service/group.go`, `service/http.go`, `service/http_client.go`, `service/http_transport_policy.go`, `service/http_transport_sharded.go`, `service/image.go`, `service/log_info_generate.go`, `service/midjourney.go`, `service/passkey/service.go`, `service/passkey/session.go`, `service/quota.go`, `service/relay_error.go`, `service/subscription_reset_task.go`, `service/system_instance.go`, `service/system_task.go`, `service/task_billing.go`, `service/task_billing_test.go`, `service/task_polling.go`, `service/task_polling_test.go`, `service/text_quota.go`, `service/text_quota_test.go`, `service/tiered_settle.go`, `service/tiered_settle_test.go`, `service/user_notify.go`, `service/violation_fee.go`, `service/webhook.go`, `setting/chat.go`, `setting/config/config.go`, `setting/console_setting/validation.go`, `setting/model_setting/global.go`, `setting/operation_setting/tools.go`, `setting/rate_limit.go`, `setting/ratio_setting/group_ratio.go`, `setting/ratio_setting/model_ratio.go`, `setting/system_setting/task_artifact.go`, `setting/system_setting/task_artifact_store.go`, `setting/user_usable_group.go`, `web/src/components/model-group-selector.tsx`, `web/src/components/model-group-selector/__tests__/group-detail.test.ts`, `web/src/components/model-group-selector/group-detail.ts`, `web/src/features/auth/api.ts`, `web/src/features/auth/passkey/hooks/use-passkey-management.ts`, `web/src/features/channels/components/channels-columns.tsx`, `web/src/features/channels/components/dialogs/codex-usage-dialog.tsx`, `web/src/features/channels/components/dialogs/multi-key-manage-dialog.tsx`, `web/src/features/channels/components/dialogs/ollama-models-dialog.tsx`, `web/src/features/channels/lib/channel-actions.ts`, `web/src/features/keys/components/api-keys-mutate-drawer.tsx`, `web/src/features/models/components/dialogs/model-delete-dialog.tsx`, `web/src/features/models/components/models-table.tsx`, `web/src/features/playground/api.ts`, `web/src/features/playground/types.ts`, `web/src/features/subscriptions/components/dialogs/user-subscriptions-dialog.tsx`, `web/src/features/subscriptions/components/subscriptions-mutate-drawer.tsx`, `web/src/features/system-settings/auth/passkey-section.tsx`, `web/src/features/system-settings/integrations/payment-settings-section.tsx`, `web/src/features/system-settings/integrations/waffo-pancake-settings-section.tsx`, `web/src/features/usage-logs/components/__tests__/detail-preview.test.tsx`, `web/src/features/usage-logs/components/columns/column-helpers.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`, `web/src/features/usage-logs/components/columns/task-logs-columns.tsx`, `web/src/features/usage-logs/components/common-log-mobile-card.tsx`, `web/src/features/usage-logs/components/dialogs/details-dialog.tsx`, `web/src/features/usage-logs/components/dialogs/task-details-dialog.tsx`, `web/src/features/usage-logs/lib/__tests__/token-name.test.ts`, `web/src/features/usage-logs/lib/format.ts`, `web/src/features/usage-logs/types.ts`, `web/src/features/wallet/hooks/use-affiliate.ts`, `web/src/features/wallet/hooks/use-waffo-pancake-payment.ts`, `web/src/features/wallet/hooks/use-waffo-payment.ts`, `web/src/features/wallet/lib/payment.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`, `web/src/lib/secure-verification.ts`, `web/src/lib/server-error-message.test.ts`, `web/src/lib/server-error-message.ts`
 - Overlap with downstream changes: .env.example, AGENTS.md, common/constants.go, common/gin.go, common/redis.go, controller/audit.go, controller/channel-test.go, controller/channel.go, controller/log.go, controller/misc.go, controller/model.go, controller/option.go, controller/playground.go, controller/relay.go, controller/secure_verification.go, controller/system_task_handlers.go, controller/user.go, controller/video_proxy.go, docker-compose.yml, i18n/keys.go, i18n/locales/en.yaml, i18n/locales/zh-CN.yaml, i18n/locales/zh-TW.yaml, logger/logger.go, main.go, middleware/distributor.go, model/ability.go, model/channel.go, model/channel_cache.go, model/gorm_logger.go, model/log.go, model/main.go, model/option.go, model/twofa.go, model/usedata.go, model/user.go, model/user_cache.go, relay/channel/openai/helper.go, relay/channel/openai/relay-openai.go, relay/common/relay_info.go, relay/compatible_handler.go, relay/helper/common.go, relay/mjproxy_handler.go, relay/relay_task.go, relay/responses_handler.go, service/auth_cleanup.go, service/billing.go, service/billing_session.go, service/download.go, service/http.go, service/http_client.go, service/midjourney.go, service/quota.go, service/system_task.go, service/task_billing.go, service/task_billing_test.go, service/task_polling.go, service/task_polling_test.go, service/text_quota.go, service/violation_fee.go, service/webhook.go, setting/console_setting/validation.go, setting/ratio_setting/model_ratio.go, web/src/features/usage-logs/components/columns/common-logs-columns.tsx, web/src/features/usage-logs/components/columns/task-logs-columns.tsx, web/src/features/usage-logs/components/dialogs/details-dialog.tsx, web/src/features/usage-logs/lib/format.ts, web/src/features/usage-logs/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json, web/src/lib/server-error-message.test.ts, web/src/lib/server-error-message.ts
@@ -5824,7 +5824,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 288文件改message_key/message_params、存储日志content_parts、后端语言来源及邮件通知。下游还有短信、账务/纠错、资产、任务日志和自定义错误码，需完整双端兼容设计与历史日志读取方案。
 - AI risks: 不能丢失原始错误、用户语言或把管理台key泄漏到AI客户端；会影响调用方契约与持久化日志，需分阶段兼容。
 - AI dependencies: commit-12be9975c0bf
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:common/message.go:45](https://github.com/QuantumNous/new-api/blob/128089fa7ddf41b575206a0feb28940d33793833/common/message.go#L45) — 固定源码：fields := gin.H{"message_key": m.Key}
 - AI evidence: [downstream:i18n/i18n.go:90](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/i18n/i18n.go#L90) — 下游对照：func T(c *gin.Context, key string, args ...map[string]any) string {
 
@@ -5834,7 +5834,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: docs(relaykit): rewrite README for the current conversion API
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/README.md`
 - Overlap with downstream changes: (none detected)
@@ -5845,7 +5845,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该README描述了尚未迁入的工具状态、统一reasoning/Codec/usage和新API，直接采用会使文档先于代码失真；且README/署名行属受保护范围。待选定架构完成后另行人工维护对应章节与归属。
 - AI risks: 不能删除或改写现有new-api/QuantumNous来源；文档中的公共API与独立构建要求必须以实际下游版本为准。
 - AI dependencies: commit-0ed497f066a6, commit-7bbe85bcb095, commit-335ebcff71b8, commit-acb347a197ff
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/README.md:28](https://github.com/QuantumNous/new-api/blob/1d4328e97417a043a161a0dd30a5b129be3ace49/relaykit/README.md#L28) — 新文档声明本地尚未具备的工具状态还原接口。
 - AI evidence: [downstream:relaykit/README.md:3](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/README.md#L3) — 本地仍保留原始独立模块来源与旧API说明。
 
@@ -5855,7 +5855,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(task-plugin): let Seedance and wan3.0 pick the video duration with -1
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.agents/rules/billing.md`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `docs/plugin-api/v1.schema.json`, `pkg/jsplugin/json_state.go`, `pkg/jsplugin/registry.go`, `plugins/alibaba_wan3_test.go`, `plugins/doubao_responses_test.go`, `plugins/tasks/alibaba/plugin.js`, `plugins/tasks/doubao/plugin.js`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5866,7 +5866,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 通过 duration-auto@1 显式允许 -1 哨兵，由驱动按型号最大长度预留并按真实用量结算。当前通用任务验证拒绝负时长，不能直接放开为负数；需明确对哪些模型启用及最坏预扣额度。
 - AI risks: 若把-1当计费秒数会产生负扣费；对映射别名、缺失时长和输入视频总时长必须一致。
 - AI dependencies: commit-eb48396d5fe9, commit-3b4652269a6a, commit-65d3a2171fd1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/registry.go:139](https://github.com/QuantumNous/new-api/blob/b66674ac23d79bfd35a90797ca1ac64fc74a2d8f/pkg/jsplugin/registry.go#L139) — 自动时长必须由插件显式声明能力；代码：func (m Meta) AcceptsAutoDuration() bool {
 
 #### commit-29509776ef85
@@ -5875,7 +5875,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(jsplugin): let driver hooks read upstream data with utils.fetch
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `common/log_text.zh-CN.json`, `controller/task.go`, `controller/video_proxy.go`, `docs/plugin-api/README.md`, `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `pkg/jsplugin/engine.go`, `pkg/jsplugin/engine_test.go`, `pkg/jsplugin/fetch.go`, `pkg/jsplugin/request.go`, `pkg/jsplugin/utils.go`, `plugins/alibaba_responses_test.go`, `plugins/hailuo_responses_test.go`, `plugins/xai_responses_test.go`, `relay/channel/adapter.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/channel/task/jsplugin/auth_test.go`
 - Overlap with downstream changes: controller/task.go, controller/video_proxy.go
@@ -5886,7 +5886,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 新增 utils.fetch 让 hook 从声明域名读取上游数据，并重构媒体内容请求解析。运行时网络权限扩大，需先评审 SSRF、重定向、授权头、超时/字节上限和代理配置；不宜夹入普通同步批次。
 - AI risks: 保留租户凭据与私有对象访问边界，不能把API key转发到未声明主机；媒体下载还需防内网与大文件。
 - AI dependencies: commit-2ffc59590115, commit-6370b2942416
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/fetch.go:18](https://github.com/QuantumNous/new-api/blob/29509776ef855965fb2cff3978578d891005945e/pkg/jsplugin/fetch.go#L18) — 新增独立受控网络fetch实现；代码：type Fetcher func(ctx context.Context, request FetchRequest) (FetchResponse, error)
 
 #### commit-66c3e142820e
@@ -5895,7 +5895,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(hailuo): download MiniMax v1 videos through the file retrieve link
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/task_generic_test.go`, `plugins/hailuo_responses_test.go`, `plugins/tasks/hailuo/plugin.js`
 - Overlap with downstream changes: (none detected)
@@ -5906,7 +5906,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 插件在内容请求时调用文件 retrieve 取得实际下载地址并返回无凭据 GET，避免把 JSON 端点当视频。下游 Go 已在成功轮询时解析 DownloadURL，时机不同且未证明签名链接有效期等价，不能简单 covered；如有过期问题应单独改现有 Go 内容链。
 - AI risks: 下载时重新解析与轮询时持久URL的缓存语义不同；不得把Bearer发往资源域。
 - AI dependencies: commit-eb48396d5fe9, commit-29509776ef85
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/hailuo/plugin.js:611](https://github.com/QuantumNous/new-api/blob/66c3e142820e513a328def88f2771f73479275bc/plugins/tasks/hailuo/plugin.js#L611) — 下载前校验retrieve响应并读取真实链接；代码：throw new Error("MiniMax file retrieve returned an unexpected response: HTTP " + response.status);
 - AI evidence: [downstream:relay/channel/task/hailuo/adaptor.go:284](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/task/hailuo/adaptor.go#L284) — 本地Go会读取文件retrieve结果，但发生在轮询阶段；代码：return retrieveResp.File.DownloadURL
 
@@ -5916,7 +5916,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): show the request domains a plugin declares when uploading it
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/task-plugins/__tests__/upload-dialog.test.tsx`, `web/src/features/task-plugins/components/marketplace-capabilities.tsx`, `web/src/features/task-plugins/components/upload-dialog.tsx`, `web/src/features/task-plugins/lib/plugin-meta-preview.ts`
 - Overlap with downstream changes: (none detected)
@@ -5927,7 +5927,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 手工上传也展示源码声明的请求域名及能力，帮助管理员评审网络权限。依赖允许插件网络的安全策略与静态预览，建议未来引擎上线时必须一起呈现，当前不新增孤立上传页。
 - AI risks: 声明展示不是网络强制限制的替代；必须拒绝未声明网络访问。
 - AI dependencies: commit-eb48396d5fe9, commit-b6809a52df88, commit-29509776ef85
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/task-plugins/components/upload-dialog.tsx:324](https://github.com/QuantumNous/new-api/blob/3f02244783e0bb96b1398601f156625936be2f15/web/src/features/task-plugins/components/upload-dialog.tsx#L324) — 上传表单显示源码声明的网络能力；代码：<MarketplaceCapabilities source={deferredSource} />
 
 #### commit-ba3b2c015ad8
@@ -5936,7 +5936,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: refactor(jsplugin): stop requiring json-clone@1 and submit-sse-delta@1
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `docs/plugin-api/v1.d.ts`, `docs/plugin-api/v1.md`, `pkg/jsplugin/registry.go`, `pkg/jsplugin/registry_test.go`, `plugins/tasks/alibaba/plugin.js`, `relay/channel/task/jsplugin/adaptor_test.go`, `relay/channel/task/jsplugin/submit_stream.go`
 - Overlap with downstream changes: (none detected)
@@ -5947,7 +5947,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 不再强制声明 json-clone 和 submit-sse-delta，宿主按 hook 可用性识别增量提交，并保留旧能力标记兼容。应作为最终插件协议整体版本选择，而非独立清理当前不存在的标记。
 - AI risks: 需确保旧插件仍工作，自动识别不会错误重复输出SSE或改变克隆隔离。
 - AI dependencies: commit-eb48396d5fe9, commit-74629e29f83f, commit-2ffc59590115
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/jsplugin/registry.go:233](https://github.com/QuantumNous/new-api/blob/ba3b2c015ad83e6710c18592b0e3e3ba9df9a67e/pkg/jsplugin/registry.go#L233) — 按能力或hook推断提交增量模式；代码：func UsesSubmitEventDelta(meta Meta, engine *Engine) bool {
 
 #### commit-c8d234baa18b
@@ -5956,7 +5956,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(xai): bill video edits and extensions by their output resolution
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `plugins/tasks/xai/plugin.js`, `plugins/xai_responses_test.go`
 - Overlap with downstream changes: (none detected)
@@ -5967,7 +5967,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 改为按实际输出 MP4 头解析分辨率结算，预留使用最大支持档，修复编辑和延长任务依输入假设计价的问题。依赖未采用的 xAI 插件和受控 fetch，未来接入须与首版一起评审。
 - AI risks: 媒体头是上游/用户可控数据，时长尺寸需有界；无法读取时不能错误降档少扣或重复扣费。
 - AI dependencies: commit-0a532f7f7d1b, commit-29509776ef85
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:plugins/tasks/xai/plugin.js:519](https://github.com/QuantumNous/new-api/blob/c8d234baa18b9090b394fc1b8f384eec94f8bfef/plugins/tasks/xai/plugin.js#L519) — 按输出媒体头确定最终计价档位；代码：const resolution = outputResolution(videoURL(data));
 
 #### commit-c6741c36a9a1
@@ -5976,7 +5976,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(channel): add a per-channel switch to skip upstream TLS verification
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/channel-billing.go`, `controller/channel_upstream_update.go`, `controller/codex_usage.go`, `controller/video_proxy.go`, `relay/channel/api_request.go`, `relay/channel/gemini/relay-gemini.go`, `relay/channel/task/jsplugin/adaptor.go`, `relay/channel/vertex/service_account.go`, `relay/mjproxy_handler.go`, `relaykit/dto/channel_settings.go`, `relaykit/dto/channel_settings_test.go`, `service/codex_channel_models.go`, `service/http_client.go`, `service/http_client_transport_test.go`, `service/http_transport_policy.go`, `service/task_polling.go`, `web/src/features/channels/components/__tests__/channel-configuration.test.tsx`, `web/src/features/channels/components/drawers/channel-mutate-drawer.tsx`, `web/src/features/channels/lib/channel-configuration.ts`, `web/src/features/channels/lib/channel-form-errors.ts`, `web/src/features/channels/lib/channel-form.ts`, `web/src/features/channels/types.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: controller/video_proxy.go, relay/mjproxy_handler.go, relaykit/dto/channel_settings.go, relaykit/dto/channel_settings_test.go, service/http_client.go, service/http_client_transport_test.go, service/task_polling.go, web/src/features/channels/components/drawers/channel-mutate-drawer.tsx, web/src/features/channels/lib/channel-form-errors.ts, web/src/features/channels/lib/channel-form.ts, web/src/features/channels/types.ts, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -5987,7 +5987,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 此功能扩展到余额/模型查询、媒体代理、relay和前端设置等29文件，本地另有诊断、资产和火山原生请求客户端。尚无明确业务需要与所有请求路径一致性证明，建议暂缓开启能力。
 - AI risks: 需要验证默认严格、仅该渠道生效、按proxy+TLS正确缓存、连接池不串用、媒体SSRF不弱化；全局TLS开关与每渠道设置不能相互污染。
 - AI dependencies: commit-feefe09f2781
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:controller/channel-billing.go:161](https://github.com/QuantumNous/new-api/blob/c6741c36a9a1a729554ad94ee99f21602a214a23/controller/channel-billing.go#L161) — 上游让管理查询也读取每渠道TLS设置。
 - AI evidence: [downstream:controller/channel-billing.go:160](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/controller/channel-billing.go#L160) — 本地客户端仅带代理设置。
 
@@ -5997,7 +5997,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): show recent status samples without gaps
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/perf_metrics.go`, `model/perf_metric.go`, `pkg/perf_metrics/metrics.go`, `pkg/perf_metrics/metrics_test.go`, `pkg/perf_metrics/types.go`, `web/src/features/performance-metrics/api.ts`, `web/src/features/performance-metrics/types.ts`, `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/components/model-card-grid.tsx`, `web/src/features/pricing/components/model-perf-badge.tsx`
 - Overlap with downstream changes: (none detected)
@@ -6008,7 +6008,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 将近期样本查询独立于汇总窗口，按目标模型获取最近非空小时数据并合并内存数据，修改API和卡片。应作为61的最终方案整体评估，保留租户组过滤和数据库三方言；当前紧凑三柱设计是否改动需确认。
 - AI risks: recent_model数量和查询成本要有界；不能把无请求时段误标成功，也不应新增下游节点监控持久化。
 - AI dependencies: commit-5c7cca015525
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/perf_metric.go:120](https://github.com/QuantumNous/new-api/blob/1ca79d57e77d91c855371b43bb26b151429e18a1/model/perf_metric.go#L120) — 新增独立近期样本数据库查询；代码：func GetRecentPerfMetricSuccessBuckets(modelName string, startTs int64, endTs int64, groups []string, limit int) ([]PerfMetricSummaryBucket, error) {
 - AI evidence: [downstream:pkg/perf_metrics/metrics.go:190](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/pkg/perf_metrics/metrics.go#L190) — 本地仍返回最近三条非空率，API契约不同；代码：RecentSuccessRates: recentSuccessRates(modelBuckets[name], 3),
 
@@ -6018,7 +6018,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): restore browser sans-serif for Auto font
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/config-drawer.tsx`, `web/src/context/__tests__/theme-preferences.test.tsx`, `web/src/context/theme-customization-provider.tsx`, `web/src/lib/theme-customization.ts`, `web/src/styles/index.css`, `web/src/styles/theme-presets.css`, `web/src/styles/theme.css`
 - Overlap with downstream changes: web/src/styles/index.css, web/src/styles/theme.css
@@ -6029,7 +6029,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游给 resolveThemeFont 增加 system 结果并重设 Auto；本地默认字体/主题有明确产品设计。先确认字体策略，不能把上游偏好当同步必需项。
 - AI risks: 加载字体、显式Sans/Serif、预设默认和持久化旧值需一致，避免首次闪烁和CJK回退异常。
 - AI dependencies: commit-54eee488bed3
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/lib/theme-customization.ts:177](https://github.com/QuantumNous/new-api/blob/0f38a14a5e8e322ea741478b0e49878be3130e1d/web/src/lib/theme-customization.ts#L177) — 固定源码：return PRESET_DEFAULT_FONT[preset] ?? 'system'
 - AI evidence: [downstream:web/src/lib/theme-customization.ts:194](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/lib/theme-customization.ts#L194) — 下游对照：return PRESET_DEFAULT_FONT[preset] ?? 'sans'
 
@@ -6039,7 +6039,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relaykit): match Claude effort and Gemini 2.5 budgets to each model
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/shared/claude/reasoning.go`, `relaykit/relayconvert/reasoning/claude.go`, `relaykit/relayconvert/reasoning/gemini.go`, `relaykit/relayconvert/reasoning/suffix.go`
 - Overlap with downstream changes: (none detected)
@@ -6050,7 +6050,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游按细分模型表调整effort/禁用思考行为及Gemini预算，依赖尚未迁入的shared/claude/reasoning实现。本地目前的原生请求和旧适配语义不同，必须随推理重构验证真实模型矩阵。
 - AI risks: 已知/未知模型、显式关闭、xhigh/max、budget/max_tokens和采样清理都会受影响；不可用默认值覆盖客户端明确意图。
 - AI dependencies: commit-0ed497f066a6, commit-7c044d7c5c2d, commit-6b659fd61c50, commit-8a11b4305ed1, commit-c6bac617d46a
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/internal/shared/claude/reasoning.go:133](https://github.com/QuantumNous/new-api/blob/036ba376da7d572a4db3e0be8553aadc28c3616a/relaykit/relayconvert/internal/shared/claude/reasoning.go#L133) — 上游会根据模型重写或删除客户端effort。
 - AI evidence: [downstream:relay/channel/claude/adaptor.go:29](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relay/channel/claude/adaptor.go#L29) — 本地原生Claude请求目前直接透传。
 
@@ -6060,7 +6060,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): send Responses image URLs to Chat upstreams as objects
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/oai_responses/to_oai_chat_req.go`, `relaykit/relayconvert/testdata/golden/request/openai_responses_to_openai.golden.json`
 - Overlap with downstream changes: (none detected)
@@ -6081,7 +6081,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): keep answer text that shares a stream chunk with reasoning
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/oai_chat/to_claude_messages_resp.go`
 - Overlap with downstream changes: (none detected)
@@ -6102,7 +6102,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(rate-limit): explain model rate-limit rejections without Redis
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/responses_websocket.go`, `controller/responses_websocket_test.go`, `middleware/model-rate-limit.go`, `middleware/model_rate_limit_test.go`
 - Overlap with downstream changes: (none detected)
@@ -6123,7 +6123,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): reload once when a page's code fails to load
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/errors/__tests__/general-error.test.tsx`, `web/src/features/errors/general-error.tsx`
 - Overlap with downstream changes: (none detected)
@@ -6144,7 +6144,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: perf(web): stop loading the whole Simple Icons pack on four pages
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/assets/brand-icons/icon-alipay.tsx`, `web/src/assets/brand-icons/index.ts`, `web/src/features/auth/components/oauth-callback-screen.tsx`, `web/src/features/security/components/account-bindings.tsx`, `web/src/features/users/components/dialogs/__tests__/user-binding-dialog.test.tsx`, `web/src/features/users/components/dialogs/user-binding-dialog.tsx`, `web/src/features/wallet/lib/__tests__/payment-icons.test.tsx`, `web/src/features/wallet/lib/ui.tsx`
 - Overlap with downstream changes: web/src/features/users/components/dialogs/user-binding-dialog.tsx
@@ -6165,7 +6165,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(playground): keep each account's Playground data separate
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/playground/lib/storage/__tests__/storage.test.ts`, `web/src/features/playground/lib/storage/storage.ts`
 - Overlap with downstream changes: (none detected)
@@ -6186,7 +6186,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): show date pickers and relative times in the interface language
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/__tests__/date-picker-locale.test.tsx`, `web/src/components/date-picker.tsx`, `web/src/components/datetime-picker.tsx`, `web/src/features/security/components/__tests__/login-session-item.test.tsx`, `web/src/features/security/components/login-session-item.tsx`, `web/src/features/security/components/passkey-card.tsx`, `web/src/features/system-settings/content/announcements-section.tsx`
 - Overlap with downstream changes: web/src/features/system-settings/content/announcements-section.tsx
@@ -6207,7 +6207,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(web): pick dates and times down to the second
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/components/__tests__/datetime-picker-time.test.tsx`, `web/src/components/datetime-picker.tsx`, `web/src/features/usage-logs/components/__tests__/mobile-filter.test.tsx`, `web/src/features/usage-logs/components/compact-date-time-range-picker.tsx`
 - Overlap with downstream changes: web/src/features/usage-logs/components/compact-date-time-range-picker.tsx
@@ -6228,7 +6228,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): drop non-string enum values when converting OpenAI tool schemas (#7729)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/shared/gemini/schema.go`, `relaykit/relayconvert/internal/shared/gemini/schema_test.go`
 - Overlap with downstream changes: (none detected)
@@ -6239,7 +6239,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游为避免legacy Schema 400直接删除含数字/布尔的enum，这会扩大允许值域。后续273已提供JSON Schema保留方案，建议优先评估无损路线，不独立迁入静默删约束。
 - AI risks: 数字/布尔enum、混合类型与嵌套schema都可能丢业务校验；仅legacy端点确需降级时应有明确诊断并获确认。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relaykit/relayconvert/internal/shared/gemini/schema.go:126](https://github.com/QuantumNous/new-api/blob/4b13d9388ed6f43118707534daad4903e5d22745/relaykit/relayconvert/internal/shared/gemini/schema.go#L126) — 上游检测到非字符串enum后删除约束。
 - AI evidence: [downstream:relaykit/relayconvert/internal/shared/gemini/schema.go:13](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/relaykit/relayconvert/internal/shared/gemini/schema.go#L13) — 本地仍将enum视为保留字段。
 
@@ -6249,7 +6249,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relay): send a close frame when a Responses WebSocket session ends
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/responses_websocket_test.go`, `relay/responses_websocket.go`, `relay/responses_websocket_test.go`
 - Overlap with downstream changes: (none detected)
@@ -6260,7 +6260,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 本地未实现Responses WS，此提交为新会话统一shutdown加closeCode/reason和Once，修复断连/鉴权失败收尾。应作为WS整组验收的必要后续，不直接迁入孤立会话文件。
 - AI risks: 死锁、并发写close/data、上游正常关闭与内部错误码、workers退出和结算恰好一次均需并发回归。
 - AI dependencies: commit-9fe0457ee1f4, commit-75f3d246e2b1, commit-ae249f4ecbaf
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:relay/responses_websocket.go:100](https://github.com/QuantumNous/new-api/blob/801456a061fb9988957341c4eb5aa8ec20c40de1/relay/responses_websocket.go#L100) — 上游限制会话关闭只执行一次。
 - AI evidence: [downstream:router/relay-router.go:136](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/relay-router.go#L136) — 本地仍只有HTTP Responses入口。
 
@@ -6270,7 +6270,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relayconvert): keep JSON Schema constraints in tools and structured output sent to Gemini
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/common/relay_info.go`, `relay/common/relay_info_gemini_settings_test.go`, `relaykit/relayconvert/convmeta/options.go`, `relaykit/relayconvert/internal/oai_chat/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/oai_responses/to_gemini_chat_req.go`, `relaykit/relayconvert/internal/shared/gemini/schema.go`, `relaykit/relayconvert/internal/shared/gemini/schema_test.go`, `relaykit/relayconvert/internal/toolconv/encode.go`, `relaykit/relayconvert/internal/toolconv/model.go`, `relaykit/relayconvert/request_registry.go`
 - Overlap with downstream changes: relay/common/relay_info.go
@@ -6291,7 +6291,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): map Meta Muse Spark models to Meta icon (#7734)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/model-badge.test.tsx`, `web/src/lib/model-provider.ts`
 - Overlap with downstream changes: (none detected)
@@ -6302,7 +6302,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 只扩展前项新增统一 MODEL_PROVIDER_RULES 的 meta/和muse-前缀；本地尚无该模块，待提供者显示识别迁移时一起纳入最终规则。
 - AI risks: 不能让 muse 子串误匹配其他供应商，更不能改变实际路由/计费。
 - AI dependencies: commit-d92612038410
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/lib/model-provider.ts:178](https://github.com/QuantumNous/new-api/blob/42e694eb60fe3191795c00d416571ced716eb9c4/web/src/lib/model-provider.ts#L178) — 固定源码：keywords: ['meta-llama', 'meta/', 'muse-', 'llama-', 'llama2', 'llama3'],
 - AI evidence: [downstream:web/src/features/channels/lib/model-categories.ts:28](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/channels/lib/model-categories.ts#L28) — 下游对照：const MODEL_CATEGORY_RULES: readonly ModelCategoryRule[] = [
 
@@ -6312,7 +6312,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): show cache read price on expression model cards (#7757)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/pricing/__tests__/model-cards.test.tsx`, `web/src/features/pricing/components/model-card.tsx`
 - Overlap with downstream changes: (none detected)
@@ -6333,7 +6333,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(metrics): count completed streams after context cancellation (#7638)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `pkg/perf_metrics/outcome.go`
 - Overlap with downstream changes: (none detected)
@@ -6344,7 +6344,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该修复依赖前述协议Outcome及请求边界指标，本地没有ClassifyRelayOutcome。若采用141，必须一起纳入：已正常完成的流即使稍后context取消仍应计成功。
 - AI risks: 不能把生成中取消也算成功；完成标记、EOF/Done、错误对象和流状态应同时满足。
 - AI dependencies: commit-8b2c7105f91f, commit-a5b40663d330
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:pkg/perf_metrics/outcome.go:30](https://github.com/QuantumNous/new-api/blob/3f926c3ef49745be273cd8f753fb691abdd7b836/pkg/perf_metrics/outcome.go#L30) — 上游仅对已正常终止无错流豁免后续取消。
 - AI evidence: [downstream:pkg/perf_metrics/metrics.go:27](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/pkg/perf_metrics/metrics.go#L27) — 本地仍用旧采样入口，没有Outcome分类器。
 
@@ -6354,7 +6354,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(logs): vertically align billing source icons on mobile (#7760)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/cost-display.test.tsx`, `web/src/features/usage-logs/components/log-cost-display.tsx`
 - Overlap with downstream changes: (none detected)
@@ -6365,7 +6365,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该补丁给来源图标包inline-flex以修复移动端纵向对齐，本地下游当前使用SubscriptionBadge而没有该来源图标组合。应等待是否采用152/160/161的展示方案，避免单独复制不适用class。
 - AI risks: 保留当前费用、工具费和可访问标签；图标视觉修复不应改变金额来源。
 - AI dependencies: commit-9e905a83e1d6, commit-ea336ed6654a, commit-96b0da2273a1
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/src/features/usage-logs/components/log-cost-display.tsx:118](https://github.com/QuantumNous/new-api/blob/bbf60b49f6a4cab709e49e57d45f7911fc7dccae/web/src/features/usage-logs/components/log-cost-display.tsx#L118) — 修复对象是上游来源图标容器；代码：className='inline-flex shrink-0 cursor-help items-center'
 - AI evidence: [downstream:web/src/features/usage-logs/components/log-cost-display.tsx:95](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/src/features/usage-logs/components/log-cost-display.tsx#L95) — 本地订阅使用独立Badge组件而非上游图标容器；代码：function SubscriptionBadge(props: { quota: number }) {
 
@@ -6375,7 +6375,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix: mark task settlement logs with is_task for tiered billing display (#7446)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `service/task_billing.go`
 - Overlap with downstream changes: service/task_billing.go
@@ -6386,7 +6386,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `covered` — 该提交唯一运行时变化是在taskBillingOther中加入is_task=true。冻结下游的同一任务账务Other构造器已明确写入该字段，提交日志也已写入；可建议covered并保留代码证据，无需重复改写类型化LogOther或业务账务。
 - AI risks: 只认定本单一标记修复已覆盖，不代表上游插件表达式任务计费已完整迁入。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:service/task_billing.go:151](https://github.com/QuantumNous/new-api/blob/b22a43b6e89e5349d8cdbddc88d570b16e15fb1f/service/task_billing.go#L151) — 源提交 taskBillingOther 新增任务标记；代码：other.SetPublic("is_task", true)
 - AI evidence: [downstream:service/task_billing.go:161](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/service/task_billing.go#L161) — 冻结下游 taskBillingOther 已在返回前无条件设置相同标记；代码：other["is_task"] = true
 
@@ -6396,7 +6396,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): allow root access when the model square is disabled (#7761)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `middleware/header_nav.go`, `middleware/header_nav_test.go`
 - Overlap with downstream changes: middleware/header_nav.go
@@ -6417,7 +6417,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(relaykit): preserve assistant text with tool calls (#6871)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relaykit/relayconvert/internal/claude_messages/to_oai_chat_req.go`, `relaykit/relayconvert/request_registry_test.go`
 - Overlap with downstream changes: (none detected)
@@ -6438,7 +6438,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(web): preserve recorded billing tiers in usage log previews (#7763)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/usage-logs/components/__tests__/detail-preview.test.tsx`, `web/src/features/usage-logs/components/columns/common-logs-columns.tsx`
 - Overlap with downstream changes: web/src/features/usage-logs/components/columns/common-logs-columns.tsx
@@ -6459,7 +6459,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(web): bump @lobehub/icons to 5.22.0 (#7764)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6480,7 +6480,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(pricing): accept declared endpoint arrays in pricing conversion (#7724)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/model_pricing_conversion_endpoints_test.go`, `model/model_pricing_conversion.go`
 - Overlap with downstream changes: (none detected)
@@ -6491,7 +6491,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 转换器兼容元数据endpoint的数组和对象两种形态，避免合法数组被误判为复杂自定义路由而拒绝转换。是98的正确性后续，本地尚无该转换器，应随旧价转换组采用最终实现。
 - AI risks: 未知/重复/非法端点与真正自定义路径不能被误判为安全可转换。
 - AI dependencies: commit-0c76e4dae77a, commit-25ec832faa48
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/model_pricing_conversion.go:149](https://github.com/QuantumNous/new-api/blob/9948b1ef14ea17fb23539386c0cb09018671c955/model/model_pricing_conversion.go#L149) — 转换明确解析两种endpoint形态；代码：func declaredEndpointNames(raw string) ([]string, error) {
 
 #### commit-2ed058795bf0
@@ -6500,7 +6500,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(ci): stabilize checks and configure Bun dependency updates (#7765)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `.github/dependabot.yml`, `.github/workflows/ci.yml`, `controller/security_account_test.go`, `controller/security_enrollment_test.go`, `web/bun.lock`, `web/package.json`, `web/src/components/ui/__tests__/markdown.test.tsx`, `web/src/features/channels/components/__tests__/model-mapping-editor.test.tsx`
 - Overlap with downstream changes: .github/workflows/ci.yml
@@ -6511,7 +6511,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 该提交混合Bun Dependabot、上游ci.yml checkout、认证测试、DOMPurify3.4.16与KaTeX0.18.2。下游CI结构不同且markdown/数学渲染依赖覆盖不同，需拆为专门依赖/测试PR评审。
 - AI risks: 不要自动搬保护CI；DOMPurify override必须与直接依赖一致，数学渲染升级需兼容/安全测试，不以测试调整掩盖失败。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/package.json:53](https://github.com/QuantumNous/new-api/blob/2ed058795bf0ce968134aa8db18b0dd86b54c30e/web/package.json#L53) — 固定源码："dompurify": "3.4.16",
 - AI evidence: [downstream:web/package.json:49](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/package.json#L49) — 下游对照："dompurify": "3.4.13",
 
@@ -6521,7 +6521,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(auth): show legal consent warning on password login (#7771)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/src/features/auth/sign-in/components/user-auth-form.tsx`
 - Overlap with downstream changes: web/src/features/auth/sign-in/components/user-auth-form.tsx
@@ -6542,7 +6542,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: fix(claude): forward thinking.block_binding and every anthropic-beta value (#7732)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `relay/channel/aws/dto.go`, `relay/channel/aws/relay_aws_test.go`, `relay/channel/claude/adaptor.go`, `relay/channel/claude/adaptor_test.go`, `relay/channel/claude/relay_claude_test.go`, `relaykit/dto/claude.go`
 - Overlap with downstream changes: (none detected)
@@ -6563,7 +6563,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump @xmldom/xmldom from 0.8.13 to 0.8.15 in /electron (#7187)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/package-lock.json`
 - Overlap with downstream changes: (none detected)
@@ -6584,7 +6584,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: build(deps): bump yace from 1.1.0 to 1.1.1 in /web (#7770)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6605,7 +6605,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: build(deps): bump stream-markdown-parser from 1.1.3 to 1.2.18 in /web (#7769)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6626,7 +6626,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: build(deps-dev): bump @tanstack/router-plugin in /web (#7768)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6647,7 +6647,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: build(deps-dev): bump oxfmt from 0.57.0 to 0.72.0 in /web (#7766)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6658,7 +6658,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 从0.57到0.72跨多个版本，会改变格式输出；下游有protected-headers formatter和大量自定义文件。建议专门工具PR先验证幂等与保护头，再选择，避免污染功能同步diff。
 - AI risks: 不得因format改写QuantumNous版权头或无关文件；校验参数、格式配置及仅格式变更隔离。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:web/package.json:108](https://github.com/QuantumNous/new-api/blob/bf4e1ebfb88579930d75d852d2d2bca74cbd5f62/web/package.json#L108) — 固定源码："oxfmt": "^0.72.0",
 - AI evidence: [downstream:web/package.json:101](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/web/package.json#L101) — 下游对照："oxfmt": "^0.57.0",
 
@@ -6668,7 +6668,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump electron from 39.8.10 to 41.10.6 in /electron (#7625)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/package-lock.json`, `electron/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6679,7 +6679,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 上游从39.8.10升到41.10.6是主版本跨度；下游有自己的启动、更新、打包和许可证附带逻辑，当前没有跨平台验证，不能夹在功能同步中批准。
 - AI risks: 需要核对Node/Chromium、sandbox/preload、自动更新、签名、公证和Windows/macOS/Linux打包后再选。
 - AI dependencies: none identified
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:electron/package.json:28](https://github.com/QuantumNous/new-api/blob/7e25797d14681e4e16c2b46831450e7d6a5ccc74/electron/package.json#L28) — 固定源码："electron": "41.10.6",
 - AI evidence: [downstream:electron/package.json:28](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/electron/package.json#L28) — 下游对照："electron": "39.8.10",
 
@@ -6689,7 +6689,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump js-yaml from 4.3.1 to 4.3.2 in /electron (#7327)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/package-lock.json`
 - Overlap with downstream changes: (none detected)
@@ -6710,7 +6710,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump fast-uri from 3.1.5 to 3.1.7 in /electron (#7169)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/package-lock.json`
 - Overlap with downstream changes: (none detected)
@@ -6731,7 +6731,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps): bump github.com/gorilla/websocket from 1.5.0 to 1.5.3 (#7001)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `go.mod`, `go.sum`
 - Overlap with downstream changes: go.mod, go.sum
@@ -6752,7 +6752,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps): bump ai from 7.0.31 to 7.0.136 in /web (#7767)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `web/bun.lock`, `web/package.json`
 - Overlap with downstream changes: (none detected)
@@ -6773,7 +6773,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump brace-expansion from 1.1.16 to 1.1.21 in /electron (#7623)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/package-lock.json`
 - Overlap with downstream changes: (none detected)
@@ -6794,7 +6794,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump js-yaml from 4.3.1 to 4.3.2 in /electron (#7327)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: (none)
 - Overlap with downstream changes: (none detected)
@@ -6805,7 +6805,7 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `skip` — 该来源提交没有文件差异；实际js-yaml升级已在前面的293候选。显式跳过重复项，不能产生空cherry-pick或单独增加版本。
 - AI risks: 293尚未人工选择/实施，因此本项不是证明下游已覆盖；历史应保留其空差异事实。
 - AI dependencies: commit-7f51a97226c4
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:electron/package-lock.json:2573](https://github.com/QuantumNous/new-api/blob/93cf4ba6fb92e3f755fdeb6af9a9484bfa748816/electron/package-lock.json#L2573) — 固定源码："node_modules/js-yaml": {
 
 #### commit-dd59854050f2
@@ -6814,7 +6814,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: chore(deps-dev): bump undici from 6.28.0 to 6.29.0 in /electron (#7624)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `electron/package-lock.json`
 - Overlap with downstream changes: (none detected)
@@ -6835,7 +6835,7 @@ No historical follow-up outside this range is recorded.
 - Feature/group: feat(logs): export usage logs from the common log page (#7774)
 - Decision: `pending`
 - Selected scope: `full_commit`
-- Reason: 
+- Reason:
 - Dependencies: none declared; requires review
 - Files: `controller/log.go`, `controller/log_export_test.go`, `controller/misc.go`, `controller/relay_error_log_test.go`, `controller/usedata.go`, `controller/user_manage_test.go`, `middleware/access_token_routes.go`, `model/log.go`, `model/option.go`, `router/api-router.go`, `service/log_export.go`, `setting/operation_setting/log_setting.go`, `web/src/features/auth/types.ts`, `web/src/features/system-settings/hooks/use-update-option.ts`, `web/src/features/system-settings/maintenance/__tests__/log-settings.test.tsx`, `web/src/features/system-settings/maintenance/history-log-cleanup.tsx`, `web/src/features/system-settings/maintenance/log-settings-section.tsx`, `web/src/features/system-settings/maintenance/server-log-files.tsx`, `web/src/features/system-settings/operations/index.tsx`, `web/src/features/system-settings/operations/section-registry.tsx`, `web/src/features/system-settings/types.ts`, `web/src/features/usage-logs/api.ts`, `web/src/features/usage-logs/components/__tests__/export-dialog.test.tsx`, `web/src/features/usage-logs/components/__tests__/mobile-filter.test.tsx`, `web/src/features/usage-logs/components/common-logs-filter-bar.tsx`, `web/src/features/usage-logs/components/dialogs/export-logs-dialog.tsx`, `web/src/features/usage-logs/components/logs-filter-toolbar.tsx`, `web/src/features/usage-logs/lib/__tests__/export.test.ts`, `web/src/features/usage-logs/lib/export.ts`, `web/src/i18n/locales/en.json`, `web/src/i18n/locales/fr.json`, `web/src/i18n/locales/ja.json`, `web/src/i18n/locales/ru.json`, `web/src/i18n/locales/vi.json`, `web/src/i18n/locales/zh-TW.json`, `web/src/i18n/locales/zh.json`
 - Overlap with downstream changes: controller/log.go, controller/misc.go, controller/user_manage_test.go, model/log.go, model/option.go, router/api-router.go, web/src/features/auth/types.ts, web/src/features/system-settings/hooks/use-update-option.ts, web/src/features/system-settings/maintenance/log-settings-section.tsx, web/src/features/system-settings/operations/section-registry.tsx, web/src/features/system-settings/types.ts, web/src/features/usage-logs/api.ts, web/src/features/usage-logs/components/common-logs-filter-bar.tsx, web/src/i18n/locales/en.json, web/src/i18n/locales/fr.json, web/src/i18n/locales/ja.json, web/src/i18n/locales/ru.json, web/src/i18n/locales/vi.json, web/src/i18n/locales/zh-TW.json, web/src/i18n/locales/zh.json
@@ -6846,6 +6846,6 @@ No historical follow-up outside this range is recorded.
 - AI recommendation: `defer` — 提供NDJSON流到前端CSV、每用户跨节点导出租约及365天搜索上限，功能有价值但上游从原始logs逐行导出。下游列表会叠加历史任务计价、有效调账、成本权限和不可变账务证据，不能直接套用原始日志导出或新默认查询限制。先明确导出合同后单独迁移。
 - AI risks: 应与列表过滤/租户/财务权限完全一致；保留永久消费日志，不引入清理；处理取消、续租失败、大ID、CSV公式和多语言；范围上限不能阻断正式历史对账。
 - AI dependencies: commit-057f71c2336c, commit-caca52f8dea0, commit-128089fa7ddf
-- AI suggested paths (not approval): 
+- AI suggested paths (not approval):
 - AI evidence: [upstream:model/log.go:638](https://github.com/QuantumNous/new-api/blob/633b4c5b190dc1af99a2814391354d86948e7943/model/log.go#L638) — 上游新增逐行读取原始日志并投影的导出入口；代码：func StreamUserLogs(ctx context.Context, userId int, filter LogFilter, fn func(*Log) error) error {
 - AI evidence: [downstream:model/log.go:166](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/model/log.go#L166) — 下游日志列表使用有效修正投影，原始导出会出现账目不一致；代码：err = projectBillingEffectiveLogs(logs, adjustments)
