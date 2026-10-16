@@ -16554,7 +16554,7 @@
         "evidence": [
           {
             "detail": "固定源码：requiredRole: ROLE.SUPER_ADMIN,",
-            "line": 164,
+            "line": 177,
             "path": "web/src/hooks/use-sidebar-data.ts",
             "revision": "upstream"
           },

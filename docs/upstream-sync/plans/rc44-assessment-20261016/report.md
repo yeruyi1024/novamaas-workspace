@@ -5307,7 +5307,7 @@ No historical follow-up outside this range is recorded.
 - AI risks: 侧栏隐藏不能替代后端鉴权；保留本地其他管理入口的细分权限。
 - AI dependencies: none identified
 - AI suggested paths (not approval): web/src/hooks/use-sidebar-data.ts, web/src/hooks/__tests__/sidebar-config.test.tsx
-- AI evidence: [upstream:web/src/hooks/use-sidebar-data.ts:164](https://github.com/QuantumNous/new-api/blob/dfd3cd8930447780a5733eaaba9a306df595251d/web/src/hooks/use-sidebar-data.ts#L164) — 固定源码：requiredRole: ROLE.SUPER_ADMIN,
+- AI evidence: [upstream:web/src/hooks/use-sidebar-data.ts:177](https://github.com/QuantumNous/new-api/blob/dfd3cd8930447780a5733eaaba9a306df595251d/web/src/hooks/use-sidebar-data.ts#L177) — 固定源码：requiredRole: ROLE.SUPER_ADMIN,
 - AI evidence: [downstream:router/api-router.go:284](https://github.com/yeruyi1024/novamaas-workspace/blob/b2cb1c2473f1db803ff5bdaafc67699288bde713/router/api-router.go#L284) — 下游对照：optionRoute.Use(middleware.RootAuth())
 
 #### commit-5fe8917be728
