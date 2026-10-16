@@ -180,7 +180,9 @@ describe('asset synchronization management', () => {
     renderManagement()
 
     expect(await screen.findByText('Rejected hero')).toBeVisible()
-    expect(screen.getAllByText('Asset rejected by upstream').length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText('Asset rejected by upstream').length
+    ).toBeGreaterThan(0)
     expect(screen.getByText(/Real-person content was rejected/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Retry' })

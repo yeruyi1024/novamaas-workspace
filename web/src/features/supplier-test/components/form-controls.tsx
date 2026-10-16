@@ -121,7 +121,9 @@ export function NumberField(props: {
         }}
       />
       {props.hint ? (
-        <p className='text-muted-foreground text-xs leading-snug'>{props.hint}</p>
+        <p className='text-muted-foreground text-xs leading-snug'>
+          {props.hint}
+        </p>
       ) : null}
       {props.presets && props.presets.length > 0 ? (
         <div className='flex flex-wrap gap-1 pt-0.5'>

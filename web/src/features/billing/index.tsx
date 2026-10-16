@@ -32,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UpstreamBilling } from '@/features/upstream-billing'
+import { canViewUpstreamBilling } from '@/features/upstream-billing/permissions'
 import { useDebounce } from '@/hooks/use-debounce'
 import {
   ADMIN_PERMISSION_ACTIONS,
@@ -48,7 +50,59 @@ import { CorrectionPanel } from './components/correction-panel'
 import { StatementsPanel } from './components/statements-panel'
 import type { BillingAccountOption } from './types'
 
-export function Billing() {
+export function Billing(
+  props: {
+    area?: 'customer' | 'upstream'
+    onAreaChange?: (area: 'customer' | 'upstream') => void
+  } = {}
+) {
+  const { t } = useTranslation()
+  const user = useAuthStore((state) => state.auth.user)
+  const allowed = canViewUpstreamBilling(user)
+  const [localArea, setLocalArea] = useState<'customer' | 'upstream'>(
+    'customer'
+  )
+  const activeArea = allowed ? props.area || localArea : 'customer'
+  return (
+    <SectionPageLayout>
+      <SectionPageLayout.Title>
+        {t('Billing statements')}
+      </SectionPageLayout.Title>
+      <SectionPageLayout.Content>
+        {allowed ? (
+          <Tabs
+            value={activeArea}
+            className='min-h-0 flex-1'
+            onValueChange={(value) => {
+              if (value !== 'customer' && value !== 'upstream') return
+              setLocalArea(value)
+              props.onAreaChange?.(value)
+            }}
+          >
+            <TabsList>
+              <TabsTrigger value='customer'>
+                {t('Customer statements')}
+              </TabsTrigger>
+              <TabsTrigger value='upstream'>
+                {t('Upstream statements')}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value='customer' className='min-h-0 overflow-auto'>
+              {activeArea === 'customer' && <CustomerBilling />}
+            </TabsContent>
+            <TabsContent value='upstream' className='min-h-0 overflow-auto'>
+              {activeArea === 'upstream' && <UpstreamBilling />}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <CustomerBilling />
+        )}
+      </SectionPageLayout.Content>
+    </SectionPageLayout>
+  )
+}
+
+function CustomerBilling() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.auth.user)
   const admin = (user?.role ?? 0) >= ROLE.ADMIN
@@ -106,110 +160,99 @@ export function Billing() {
     return { value: item.id, label }
   })
   return (
-    <SectionPageLayout>
-      <SectionPageLayout.Title>
-        {t('Billing statements')}
-      </SectionPageLayout.Title>
-      <SectionPageLayout.Content>
-        <div className='flex flex-col gap-5 overflow-auto p-1'>
-          {canSwitchAccount && (
-            <FieldGroup className='grid gap-4 sm:grid-cols-2'>
-              <Field>
-                <FieldLabel htmlFor='billing-search'>
-                  {t('Search accounts')}
-                </FieldLabel>
-                <Input
-                  id='billing-search'
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor='billing-account'>
-                  {t('Account')}
-                </FieldLabel>
-                <Select
-                  items={userOptions}
-                  value={userId}
-                  onValueChange={(value) =>
-                    value !== null &&
-                    setSelectedAccount(
-                      candidates.find((item) => item.id === value) ?? null
-                    )
-                  }
-                >
-                  <SelectTrigger id='billing-account' className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {userOptions.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
+    <div className='flex flex-col gap-5 overflow-auto p-1'>
+      {canSwitchAccount && (
+        <FieldGroup className='grid gap-4 sm:grid-cols-2'>
+          <Field>
+            <FieldLabel htmlFor='billing-search'>
+              {t('Search accounts')}
+            </FieldLabel>
+            <Input
+              id='billing-search'
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor='billing-account'>{t('Account')}</FieldLabel>
+            <Select
+              items={userOptions}
+              value={userId}
+              onValueChange={(value) =>
+                value !== null &&
+                setSelectedAccount(
+                  candidates.find((item) => item.id === value) ?? null
+                )
+              }
+            >
+              <SelectTrigger id='billing-account' className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {userOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        </FieldGroup>
+      )}
+      <p className='text-sm break-words'>
+        {t('Selected billing customer')}:{' '}
+        {userOptions.find((item) => item.value === userId)?.label}
+      </p>
+      <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
+        <TabsList>
+          <TabsTrigger value='daily'>{t('Consumption lookup')}</TabsTrigger>
+          <TabsTrigger value='statements'>
+            {t('Billing statements')}
+          </TabsTrigger>
+          <TabsTrigger value='identity'>{t('Billing identity')}</TabsTrigger>
+          {financialAccounting && (
+            <TabsTrigger value='corrections'>
+              {t('Billing adjustments')}
+            </TabsTrigger>
           )}
-          <p className='text-sm break-words'>
-            {t('Selected billing customer')}:{' '}
-            {userOptions.find((item) => item.value === userId)?.label}
-          </p>
-          <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
-            <TabsList>
-              <TabsTrigger value='daily'>{t('Consumption lookup')}</TabsTrigger>
-              <TabsTrigger value='statements'>
-                {t('Billing statements')}
-              </TabsTrigger>
-              <TabsTrigger value='identity'>
-                {t('Billing identity')}
-              </TabsTrigger>
-              {financialAccounting && (
-                <TabsTrigger value='corrections'>
-                  {t('Billing adjustments')}
-                </TabsTrigger>
-              )}
-            </TabsList>
-            <TabsContent value='daily'>
-              <ConsumptionPanel
-                key={userId}
-                userId={userId}
-                date={date}
-                onDateChange={setDate}
-              />
-            </TabsContent>
-            <TabsContent value='statements'>
-              <StatementsPanel
-                key={userId}
-                userId={userId}
-                currentUserId={user?.id ?? 0}
-                admin={admin}
-                onConfigureIdentity={() => setTab('identity')}
-                onSelectDay={(day) => {
-                  setDate(day)
-                  setTab('daily')
-                }}
-              />
-            </TabsContent>
-            <TabsContent value='identity'>
-              <BillingProfileCard userId={userId} admin={admin} />
-            </TabsContent>
-            {financialAccounting && (
-              <TabsContent value='corrections'>
-                <CorrectionPanel
-                  key={userId}
-                  userId={userId}
-                  actorId={user?.id ?? 0}
-                  canManage={user?.role === ROLE.SUPER_ADMIN}
-                />
-              </TabsContent>
-            )}
-          </Tabs>
-        </div>
-      </SectionPageLayout.Content>
-    </SectionPageLayout>
+        </TabsList>
+        <TabsContent value='daily'>
+          <ConsumptionPanel
+            key={userId}
+            userId={userId}
+            date={date}
+            onDateChange={setDate}
+          />
+        </TabsContent>
+        <TabsContent value='statements'>
+          <StatementsPanel
+            key={userId}
+            userId={userId}
+            currentUserId={user?.id ?? 0}
+            admin={admin}
+            onConfigureIdentity={() => setTab('identity')}
+            onSelectDay={(day) => {
+              setDate(day)
+              setTab('daily')
+            }}
+          />
+        </TabsContent>
+        <TabsContent value='identity'>
+          <BillingProfileCard userId={userId} admin={admin} />
+        </TabsContent>
+        {financialAccounting && (
+          <TabsContent value='corrections'>
+            <CorrectionPanel
+              key={userId}
+              userId={userId}
+              actorId={user?.id ?? 0}
+              canManage={user?.role === ROLE.SUPER_ADMIN}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
   )
 }

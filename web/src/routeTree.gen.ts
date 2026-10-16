@@ -53,6 +53,7 @@ import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedSupplierTestIndexRouteImport } from './routes/_authenticated/supplier-test/index'
 import { Route as AuthenticatedSystemInfoIndexRouteImport } from './routes/_authenticated/system-info/index'
 import { Route as AuthenticatedSystemSettingsIndexRouteImport } from './routes/_authenticated/system-settings/index'
+import { Route as AuthenticatedUpstreamBillingIndexRouteImport } from './routes/_authenticated/upstream-billing/index'
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
@@ -310,6 +311,12 @@ const AuthenticatedSystemSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
+const AuthenticatedUpstreamBillingIndexRoute =
+  AuthenticatedUpstreamBillingIndexRouteImport.update({
+    id: '/upstream-billing/',
+    path: '/upstream-billing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedUsageLogsIndexRoute =
   AuthenticatedUsageLogsIndexRouteImport.update({
     id: '/usage-logs/',
@@ -479,6 +486,7 @@ export interface FileRoutesByFullPath {
   '/supplier-test/': typeof AuthenticatedSupplierTestIndexRoute
   '/system-info/': typeof AuthenticatedSystemInfoIndexRoute
   '/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
+  '/upstream-billing/': typeof AuthenticatedUpstreamBillingIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
@@ -543,6 +551,7 @@ export interface FileRoutesByTo {
   '/supplier-test': typeof AuthenticatedSupplierTestIndexRoute
   '/system-info': typeof AuthenticatedSystemInfoIndexRoute
   '/system-settings': typeof AuthenticatedSystemSettingsIndexRoute
+  '/upstream-billing': typeof AuthenticatedUpstreamBillingIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
@@ -611,6 +620,7 @@ export interface FileRoutesById {
   '/_authenticated/supplier-test/': typeof AuthenticatedSupplierTestIndexRoute
   '/_authenticated/system-info/': typeof AuthenticatedSystemInfoIndexRoute
   '/_authenticated/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
+  '/_authenticated/upstream-billing/': typeof AuthenticatedUpstreamBillingIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
@@ -678,6 +688,7 @@ export interface FileRouteTypes {
     | '/supplier-test/'
     | '/system-info/'
     | '/system-settings/'
+    | '/upstream-billing/'
     | '/usage-logs/'
     | '/users/'
     | '/wallet/'
@@ -742,6 +753,7 @@ export interface FileRouteTypes {
     | '/supplier-test'
     | '/system-info'
     | '/system-settings'
+    | '/upstream-billing'
     | '/usage-logs'
     | '/users'
     | '/wallet'
@@ -809,6 +821,7 @@ export interface FileRouteTypes {
     | '/_authenticated/supplier-test/'
     | '/_authenticated/system-info/'
     | '/_authenticated/system-settings/'
+    | '/_authenticated/upstream-billing/'
     | '/_authenticated/usage-logs/'
     | '/_authenticated/users/'
     | '/_authenticated/wallet/'
@@ -1161,6 +1174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
+    '/_authenticated/upstream-billing/': {
+      id: '/_authenticated/upstream-billing/'
+      path: '/upstream-billing'
+      fullPath: '/upstream-billing/'
+      preLoaderRoute: typeof AuthenticatedUpstreamBillingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/usage-logs/': {
       id: '/_authenticated/usage-logs/'
       path: '/usage-logs'
@@ -1421,6 +1441,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
   AuthenticatedSupplierTestIndexRoute: typeof AuthenticatedSupplierTestIndexRoute
   AuthenticatedSystemInfoIndexRoute: typeof AuthenticatedSystemInfoIndexRoute
+  AuthenticatedUpstreamBillingIndexRoute: typeof AuthenticatedUpstreamBillingIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
@@ -1449,6 +1470,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSubscriptionsIndexRoute: AuthenticatedSubscriptionsIndexRoute,
   AuthenticatedSupplierTestIndexRoute: AuthenticatedSupplierTestIndexRoute,
   AuthenticatedSystemInfoIndexRoute: AuthenticatedSystemInfoIndexRoute,
+  AuthenticatedUpstreamBillingIndexRoute:
+    AuthenticatedUpstreamBillingIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,

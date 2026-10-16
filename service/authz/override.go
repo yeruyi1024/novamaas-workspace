@@ -98,10 +98,10 @@ func ClearUserAuthorizationInTx(tx *gorm.DB, userID int) error {
 	return ClearUserPermissionsInTx(tx, userID)
 }
 
-// ExplicitUserPermissions returns the effective permission matrix for the
-// managed role plus any per-user overrides.
+// ExplicitUserPermissions returns the editable managed-role baseline plus
+// per-user overrides, before financial-management implications are applied.
 func ExplicitUserPermissions(userID int) PermissionsMap {
-	return Capabilities(userID, common.RoleAdminUser)
+	return RawCapabilities(userID, common.RoleAdminUser)
 }
 
 // ExplicitUserOverrides returns only the per-user override entries.

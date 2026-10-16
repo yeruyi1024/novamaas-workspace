@@ -75,7 +75,7 @@ export function CachePanel(props: {
             }))
           }
         />
-        <div className='flex items-end text-sm text-muted-foreground pb-2'>
+        <div className='text-muted-foreground flex items-end pb-2 text-sm'>
           {t(
             CACHE_MODES.find((m) => m.value === props.cache.mode)?.hintKey || ''
           )}
@@ -94,7 +94,10 @@ export function CachePanel(props: {
             value: s,
           }))}
           onChange={(value) =>
-            props.onCacheChange((current) => ({ ...current, waitSeconds: value }))
+            props.onCacheChange((current) => ({
+              ...current,
+              waitSeconds: value,
+            }))
           }
         />
         <NumberField

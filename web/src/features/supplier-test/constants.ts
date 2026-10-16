@@ -400,18 +400,19 @@ export const VIDEO_ROLES = [
   { value: 'reference_image', labelKey: 'Reference image' },
 ] as const
 
-export const ENDPOINT_PATH_PRESETS: Array<{ value: string; labelKey: string }> = [
-  { value: '', labelKey: 'Auto detect / default' },
-  {
-    value: '/api/v3/contents/generations/tasks',
-    labelKey: 'Official API (/api/v3/contents/generations/tasks)',
-  },
-  {
-    value: '/contents/generations/tasks',
-    labelKey: 'Without /api/v3 (/contents/generations/tasks)',
-  },
-  {
-    value: '/v1/contents/generations/tasks',
-    labelKey: 'Gateway /v1 (/v1/contents/generations/tasks)',
-  },
-]
+export const ENDPOINT_PATH_PRESETS: Array<{ value: string; labelKey: string }> =
+  [
+    { value: '', labelKey: 'Auto detect / default' },
+    {
+      value: '/api/v3/contents/generations/tasks',
+      labelKey: 'Official API (/api/v3/contents/generations/tasks)',
+    },
+    {
+      value: '/contents/generations/tasks',
+      labelKey: 'Without /api/v3 (/contents/generations/tasks)',
+    },
+    {
+      value: '/v1/contents/generations/tasks',
+      labelKey: 'Gateway /v1 (/v1/contents/generations/tasks)',
+    },
+  ]

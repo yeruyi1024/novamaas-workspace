@@ -2,10 +2,19 @@ package authz
 
 import "github.com/casbin/casbin/v2"
 
-// Can reports whether the subject may perform the permission. A superuser role
-// short-circuits to allow. Otherwise a per-user override wins, then the union of
-// the subject's role baselines applies.
+// Can reports effective access. Financial management includes accounting views,
+// even when the independent accounting switch is off. Other resources keep
+// their existing override and role-baseline rules.
 func Can(userID int, systemRole int, permission Permission) bool {
+	if directPermissionAllowed(userID, systemRole, permission) {
+		return true
+	}
+	return permission == FinancialAccountingView && directPermissionAllowed(userID, systemRole, FinancialManagementView)
+}
+
+// directPermissionAllowed evaluates the editable grant without implications.
+// Root grants are inherent; otherwise the user's override precedes its roles.
+func directPermissionAllowed(userID int, systemRole int, permission Permission) bool {
 	roles := resolveSubjectRoles(userID, systemRole)
 	if len(roles) == 0 {
 		return false
@@ -32,6 +41,21 @@ func Can(userID int, systemRole int, permission Permission) bool {
 		}
 	}
 	return false
+}
+
+// RawCapabilities is the editable role baseline plus user overrides. Keeping
+// implied accounting access out of this matrix prevents an editor round trip
+// from turning inherited access into a lasting independent accounting grant.
+func RawCapabilities(userID int, systemRole int) PermissionsMap {
+	result := make(PermissionsMap, len(registry))
+	for _, resource := range registry {
+		actions := make(map[string]bool, len(resource.Actions))
+		for _, action := range resource.Actions {
+			actions[action.Action] = directPermissionAllowed(userID, systemRole, Permission{Resource: resource.Resource, Action: action.Action})
+		}
+		result[resource.Resource] = actions
+	}
+	return result
 }
 
 // Capabilities returns the full resource/action matrix the subject is allowed.

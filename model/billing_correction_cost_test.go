@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -12,6 +13,52 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+func TestBillingCorrectionReversalRestoresAmountOnlySupplierAdjustment(t *testing.T) {
+	fixture := seedBillingCorrectionCosts(t, "doubao-seedance-2-5", "1080p", true, false)
+	_, err := AdjustCostAccountingSnapshots([]CostAccountingAdjustmentTarget{{SnapshotID: fixture.Snapshots[0].ID, NewCostQuota: fixture.Snapshots[0].CostQuota - 7}}, "Reconcile supplier amount before customer correction", 1, "supplier-amount")
+	require.NoError(t, err)
+	batch, err := PreviewBillingCorrection(fixture.Input, 1, "", "customer_group")
+	require.NoError(t, err)
+	require.True(t, batch.CanApply)
+	for _, phase := range []struct {
+		name    string
+		apply   bool
+		reverse bool
+		want    int64
+	}{
+		{name: "amount-only supplier correction", want: fixture.OriginalCost - 7},
+		{name: "customer model correction", apply: true, want: 26943},
+		{name: "customer correction reversed", apply: true, reverse: true, want: fixture.OriginalCost - 7},
+	} {
+		if phase.apply {
+			_, err = ApplyBillingCorrection(batch.ID, batch.SHA256, "", "customer_group", 1, phase.reverse, "Restore reconciled supplier amount")
+			require.NoError(t, err)
+		}
+		records := make([]UpstreamBillingStatementRecord, 0)
+		require.NoError(t, VisitUpstreamBillingSourceRecords(context.Background(), []int{904}, fixture.MonthStart, fixture.MonthEnd, func(record UpstreamBillingStatementRecord) error {
+			records = append(records, record)
+			return nil
+		}))
+		require.Len(t, records, 2, phase.name)
+		var cost, requests, videoTokens int64
+		for _, record := range records {
+			assert.False(t, record.CostMissing, phase.name)
+			assert.False(t, record.UsageMissing, phase.name)
+			assert.Equal(t, "0.820000", record.CostDiscount, phase.name)
+			assert.Contains(t, []int64{fixture.Snapshots[0].ID, fixture.Snapshots[1].ID}, record.CostSnapshotID)
+			cost += record.CostQuota
+			requests += record.Requests
+			videoTokens += record.VideoTokens
+		}
+		assert.Equal(t, phase.want, cost, phase.name)
+		assert.Equal(t, int64(1), requests, phase.name)
+		assert.Equal(t, int64(10000), videoTokens, phase.name)
+	}
+	var originals []CostAccountingSnapshot
+	require.NoError(t, DB.Where("id IN ?", []int64{fixture.Snapshots[0].ID, fixture.Snapshots[1].ID}).Order("id asc").Find(&originals).Error)
+	assert.Equal(t, fixture.Snapshots, originals, "supplier and customer corrections append evidence without changing the originals")
+}
 
 type billingCorrectionCostFixture struct {
 	Input                BillingCorrectionInput

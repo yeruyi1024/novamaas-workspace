@@ -123,6 +123,28 @@ func SetApiRouter(router *gin.Engine) {
 			billingCorrection.POST("/preview", middleware.RootAuth(), middleware.CriticalRateLimit(), controller.PreviewBillingCorrection)
 			billingCorrection.POST("/:correction_id/actions", middleware.RootAuth(), middleware.CriticalRateLimit(), controller.ActOnBillingCorrection)
 		}
+		upstreamBillingRoute := apiRouter.Group(
+			"/upstream-billing",
+			middleware.AdminAuth(),
+			middleware.RequirePermission(authz.FinancialAccountingView),
+			middleware.DisableCache(),
+		)
+		{
+			upstreamBillingRoute.GET("/groups", controller.UpstreamBillingGroups)
+			upstreamBillingRoute.POST("/groups", middleware.CriticalRateLimit(), controller.SaveUpstreamBillingGroup)
+			upstreamBillingRoute.PUT("/groups/:group_id", middleware.CriticalRateLimit(), controller.SaveUpstreamBillingGroup)
+			upstreamBillingRoute.GET("/channels", controller.UpstreamBillingChannels)
+			upstreamBillingRoute.GET("/report", controller.UpstreamBillingReport)
+			upstreamBillingRoute.GET("/usage-details", controller.UpstreamBillingUsageDetails)
+			upstreamBillingRoute.GET("/storage-profiles", controller.UpstreamBillingStorageProfiles)
+			upstreamBillingRoute.GET("/statements", controller.ListUpstreamBillingStatements)
+			upstreamBillingRoute.POST("/statements", middleware.CriticalRateLimit(), controller.CreateUpstreamBillingStatement)
+			upstreamBillingRoute.GET("/statements/:statement_id", controller.GetUpstreamBillingStatement)
+			upstreamBillingRoute.POST("/statements/:statement_id/attachments", middleware.RequirePermission(authz.FinancialManagementView), middleware.CriticalRateLimit(), controller.UploadUpstreamBillingAttachment)
+			upstreamBillingRoute.GET("/statements/:statement_id/attachments/:attachment_id", controller.DownloadUpstreamBillingAttachment)
+			upstreamBillingRoute.POST("/statements/:statement_id/actions", middleware.CriticalRateLimit(), controller.ActOnUpstreamBillingStatement)
+			upstreamBillingRoute.GET("/statements/:statement_id/files/:kind/:ordinal", controller.DownloadUpstreamBillingArtifact)
+		}
 		financialAccountingRoute := apiRouter.Group(
 			"/financial-accounting",
 			middleware.UserAuth(),

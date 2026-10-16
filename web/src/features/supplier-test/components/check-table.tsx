@@ -45,7 +45,9 @@ export function CheckTable(props: {
           <TableHead>{t('Check')}</TableHead>
           <TableHead>{t('Result')}</TableHead>
           <TableHead>{t('Detail')}</TableHead>
-          {props.onRun ? <TableHead className='w-24'>{t('Action')}</TableHead> : null}
+          {props.onRun ? (
+            <TableHead className='w-24'>{t('Action')}</TableHead>
+          ) : null}
         </TableRow>
       </TableHeader>
       <TableBody>

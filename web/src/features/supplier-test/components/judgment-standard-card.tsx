@@ -132,24 +132,22 @@ export function JudgmentStandardCard(props: {
               />
             </div>
             <div className='mt-4 space-y-5'>
-              {(
-                [
-                  {
-                    group: 'stress' as const,
-                    title: t('From stress test'),
-                    note: t(
-                      'Error rate is the share of failed HTTP/API requests in that short run (timeouts, 5xx, refused). It is not wrong model answers.'
-                    ),
-                  },
-                  {
-                    group: 'cache' as const,
-                    title: t('From cache test'),
-                    note: t(
-                      'These rulers score Cache test only. They do not use stress numbers.'
-                    ),
-                  },
-                ]
-              ).map((section) => (
+              {[
+                {
+                  group: 'stress' as const,
+                  title: t('From stress test'),
+                  note: t(
+                    'Error rate is the share of failed HTTP/API requests in that short run (timeouts, 5xx, refused). It is not wrong model answers.'
+                  ),
+                },
+                {
+                  group: 'cache' as const,
+                  title: t('From cache test'),
+                  note: t(
+                    'These rulers score Cache test only. They do not use stress numbers.'
+                  ),
+                },
+              ].map((section) => (
                 <div key={section.group}>
                   <p className='mb-1 text-sm font-medium'>{section.title}</p>
                   <p className='text-muted-foreground mb-3 text-xs'>
