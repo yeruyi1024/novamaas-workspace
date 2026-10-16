@@ -109,6 +109,10 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	AppendChannelAffinityAdminInfo(ctx, adminInfo)
 
 	other["admin_info"] = adminInfo
+	if resource := common.GetContextKeyString(ctx, constant.ContextKeyRequestSnapshotResource); resource != "" {
+		other["request_body_available"] = true
+		other["request_body_resource"] = resource
+	}
 	appendRequestPath(ctx, relayInfo, other)
 	appendRequestConversionChain(relayInfo, other)
 	appendFinalRequestFormat(relayInfo, other)

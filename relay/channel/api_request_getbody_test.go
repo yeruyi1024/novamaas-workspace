@@ -4,16 +4,19 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
@@ -22,6 +25,49 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 )
+
+func TestUpstreamRequestRecorderGatesTheUpstreamCall(t *testing.T) {
+	service.InitHttpClient()
+	archiveErr := errors.New("archive unavailable")
+	for _, tc := range []struct {
+		name      string
+		recordErr error
+		sent      bool
+	}{
+		{name: "archived body is sent", sent: true},
+		{name: "archive failure blocks the call", recordErr: archiveErr},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var requests atomic.Int32
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer upstream.Close()
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+			var recorded []byte
+			common.SetContextKey(c, constant.ContextKeyUpstreamRequestRecorder, relaycommon.UpstreamRequestRecorder(func(_ *gin.Context, body []byte) error {
+				recorded = body
+				return tc.recordErr
+			}))
+			body := []byte(`{"prompt":"mountain"}`)
+			request, err := http.NewRequest(http.MethodPost, upstream.URL, bytes.NewReader(body))
+			require.NoError(t, err)
+			response, err := DoRequest(c, request, &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}})
+			assert.Equal(t, body, recorded)
+			if !tc.sent {
+				assert.ErrorIs(t, err, archiveErr)
+				assert.Nil(t, response)
+				assert.Zero(t, requests.Load())
+				return
+			}
+			require.NoError(t, err)
+			defer response.Body.Close()
+			assert.EqualValues(t, 1, requests.Load())
+		})
+	}
+}
 
 func TestApplyUpstreamBodyMetadataSetsReplayableMetadata(t *testing.T) {
 	t.Parallel()

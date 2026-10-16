@@ -423,6 +423,10 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 				other["task_id"] = taskID
 			}
 		}
+		if resource := common.GetContextKeyString(c, constant.ContextKeyRequestSnapshotResource); resource != "" {
+			other["request_body_available"] = true
+			other["request_body_resource"] = resource
+		}
 		if common.GetContextKeyBool(c, constant.ContextKeyTemporaryMediaConverted) {
 			other["temporary_media_converted"] = true
 			if count := common.GetContextKeyInt(c, constant.ContextKeyTemporaryMediaConvertedCount); count > 0 {

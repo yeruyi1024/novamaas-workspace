@@ -39,7 +39,10 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
+import { useStatus } from '@/hooks/use-status'
+import { hasPermission } from '@/lib/admin-permissions'
 import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -49,6 +52,12 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const user = useAuthStore((state) => state.auth.user)
+  const canReviewImages =
+    status?.ImageStudioEnabled !== false &&
+    Boolean(user && user.role >= ROLE.ADMIN) &&
+    hasPermission(user, 'image_studio', 'read')
 
   return {
     navGroups: [
@@ -136,6 +145,16 @@ export function useSidebarData(): SidebarData {
             url: '/channels',
             icon: Radio,
           },
+          ...(canReviewImages
+            ? [
+                {
+                  title: t('Image review'),
+                  url: '/image-review',
+                  icon: Images,
+                  requiredRole: ROLE.ADMIN,
+                },
+              ]
+            : []),
           {
             title: t('Supplier Test'),
             url: '/supplier-test',

@@ -149,6 +149,32 @@ describe('DetailsDialog request body', () => {
     ).not.toBeInTheDocument()
   })
 
+  test.each([true, false])(
+    'historical image snapshots use administrator access (%s) without an image review grant',
+    async (isAdmin) => {
+      vi.mocked(getLogRequestSnapshots).mockResolvedValue({
+        success: true,
+        data: { original: { prompt: 'archived image prompt' } },
+      })
+      renderDialog(isAdmin, {
+        ...videoUsageLog,
+        other: JSON.stringify({
+          request_body_available: true,
+          request_body_resource: 'image_studio',
+        }),
+      })
+
+      if (isAdmin) {
+        expect(
+          (await screen.findByTestId('request-json')).textContent
+        ).toContain('archived image prompt')
+      } else {
+        expect(screen.queryByText('Request Snapshots')).not.toBeInTheDocument()
+        expect(getLogRequestSnapshots).not.toHaveBeenCalled()
+      }
+    }
+  )
+
   test('does not request or show the request body for non-administrators', () => {
     renderDialog(false)
 

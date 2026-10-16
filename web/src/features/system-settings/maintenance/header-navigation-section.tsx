@@ -47,6 +47,7 @@ import {
   type HeaderNavModulesConfig,
   serializeHeaderNavModules,
 } from './config'
+import { ImageStudioSettingsField } from './image-studio-settings-field'
 
 const headerNavSchema = z.object({
   home: z.boolean(),
@@ -58,6 +59,7 @@ const headerNavSchema = z.object({
   docsEnabled: z.boolean(),
   docsRequireAuth: z.boolean(),
   about: z.boolean(),
+  imageStudioEnabled: z.boolean(),
 })
 
 type HeaderNavFormValues = z.infer<typeof headerNavSchema>
@@ -65,9 +67,14 @@ type HeaderNavFormValues = z.infer<typeof headerNavSchema>
 type HeaderNavigationSectionProps = {
   config: HeaderNavModulesConfig
   initialSerialized: string
+  imageStudioEnabled: boolean
 }
 
-const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
+const toFormValues = (
+  config: HeaderNavModulesConfig,
+  imageStudioEnabled = true
+): HeaderNavFormValues => ({
+  imageStudioEnabled,
   home:
     config.home === undefined ? HEADER_NAV_DEFAULT.home : Boolean(config.home),
   console:
@@ -101,10 +108,14 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
 export function HeaderNavigationSection({
   config,
   initialSerialized,
+  imageStudioEnabled,
 }: HeaderNavigationSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
-  const formDefaults = useMemo(() => toFormValues(config), [config])
+  const formDefaults = useMemo(
+    () => toFormValues(config, imageStudioEnabled),
+    [config, imageStudioEnabled]
+  )
 
   const form = useForm<HeaderNavFormValues>({
     resolver: zodResolver(headerNavSchema),
@@ -138,14 +149,19 @@ export function HeaderNavigationSection({
     }
 
     const serialized = serializeHeaderNavModules(payload)
-    if (serialized === initialSerialized) {
-      return
+    if (serialized !== initialSerialized) {
+      await updateOption.mutateAsync({
+        key: 'HeaderNavModules',
+        value: serialized,
+      })
     }
 
-    await updateOption.mutateAsync({
-      key: 'HeaderNavModules',
-      value: serialized,
-    })
+    if (values.imageStudioEnabled !== imageStudioEnabled) {
+      await updateOption.mutateAsync({
+        key: 'image_studio_setting.enabled',
+        value: values.imageStudioEnabled,
+      })
+    }
   }
 
   const resetToDefault = () => {
@@ -252,6 +268,7 @@ export function HeaderNavigationSection({
                 )}
               />
             ))}
+            <ImageStudioSettingsField />
           </div>
 
           <div className='grid gap-4 lg:grid-cols-2'>

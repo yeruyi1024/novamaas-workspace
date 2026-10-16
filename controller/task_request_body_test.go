@@ -78,7 +78,7 @@ func TestCaptureVideoTaskRequestBodyRequiresJSON(t *testing.T) {
 func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}, &model.TaskRequestBody{}))
+	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}, &model.TaskRequestBody{}, &model.ImageStudioRun{}))
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousErrorLogEnabled := constant.ErrorLogEnabled
 	previousRedisEnabled := common.RedisEnabled
@@ -129,7 +129,7 @@ func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
 func TestGetTaskRequestBodyAllowsAdminLookup(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}, &model.ImageStudioRun{}))
 	previousDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
@@ -144,7 +144,7 @@ func TestGetTaskRequestBodyAllowsAdminLookup(t *testing.T) {
 func TestGetTaskRequestSnapshotsReturnsOriginalAndUpstreamBodies(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}, &model.ImageStudioRun{}))
 	previousDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
@@ -171,7 +171,7 @@ func TestGetTaskRequestSnapshotsReturnsOriginalAndUpstreamBodies(t *testing.T) {
 func TestGetTaskPollHistoryReturnsOnlyRequestedTaskWithPagination(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}, &model.ImageStudioRun{}))
 	previousDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
@@ -199,7 +199,7 @@ func TestGetTaskPollHistoryReturnsOnlyRequestedTaskWithPagination(t *testing.T) 
 func TestGetTaskRequestBodyFallsBackToLegacyTaskProperty(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}))
+	require.NoError(t, db.AutoMigrate(&model.Task{}, &model.TaskRequestBody{}, &model.ImageStudioRun{}))
 	previousDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
@@ -220,7 +220,7 @@ func TestGetTaskRequestBodyFallsBackToLegacyTaskProperty(t *testing.T) {
 func TestGetLogRequestBodySupportsLegacyErrorRequestID(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.TaskRequestBody{}))
+	require.NoError(t, db.AutoMigrate(&model.TaskRequestBody{}, &model.ImageStudioRun{}))
 	previousDB := model.DB
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })

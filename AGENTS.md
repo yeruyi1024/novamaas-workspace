@@ -15,6 +15,23 @@ This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI pro
 - **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
 - **Frontend package manager**: Bun (preferred over npm/yarn/pnpm)
 
+## Local Development: MySQL and Shared Login
+
+- All local branches and worktrees use the existing OrbStack MySQL container `newapi-mysql` at `127.0.0.1:3306`, with persisted data in `newapi-mysql-data`. Start it with `docker start newapi-mysql` if needed. Do not create another database container or silently fall back to SQLite.
+- Configure development through each worktree's ignored root `.env` and `web/.env`; do not change business code or add migration/startup scripts for local setup. Keep credentials out of tracked files, commits, PRs, screenshots, and tool output.
+- Use the shared local administrator login `admin`. Read its password from `LOCAL_DEV_ADMIN_PASSWORD` in the root `.env`; `LOCAL_DEV_ADMIN_USERNAME` records the username. These variables document local login credentials; the application still authenticates against MySQL. Do not reset the account during ordinary startup or use these credentials in deployed environments.
+- Existing worktrees use the same MySQL service and administrator credentials, with separate databases to preserve their schemas and test records:
+
+  | Branch | MySQL database | Backend port |
+  | --- | --- | --- |
+  | `main` / other new local branches | `novamaas_local` | `3000` |
+  | `codex/pc-image-studio-lite` | `novamaas_pc_image` | `3301` |
+  | `codex/miniapp-image-studio-lite` | `novamaas_mini_image` | `3302` |
+
+- Keep `SQL_DSN` pointed at the intended database using the existing local database account; leave `LOG_SQL_DSN` empty so logs use that MySQL database too. For a new worktree, copy the ignored local environment files from the worktree being continued, then adjust its port and database deliberately. Match `VITE_REACT_APP_SERVER_URL` in `web/.env` to that backend port.
+- Preserve existing `SESSION_SECRET`, `STORAGE_CREDENTIAL_ENCRYPTION_KEY`, user IDs, API keys, channels, OSS settings, and generated-image records. Signing in to another branch uses that branch's login endpoint; shared credentials do not imply shared sessions or shared image history across these separate databases.
+- Start the backend from the repository root with `GOWORK=off go run . --log-dir /tmp/new-api-local-debug`; the existing `.env` sets its port. Start the frontend from `web/` with `bun run dev` and an available port. Verify login against the running branch before reporting the environment ready.
+
 ## Architecture
 
 Layered architecture: Router -> Controller -> Service -> Model

@@ -36,6 +36,7 @@ const (
 
 	StorageObjectPurposeRelayMediaTemp  = "relay_media_temp"
 	StorageObjectPurposeAssetLibrary    = "asset_library"
+	StorageObjectPurposeImageStudio     = "image_studio"
 	StorageObjectPurposeBillingArchive  = "billing_archive"
 	StorageObjectPurposeRequestSnapshot = "request_snapshot"
 	StorageObjectStatusUploading        = "uploading"
@@ -161,6 +162,9 @@ func (object *StorageObject) BeforeCreate(_ *gorm.DB) error {
 	now := common.GetTimestamp()
 	if object.CreatedAt == 0 {
 		object.CreatedAt = now
+	}
+	if object.Purpose == StorageObjectPurposeImageStudio && object.DeleteAfter == 0 {
+		object.DeleteAfter = object.CreatedAt + ImageStudioRetentionSeconds
 	}
 	object.UpdatedAt = now
 	return nil

@@ -22,6 +22,11 @@ func (err *upstreamRequestSnapshotTooLargeError) HTTPStatusCode() int {
 	return http.StatusRequestEntityTooLarge
 }
 
+// UpstreamRequestRecorder archives the final upstream body of a synchronous
+// relay request. It is registered under constant.ContextKeyUpstreamRequestRecorder
+// and runs before the request is sent; an error prevents the upstream call.
+type UpstreamRequestRecorder func(c *gin.Context, upstreamBody []byte) error
+
 // RecordVideoTaskUpstreamRequestBody captures the final JSON bytes after all
 // provider conversion, temporary-media materialization, and model mapping.
 // External snapshots are durably handed to the node's queue. The legacy

@@ -367,6 +367,8 @@ func migrateDB() error {
 		&StorageObject{},
 		&AssetGroup{},
 		&MediaAsset{},
+		&ImageStudioRun{},
+		&ImageStudioResult{},
 		&AssetChannelConfig{},
 		&AssetAccessKey{},
 		&AssetWebhookEndpoint{},
@@ -383,6 +385,9 @@ func migrateDB() error {
 		return err
 	}
 	if err := migrateRelayMediaPolicyAllowedMIMETypes(); err != nil {
+		return err
+	}
+	if err := InitializeImageStudioRetention(DB); err != nil {
 		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {
@@ -489,6 +494,9 @@ func migrateDBFast() error {
 		return err
 	}
 	if err := migrateRelayMediaPolicyAllowedMIMETypes(); err != nil {
+		return err
+	}
+	if err := InitializeImageStudioRetention(DB); err != nil {
 		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {

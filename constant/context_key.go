@@ -85,6 +85,13 @@ const (
 	ContextKeyTemporaryMediaMilliseconds   ContextKey = "temporary_media_ms"
 	ContextKeyTaskRequestMetrics           ContextKey = "task_request_metrics"
 
+	// Synchronous request audit. The caller registers a recorder that receives
+	// the final upstream body before it is sent; a recorder error aborts the
+	// request so every accepted call has an archived snapshot. The recorder
+	// then stores the authz resource required to read that snapshot.
+	ContextKeyUpstreamRequestRecorder ContextKey = "upstream_request_recorder"
+	ContextKeyRequestSnapshotResource ContextKey = "request_snapshot_resource"
+
 	// ContextKeyAdminRejectReason stores an admin-only reject/block reason extracted from upstream responses.
 	// It is not returned to end users, but can be persisted into consume/error logs for debugging.
 	ContextKeyAdminRejectReason ContextKey = "admin_reject_reason"
