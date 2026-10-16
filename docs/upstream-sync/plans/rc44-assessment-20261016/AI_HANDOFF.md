@@ -2,7 +2,7 @@
 
 # AI 接手说明：rc44-assessment-20261016
 
-此文件由机械差异计划生成，仅提供可复制的任务提示词。尚未因此调用 AI、形成 AI 建议、选择功能或修改业务代码。CI 不需要 AI API Key；维护者在自己的 Codex 或其他编码代理会话中发起分析和后续适配。
+此文件保留分阶段的接管提示词。本批次的外部 AI 会话已完成静态差异建议，结果见 report.md 和 plan.json 的 ai_analysis；实际 decision 均为 pending，尚未确认选项或迁入业务代码。CI 不需要 AI API Key；维护者在自己的 Codex 或其他编码代理会话中发起分析和后续适配。
 
 整个批次沿用同一个 PR：`https://github.com/yeruyi1024/novamaas-workspace/pull/78`。下文未填写的 `${PR_URL}` 和 `${APPROVAL_COMMIT}` 必须替换为实际 PR 地址、由维护者明确确认的完整计划提交 SHA。
 
