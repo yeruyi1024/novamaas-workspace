@@ -27,6 +27,7 @@ class UpstreamSyncPublicationTests(unittest.TestCase):
         self.addCleanup(self.env.stop)
         for name in ("upstream_sync.py", "upstream_sync_handoff.py", "upstream_sync_handoff_context.py"):
             f.write(".github/scripts/" + name, Path(__file__).with_name(name).read_text())
+        f.write(".gitignore", Path(__file__).resolve().parents[2].joinpath(".gitignore").read_text())
         f.commit("Add trusted sync executor")
         f.base = f.git("rev-parse", "HEAD").strip()
         f.git("remote", "add", "origin", str(f.repo))
@@ -104,6 +105,7 @@ class UpstreamSyncPublicationTests(unittest.TestCase):
 
     def test_assessment_patch_opens_only_plan_files_from_fresh_base(self):
         f = self.fixture
+        self.assertEqual(f.git("check-ignore", "plans/local-only.json", check=False).returncode, 0)
         os.environ.update(TARGET="v1.1.0", RANGE_BASE=f.baseline, BATCH="fresh-assessment",
                           NEXT_VERSION="v1.0.0-rc.26-novamaas.3")
         with mock.patch.object(ci, "fetch_upstream"):
