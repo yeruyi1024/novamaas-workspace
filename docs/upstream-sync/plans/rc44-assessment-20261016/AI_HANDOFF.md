@@ -1,8 +1,10 @@
+> 当前阶段：301 项 AI 静态建议已完成，所有处理决定保持 pending。请先阅读同目录 report.md，确认选定项后再使用实施阶段提示词。本轮尚未实施。
+
 # AI 接手说明：rc44-assessment-20261016
 
 此文件由机械差异计划生成，仅提供可复制的任务提示词。尚未因此调用 AI、形成 AI 建议、选择功能或修改业务代码。CI 不需要 AI API Key；维护者在自己的 Codex 或其他编码代理会话中发起分析和后续适配。
 
-整个批次沿用同一个 PR：`${PR_URL}`。下文未填写的 `${PR_URL}` 和 `${APPROVAL_COMMIT}` 必须替换为实际 PR 地址、由维护者明确确认的完整计划提交 SHA。
+整个批次沿用同一个 PR：`https://github.com/yeruyi1024/novamaas-workspace/pull/78`。下文未填写的 `${PR_URL}` 和 `${APPROVAL_COMMIT}` 必须替换为实际 PR 地址、由维护者明确确认的完整计划提交 SHA。
 
 ## 固定来源与处理边界
 
@@ -326,7 +328,7 @@
 把以下提示词连同实际 PR 地址交给 AI。此阶段仅提交建议和分析记录，所有待决策条目继续保持 `pending`。
 
 ```text
-请接手上游同步 PR：${PR_URL}
+请接手上游同步 PR：https://github.com/yeruyi1024/novamaas-workspace/pull/78
 计划文件：docs/upstream-sync/plans/rc44-assessment-20261016/plan.json
 本阶段只做代码分析和建议，不修改业务代码，不执行功能迁入。
 
@@ -359,7 +361,7 @@ AI 建议与实际决策分开保存。不得修改来源字段、条目 id/sour
 确认第二步后，将以下提示词和实际审批提交交给 AI。PR 仍是原来的草稿 PR。
 
 ```text
-请继续处理上游同步 PR：${PR_URL}
+请继续处理上游同步 PR：https://github.com/yeruyi1024/novamaas-workspace/pull/78
 计划文件：docs/upstream-sync/plans/rc44-assessment-20261016/plan.json
 我确认的计划提交：${APPROVAL_COMMIT}
 我授权你仅按该提交中已选中的条目和 ai_scope 完成适配、冲突处理、必要测试与来源记录；不要自动合并。
