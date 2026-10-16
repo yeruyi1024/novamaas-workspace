@@ -69,7 +69,9 @@ const MODELS_SECTIONS = [
   {
     id: 'miniapp-media',
     titleKey: 'Mini Program Media',
-    build: (settings: ModelSettings) => <MiniappMediaCard value={settings['miniapp.playground_media']} />,
+    build: (settings: ModelSettings) => (
+      <MiniappMediaCard value={settings['miniapp.playground_media']} />
+    ),
   },
   {
     id: 'routing-reliability',

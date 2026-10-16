@@ -410,7 +410,7 @@ func GetUser(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserNoPermissionSameLevel)
 		return
 	}
-	user.AdminPermissions = authz.Capabilities(user.Id, user.Role)
+	user.AdminPermissions = authz.RawCapabilities(user.Id, user.Role)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

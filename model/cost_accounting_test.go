@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 
@@ -9,6 +10,71 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCostAmountCorrectionsRetainEffectiveDiscountUnlessExplicitlyCleared(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		originalDiscount string
+		originalCost     int64
+		previous         *CostAccountingAdjustment
+		target           CostAccountingAdjustmentTarget
+		wantDiscount     string
+		wantBasis        string
+		wantVersion      int
+		wantApplied      int
+	}{
+		{name: "amount only", originalDiscount: "0.8", originalCost: 800, target: CostAccountingAdjustmentTarget{NewCostQuota: 750}, wantDiscount: "0.800000", wantBasis: "1000.000000", wantVersion: CostAccountingOriginalPriceBasisVersion, wantApplied: 1},
+		{name: "latest corrected evidence", originalDiscount: "0.8", originalCost: 800, previous: &CostAccountingAdjustment{DeltaCostQuota: -260, NewCostQuota: 540, CostBasisQuota: "900", CostDiscount: "0.600000", BasisVersion: CostAccountingCorrectedBasisVersion}, target: CostAccountingAdjustmentTarget{NewCostQuota: 500}, wantDiscount: "0.600000", wantBasis: "900", wantVersion: CostAccountingCorrectedBasisVersion, wantApplied: 1},
+		{name: "configured zero stays unchanged", originalDiscount: "0", originalCost: 0, target: CostAccountingAdjustmentTarget{NewCostQuota: 0}, wantDiscount: "0.000000", wantBasis: "1000.000000", wantVersion: CostAccountingOriginalPriceBasisVersion, wantApplied: 0},
+		{name: "explicit discount replacement", originalDiscount: "0.8", originalCost: 800, target: CostAccountingAdjustmentTarget{NewCostQuota: 500, CostDiscount: "0.5"}, wantDiscount: "0.500000", wantBasis: "1000.000000", wantVersion: CostAccountingOriginalPriceBasisVersion, wantApplied: 1},
+		{name: "explicit clear with basis", originalDiscount: "0.8", originalCost: 800, target: CostAccountingAdjustmentTarget{NewCostQuota: 1000, CostBasisQuota: "1000", BasisVersion: CostAccountingOriginalPriceBasisVersion}, wantBasis: "1000", wantVersion: CostAccountingOriginalPriceBasisVersion, wantApplied: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			truncateTables(t)
+			log := Log{UserId: 7, Type: LogTypeConsume, CreatedAt: 100, Quota: 1000, PromptTokens: 10, CompletionTokens: 5, ChannelId: 3, ModelName: "text", RequestId: "cost-amount-only"}
+			require.NoError(t, LOG_DB.Create(&log).Error)
+			snapshot, err := BuildCostAccountingSnapshot(&log, &CostAccountingInput{CostBasisQuota: "1000", CostDiscount: tc.originalDiscount, CostQuota: tc.originalCost})
+			require.NoError(t, err)
+			require.NoError(t, DB.Create(snapshot).Error)
+			if tc.previous != nil {
+				previous := *tc.previous
+				previous.SnapshotID = snapshot.ID
+				require.NoError(t, DB.Create(&previous).Error)
+			}
+			target := tc.target
+			target.SnapshotID = snapshot.ID
+			adjustments, err := AdjustCostAccountingSnapshots([]CostAccountingAdjustmentTarget{target}, "Supplier amount reconciliation", 1, "amount-only")
+			require.NoError(t, err)
+			assert.Len(t, adjustments, tc.wantApplied)
+			views, _, err := ListCostAccountingSnapshots(CostAccountingFilter{UserID: 7}, 0, 10)
+			require.NoError(t, err)
+			require.Len(t, views, 1)
+			assert.Equal(t, target.NewCostQuota, views[0].EffectiveCostQuota)
+			assert.Equal(t, tc.wantDiscount, views[0].EffectiveCostDiscount)
+			assert.Equal(t, tc.wantBasis, views[0].EffectiveCostBasisQuota)
+			assert.Equal(t, tc.wantVersion, views[0].EffectiveBasisVersion)
+			records := make([]UpstreamBillingStatementRecord, 0)
+			require.NoError(t, VisitUpstreamBillingSourceRecords(context.Background(), []int{3}, 1, 200, func(record UpstreamBillingStatementRecord) error {
+				records = append(records, record)
+				return nil
+			}))
+			require.Len(t, records, 1, "the original log must stay linked without an orphan duplicate")
+			assert.Equal(t, snapshot.ID, records[0].CostSnapshotID)
+			assert.False(t, records[0].UsageMissing)
+			assert.Equal(t, int64(1), records[0].Requests)
+			assert.Equal(t, tc.wantDiscount == "", records[0].CostMissing)
+			if tc.wantDiscount != "" {
+				assert.Equal(t, target.NewCostQuota, records[0].CostQuota)
+			}
+			var original CostAccountingSnapshot
+			require.NoError(t, DB.First(&original, snapshot.ID).Error)
+			assert.Equal(t, *snapshot, original, "the fix only changes new append-only adjustments")
+			repeated, err := AdjustCostAccountingSnapshots([]CostAccountingAdjustmentTarget{target}, "Same reconciliation retry", 1, "amount-only")
+			require.NoError(t, err)
+			assert.Empty(t, repeated, "an identical effective amount and pricing state is idempotent")
+		})
+	}
+}
 
 func TestNormalizeCostDiscountPreservesExactSupportedPrecision(t *testing.T) {
 	tests := []struct {

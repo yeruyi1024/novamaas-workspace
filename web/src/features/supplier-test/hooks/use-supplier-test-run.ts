@@ -86,7 +86,12 @@ function resetChecks(current: CheckResult[], ids?: string[]): CheckResult[] {
     if (selected && !selected.has(check.id)) {
       return check
     }
-    return { ...check, status: 'idle', message: undefined, messageArgs: undefined }
+    return {
+      ...check,
+      status: 'idle',
+      message: undefined,
+      messageArgs: undefined,
+    }
   })
 }
 

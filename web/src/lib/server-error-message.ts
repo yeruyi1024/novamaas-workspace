@@ -17,6 +17,27 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 const serverErrorMessageKeys = {
+  UPSTREAM_BILLING_FORBIDDEN: 'Access denied',
+  UPSTREAM_BILLING_REVIEW_FORBIDDEN:
+    'Financial management permission is required to review statements or upload supplier evidence.',
+  UPSTREAM_BILLING_SESSION_REQUIRED:
+    'Sign in with a browser session to confirm this statement.',
+  UPSTREAM_BILLING_CONFLICT: 'Billing data changed. Refresh and try again.',
+  UPSTREAM_BILLING_INTEGRITY_FAILED:
+    'Billing data changed. Refresh and try again.',
+  UPSTREAM_BILLING_INCOMPLETE:
+    'Statement preparation failed. Refresh and try again.',
+  UPSTREAM_BILLING_MONTH_OPEN:
+    'Select a month that has been closed for at least 24 hours to create an archived draft.',
+  UPSTREAM_BILLING_NOT_FOUND: 'Content not found.',
+  UPSTREAM_BILLING_TIMEOUT: 'Please try again later.',
+  UPSTREAM_BILLING_OPERATION_FAILED: 'Something went wrong!',
+  UPSTREAM_BILLING_INVALID_ATTACHMENT:
+    'Choose a PDF, XLSX, CSV, PNG or JPEG attachment, no larger than 20 MiB.',
+  UPSTREAM_BILLING_ATTACHMENT_LIMIT:
+    'A statement can have at most 20 supplier attachments.',
+  UPSTREAM_BILLING_UPLOAD_PENDING:
+    'Attachment uploads are in progress. Wait for them to finish before confirming.',
   BILLING_OPERATION_FAILED: 'Something went wrong!',
   BILLING_NOT_FOUND: 'Content not found.',
   BILLING_CONFLICT: 'Billing data changed. Refresh and try again.',

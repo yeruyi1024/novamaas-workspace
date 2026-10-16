@@ -37,7 +37,10 @@ import {
 } from '../baselines'
 import { verdictClass } from '../formatters'
 
-export function AssessmentTable(props: { assessment: Assessment; title?: string }) {
+export function AssessmentTable(props: {
+  assessment: Assessment
+  title?: string
+}) {
   const { t } = useTranslation()
   const rows = props.assessment.rows.filter((row) => !isInformationalRow(row))
   if (rows.length === 0) return null
@@ -61,7 +64,9 @@ export function AssessmentTable(props: { assessment: Assessment; title?: string 
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className='whitespace-nowrap'>{t(row.label)}</TableCell>
+              <TableCell className='whitespace-nowrap'>
+                {t(row.label)}
+              </TableCell>
               <TableCell className='font-medium whitespace-nowrap'>
                 {displayMeasured(row, t)}
               </TableCell>

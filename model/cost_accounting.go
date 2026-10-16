@@ -76,8 +76,10 @@ type CostAccountingAdjustment struct {
 }
 
 type CostAccountingAdjustmentTarget struct {
-	SnapshotID           int64
-	NewCostQuota         int64
+	SnapshotID   int64
+	NewCostQuota int64
+	// An empty discount without a new basis preserves the effective discount.
+	// A caller that explicitly clears it must supply the current basis/version.
 	CostDiscount         string
 	CostBasisQuota       string
 	CostBasisBefore      string
@@ -803,6 +805,10 @@ func AdjustCostAccountingSnapshots(targets []CostAccountingAdjustmentTarget, rea
 			if target.ExpectedAdjustmentID != nil && state.LatestID != *target.ExpectedAdjustmentID {
 				return ErrBillingConflict
 			}
+			discount := target.CostDiscount
+			if discount == "" && target.BasisVersion == 0 {
+				discount = state.Discount
+			}
 			basis, before, after, version := state.Basis, state.Before, state.After, state.BasisVersion
 			if target.BasisVersion > 0 {
 				value, err := decimal.NewFromString(target.CostBasisQuota)
@@ -823,7 +829,7 @@ func AdjustCostAccountingSnapshots(targets []CostAccountingAdjustmentTarget, rea
 				SnapshotID:      target.SnapshotID,
 				DeltaCostQuota:  target.NewCostQuota - state.Quota,
 				NewCostQuota:    target.NewCostQuota,
-				CostDiscount:    target.CostDiscount,
+				CostDiscount:    discount,
 				CostBasisQuota:  basis,
 				CostBasisBefore: before,
 				CostBasisAfter:  after,
@@ -833,7 +839,7 @@ func AdjustCostAccountingSnapshots(targets []CostAccountingAdjustmentTarget, rea
 				BatchID:         batchID,
 				CreatedAt:       createdAt,
 			}
-			if adjustment.DeltaCostQuota != 0 || basis != state.Basis || before != state.Before || after != state.After || version != state.BasisVersion || target.CostDiscount != state.Discount {
+			if adjustment.DeltaCostQuota != 0 || basis != state.Basis || before != state.Before || after != state.After || version != state.BasisVersion || discount != state.Discount {
 				results = append(results, adjustment)
 			}
 		}

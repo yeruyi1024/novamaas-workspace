@@ -16,10 +16,39 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { z } from 'zod'
 
 import { Billing } from '@/features/billing'
+import { canViewUpstreamBilling } from '@/features/upstream-billing/permissions'
+import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated/billing/')({
-  component: Billing,
+  validateSearch: z.object({
+    tab: z.enum(['customer', 'upstream']).optional().catch(undefined),
+  }),
+  beforeLoad: ({ search }) => {
+    if (
+      search.tab === 'upstream' &&
+      !canViewUpstreamBilling(useAuthStore.getState().auth.user)
+    ) {
+      throw redirect({
+        to: '/billing',
+        search: { tab: 'customer' },
+        replace: true,
+      })
+    }
+  },
+  component: BillingRoute,
 })
+
+function BillingRoute() {
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+  return (
+    <Billing
+      area={search.tab || 'customer'}
+      onAreaChange={(tab) => void navigate({ search: { tab }, replace: true })}
+    />
+  )
+}

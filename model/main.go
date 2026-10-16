@@ -325,6 +325,9 @@ func migrateDB() error {
 		&BillingCorrection{}, &BillingCorrectionRow{}, &BillingCorrectionClaim{},
 		&CostAccountingSnapshot{}, &CostAccountingAdjustment{},
 		&BillingStatement{}, &BillingStatementEvent{}, &BillingArtifact{}, &BillingHistoryImport{},
+		&UpstreamBillingGroup{}, &UpstreamBillingGroupChannel{}, &UpstreamBillingGroupEvent{},
+		&UpstreamBillingStatement{}, &UpstreamBillingStatementEvent{}, &UpstreamBillingStatementRecord{},
+		&UpstreamBillingAttachment{}, &UpstreamBillingTaskLink{},
 		&Channel{},
 		&Token{},
 		&User{},
@@ -411,6 +414,9 @@ func migrateDBFast() error {
 		return err
 	}
 	if err := DB.AutoMigrate(&BillingAccount{}, &BillingAccountEvent{}, &BillingOperation{}, &BillingEntry{}, &BillingHour{}, &BillingStatement{}, &BillingStatementEvent{}, &BillingArtifact{}, &BillingHistoryImport{}, &CostAccountingSnapshot{}, &CostAccountingAdjustment{}, &BillingCorrection{}, &BillingCorrectionRow{}, &BillingCorrectionClaim{}); err != nil {
+		return err
+	}
+	if err := DB.AutoMigrate(&UpstreamBillingGroup{}, &UpstreamBillingGroupChannel{}, &UpstreamBillingGroupEvent{}, &UpstreamBillingStatement{}, &UpstreamBillingStatementEvent{}, &UpstreamBillingStatementRecord{}, &UpstreamBillingAttachment{}, &UpstreamBillingTaskLink{}); err != nil {
 		return err
 	}
 	if err := ensureChannelCostDiscountColumn(DB); err != nil {

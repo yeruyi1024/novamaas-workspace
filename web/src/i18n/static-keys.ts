@@ -36,6 +36,37 @@ export const STATIC_I18N_KEYS = [
   'Administration',
   'Other',
 
+  // Upstream usage evidence source descriptions
+  'Final task usage recovered through a reviewed historical task link.',
+  'Historical task link reviewed: task failed and its upstream cost was fully refunded. Usage does not apply.',
+  'Task failed and its upstream cost was fully refunded. Usage does not apply.',
+  'The source log has no task ID.',
+  'The matching task was not found.',
+  'Multiple matching tasks were found.',
+  'Task is awaiting a final result.',
+  'Task response usage data is invalid.',
+  'The task’s final usage evidence is missing.',
+  'Final task usage reported in seconds.',
+  'Final usage recorded by the task.',
+  'Refund adjustment; usage is not counted again.',
+  'Source usage log is missing.',
+  'Usage log metadata is invalid.',
+  'Saved usage values are invalid.',
+  'Usage recorded in the request log.',
+  'Usage reported by the upstream provider.',
+  'Usage estimated locally.',
+  'Estimated usage recorded for billing.',
+
+  // Upstream review permission catalog, audit events and server errors
+  'Financial management',
+  'Review upstream statements',
+  'Review, confirm, and archive upstream statements, with access to financial accounting.',
+  'Attachment uploaded',
+  'Attachment upload failed',
+  'Attachment upload expired',
+  'Choose a PDF, XLSX, CSV, PNG or JPEG attachment, no larger than 20 MiB.',
+  'Financial management permission is required to review statements or upload supplier evidence.',
+
   // Billing document branding errors
   'Unable to prepare PDF branding. Check the system Logo URL and Footer settings, then try again.',
 

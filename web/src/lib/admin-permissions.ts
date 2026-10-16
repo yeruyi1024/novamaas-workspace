@@ -26,6 +26,7 @@ export type AdminCapabilities = AdminPermissionMatrix
 export const ADMIN_PERMISSION_RESOURCES = {
   CHANNEL: 'channel',
   FINANCIAL_ACCOUNTING: 'financial_accounting',
+  FINANCIAL_MANAGEMENT: 'financial_management',
 } as const
 
 export const ADMIN_PERMISSION_ACTIONS = {
@@ -81,6 +82,17 @@ export function hasPermission(
 ): boolean {
   if (!user) return false
   if (user.role === ROLE.SUPER_ADMIN) return true
+  if (
+    resource === ADMIN_PERMISSION_RESOURCES.FINANCIAL_ACCOUNTING &&
+    action === ADMIN_PERMISSION_ACTIONS.VIEW
+  ) {
+    return (
+      user.permissions?.admin_permissions?.[resource]?.[action] === true ||
+      user.permissions?.admin_permissions?.[
+        ADMIN_PERMISSION_RESOURCES.FINANCIAL_MANAGEMENT
+      ]?.[ADMIN_PERMISSION_ACTIONS.VIEW] === true
+    )
+  }
   return user.permissions?.admin_permissions?.[resource]?.[action] === true
 }
 

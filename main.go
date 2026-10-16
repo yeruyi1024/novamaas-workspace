@@ -161,6 +161,7 @@ func main() {
 	}
 	service.StartSystemTaskRunner()
 	service.StartBillingStatementWorker()
+	service.StartUpstreamBillingStatementWorker()
 	storageService.StartCleanupTask()
 	assetLibraryService.StartAssetRequestLogWriter()
 	assetLibraryService.StartSyncTask()
