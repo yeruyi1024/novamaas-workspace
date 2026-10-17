@@ -3,6 +3,7 @@ package openai
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 
@@ -84,33 +85,61 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	var responseTextBuilder strings.Builder
 	imageCounter := &relaycommon.ImageGenerationCallCounter{}
 	imageCommitted := false
+	terminalReceived := false
+	clientWriteFailed := false
+	var nextSequenceNumber int64
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
-
-		// 检查当前数据是否包含 completed 状态和 usage 信息
-		var streamResponse dto.ResponsesStreamResponse
+		var streamResponse struct {
+			dto.ResponsesStreamResponse
+			SequenceNumber *int64 `json:"sequence_number"`
+		}
 		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
 			logger.LogError(c, "failed to unmarshal stream response: "+err.Error())
-			sr.Error(err)
+			sr.Stop(err)
 			return
 		}
-		sendResponsesStreamData(c, streamResponse, data)
+		if streamResponse.Type == "" {
+			sr.Stop(fmt.Errorf("Responses stream event is missing its type"))
+			return
+		}
+		if streamResponse.SequenceNumber != nil && *streamResponse.SequenceNumber >= nextSequenceNumber {
+			nextSequenceNumber = *streamResponse.SequenceNumber
+		}
+		if nextSequenceNumber < math.MaxInt64 {
+			nextSequenceNumber++
+		}
+
+		// Failed/incomplete responses may also carry authoritative usage. Keep it
+		// even if the stream ends before a completed event can arrive.
+		if streamResponse.Response != nil && streamResponse.Response.Usage != nil {
+			responseUsage := streamResponse.Response.Usage
+			if responseUsage.InputTokens != 0 || responseUsage.OutputTokens != 0 || responseUsage.TotalTokens != 0 {
+				if responseUsage.InputTokens != 0 {
+					usage.PromptTokens = responseUsage.InputTokens
+				}
+				if responseUsage.OutputTokens != 0 {
+					usage.CompletionTokens = responseUsage.OutputTokens
+				}
+				if responseUsage.TotalTokens != 0 {
+					usage.TotalTokens = responseUsage.TotalTokens
+				}
+				if responseUsage.InputTokensDetails != nil {
+					usage.PromptTokensDetails.CachedTokens = responseUsage.InputTokensDetails.CachedTokens
+					usage.PromptTokensDetails.CacheWriteTokens = responseUsage.InputTokensDetails.CacheWriteTokens
+				}
+			}
+		}
+		var terminalError error
 		switch streamResponse.Type {
 		case "response.completed", "response.done":
+			terminalReceived = true
 			if streamResponse.Response != nil {
-				if streamResponse.Response.Usage != nil {
-					if streamResponse.Response.Usage.InputTokens != 0 {
-						usage.PromptTokens = streamResponse.Response.Usage.InputTokens
-					}
-					if streamResponse.Response.Usage.OutputTokens != 0 {
-						usage.CompletionTokens = streamResponse.Response.Usage.OutputTokens
-					}
-					if streamResponse.Response.Usage.TotalTokens != 0 {
-						usage.TotalTokens = streamResponse.Response.Usage.TotalTokens
-					}
-					if streamResponse.Response.Usage.InputTokensDetails != nil {
-						usage.PromptTokensDetails.CachedTokens = streamResponse.Response.Usage.InputTokensDetails.CachedTokens
-						usage.PromptTokensDetails.CacheWriteTokens = streamResponse.Response.Usage.InputTokensDetails.CacheWriteTokens
+				var status string
+				if err := common.Unmarshal(streamResponse.Response.Status, &status); err == nil {
+					switch strings.ToLower(strings.TrimSpace(status)) {
+					case "failed", "cancelled", "canceled":
+						terminalError = fmt.Errorf("Responses stream ended with status %s", status)
 					}
 				}
 				if !imageCommitted {
@@ -131,7 +160,13 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 				imageCounter.Commit(info)
 				imageCommitted = true
 			}
-		case "response.failed", "response.incomplete", "response.cancelled", "response.canceled":
+		case "response.failed", "response.incomplete", "response.cancelled", "response.canceled", "response.error", "error":
+			terminalReceived = true
+			// Incomplete is a protocol terminal (e.g. max_output_tokens), not
+			// a transport failure. Preserve its details and finish the stream.
+			if streamResponse.Type != "response.incomplete" {
+				terminalError = fmt.Errorf("Responses stream ended with %s", streamResponse.Type)
+			}
 			if !imageCommitted {
 				imageCounter.Reset()
 				imageCounter.Commit(info)
@@ -156,7 +191,44 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 				}
 			}
 		}
+		if err := helper.ResponseChunkData(c, streamResponse.ResponsesStreamResponse, data); err != nil {
+			clientWriteFailed = true
+			if c.Request.Context().Err() != nil {
+				info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
+			}
+			sr.Stop(err)
+			return
+		}
+		if terminalError != nil {
+			sr.Stop(terminalError)
+		} else if terminalReceived {
+			sr.Done()
+		}
 	})
+
+	if !terminalReceived && !clientWriteFailed && c.Request.Context().Err() == nil &&
+		info.StreamStatus.EndReason != relaycommon.StreamEndReasonClientGone &&
+		info.StreamStatus.EndReason != relaycommon.StreamEndReasonPingFail {
+		// Transport EOF/[DONE] alone cannot complete a Responses response. Keep
+		// the transport reason for diagnostics and expose protocol failure in SSE.
+		message := "The upstream response stream ended before completion."
+		code := "upstream_stream_incomplete"
+		if info.StreamStatus.EndReason == relaycommon.StreamEndReasonTimeout {
+			code = "upstream_stream_timeout"
+			message = "The upstream response stream timed out before completion."
+		}
+		info.StreamStatus.RecordError("Responses stream ended without a terminal response event")
+		logger.LogError(c, "Responses stream ended without a terminal response event: "+info.StreamStatus.Summary())
+		if !c.Writer.Written() {
+			// A retry is safe only before any response bytes (including pings)
+			// have been sent. Restore the headers for a retry or JSON error.
+			helper.ResetEventStreamHeaders(c)
+			return nil, types.NewOpenAIError(fmt.Errorf("%s", message), types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+		}
+		if err := helper.WriteResponsesStreamError(c, code, message, nextSequenceNumber); err != nil {
+			info.StreamStatus.RecordError("failed to write Responses stream error: " + err.Error())
+		}
+	}
 
 	if usage.CompletionTokens == 0 {
 		// 计算输出文本的 token 数量

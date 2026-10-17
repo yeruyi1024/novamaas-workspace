@@ -115,6 +115,16 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if newAPIError != nil {
 			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(newAPIError.Error())))
 			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
+			// Streaming handlers own protocol errors once response bytes have
+			// been sent. Appending a JSON response would corrupt that stream.
+			if relayFormat != types.RelayFormatOpenAIRealtime {
+				if c.Writer.Written() {
+					return
+				}
+				// Upstream request setup may have prepared SSE headers before
+				// returning a non-stream HTTP error. Send that error as JSON.
+				helper.ResetEventStreamHeaders(c)
+			}
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
@@ -358,6 +368,11 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
 	if openaiErr == nil {
+		return false
+	}
+	// A new upstream attempt cannot replace output already delivered to the
+	// client, including an SSE heartbeat that committed the response headers.
+	if c.Writer.Written() || c.Request.Context().Err() != nil {
 		return false
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {

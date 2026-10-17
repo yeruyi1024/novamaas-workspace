@@ -86,6 +86,7 @@ func OaiResponsesToChatBufferedStreamHandler(c *gin.Context, info *relaycommon.R
 	accumulator := relayconvert.NewResponsesBufferedAccumulator()
 	var finalResponse *dto.OpenAIResponsesResponse
 	var streamErr *types.NewAPIError
+	terminalSeen := false
 
 	scanner := helper.NewStreamScanner(resp.Body)
 	scanner.Split(bufio.ScanLines)
@@ -110,18 +111,30 @@ func OaiResponsesToChatBufferedStreamHandler(c *gin.Context, info *relaycommon.R
 			break
 		}
 		accumulator.ProcessEvent(&streamResp)
+		if streamResp.Response != nil {
+			var status string
+			_ = common.Unmarshal(streamResp.Response.Status, &status)
+			if status == "failed" || status == "cancelled" || status == "canceled" {
+				streamErr = types.NewOpenAIError(fmt.Errorf("responses stream failed with status %s", status), types.ErrorCodeBadResponse, http.StatusBadGateway)
+				break
+			}
+		}
 		switch streamResp.Type {
 		case "response.completed", "response.done", "response.incomplete":
+			terminalSeen = true
 			finalResponse = streamResp.Response
-			if streamResp.Type == "response.incomplete" {
-				if finalResponse == nil {
-					finalResponse = &dto.OpenAIResponsesResponse{}
+			if finalResponse == nil {
+				finalResponse = &dto.OpenAIResponsesResponse{
+					ID: helper.GetResponseID(c), CreatedAt: int(time.Now().Unix()),
+					Model: info.UpstreamModelName, Status: []byte(`"completed"`),
 				}
-				if len(finalResponse.Status) == 0 {
+			}
+			if streamResp.Type == "response.incomplete" {
+				if streamResp.Response == nil || len(finalResponse.Status) == 0 {
 					finalResponse.Status = []byte(`"incomplete"`)
 				}
 			}
-		case "response.failed", "response.error":
+		case "error", "response.failed", "response.error", "response.cancelled", "response.canceled":
 			if streamResp.Response != nil {
 				if oaiErr := streamResp.Response.GetOpenAIError(); oaiErr != nil && oaiErr.Type != "" {
 					streamErr = types.WithOpenAIError(*oaiErr, http.StatusInternalServerError)
@@ -137,16 +150,11 @@ func OaiResponsesToChatBufferedStreamHandler(c *gin.Context, info *relaycommon.R
 	if streamErr != nil {
 		return nil, streamErr
 	}
-	if err := scanner.Err(); err != nil {
+	if err := scanner.Err(); err != nil && !terminalSeen {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
-	if finalResponse == nil {
-		finalResponse = &dto.OpenAIResponsesResponse{
-			ID:        helper.GetResponseID(c),
-			CreatedAt: int(time.Now().Unix()),
-			Model:     info.UpstreamModelName,
-			Status:    []byte(`"completed"`),
-		}
+	if !terminalSeen {
+		return nil, types.NewOpenAIError(fmt.Errorf("upstream responses stream ended before a terminal response"), types.ErrorCodeBadResponse, http.StatusBadGateway)
 	}
 	accumulator.SupplementResponseOutput(finalResponse)
 
@@ -203,6 +211,9 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	streamErr := (*types.NewAPIError)(nil)
+	clientWriteFailed := false
+	terminalSeen := false
+	var latestResponseUsage *dto.Usage
 
 	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo == nil {
 		info.ClaudeConvertInfo = &relaycommon.ClaudeConvertInfo{LastMessagesType: relaycommon.LastMessageTypeNone}
@@ -217,8 +228,11 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 			streamErr = types.NewOpenAIError(err, types.ErrorCodeJsonMarshalFailed, http.StatusInternalServerError)
 			return false
 		}
-		c.Render(-1, common.CustomEvent{Data: "data: " + string(geminiResponseStr)})
-		_ = helper.FlushWriter(c)
+		if err := helper.StringData(c, string(geminiResponseStr)); err != nil {
+			clientWriteFailed = true
+			streamErr = types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusBadGateway)
+			return false
+		}
 		return true
 	}
 
@@ -229,6 +243,7 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 				return true
 			}
 			if err := helper.ObjectData(c, &value); err != nil {
+				clientWriteFailed = true
 				streamErr = types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 				return false
 			}
@@ -238,12 +253,14 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 				return true
 			}
 			if err := helper.ObjectData(c, value); err != nil {
+				clientWriteFailed = true
 				streamErr = types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 				return false
 			}
 			return true
 		case dto.ClaudeResponse:
 			if err := helper.ClaudeData(c, value); err != nil {
+				clientWriteFailed = true
 				streamErr = types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 				return false
 			}
@@ -253,6 +270,7 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 				return true
 			}
 			if err := helper.ClaudeData(c, *value); err != nil {
+				clientWriteFailed = true
 				streamErr = types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 				return false
 			}
@@ -276,12 +294,33 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		var streamResp dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &streamResp); err != nil {
 			logger.LogError(c, "failed to unmarshal responses stream event: "+err.Error())
-			sr.Error(err)
+			streamErr = types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusBadGateway)
+			sr.Stop(streamErr)
 			return
 		}
 
-		if streamResp.Type == "response.error" || streamResp.Type == "response.failed" {
+		if streamResp.Response != nil {
+			candidate := relayconvert.UsageFromResponsesUsage(streamResp.Response.Usage)
+			if service.ValidUsage(candidate) {
+				latestResponseUsage = streamResp.Response.Usage
+			} else if latestResponseUsage != nil {
+				// Missing/zero terminal usage cannot erase an earlier snapshot.
+				streamResp.Response.Usage = latestResponseUsage
+			}
+		}
+
+		responseFailed := false
+		if streamResp.Response != nil {
+			var status string
+			_ = common.Unmarshal(streamResp.Response.Status, &status)
+			responseFailed = status == "failed" || status == "cancelled" || status == "canceled"
+		}
+		if responseFailed || streamResp.Type == "error" || streamResp.Type == "response.error" || streamResp.Type == "response.failed" ||
+			streamResp.Type == "response.cancelled" || streamResp.Type == "response.canceled" {
 			if streamResp.Response != nil {
+				if streamResp.Response.Usage != nil {
+					state.SetUsage(relayconvert.UsageFromResponsesUsage(streamResp.Response.Usage))
+				}
 				if oaiErr := streamResp.Response.GetOpenAIError(); oaiErr != nil && oaiErr.Type != "" {
 					streamErr = types.WithOpenAIError(*oaiErr, http.StatusInternalServerError)
 					sr.Stop(streamErr)
@@ -305,16 +344,37 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 				return
 			}
 		}
+		switch streamResp.Type {
+		case "response.completed", "response.done", "response.incomplete":
+			terminalSeen = true
+			sr.Done()
+		}
 	})
-
-	if streamErr != nil {
-		return nil, streamErr
-	}
 
 	usage := state.Usage()
 	if usage == nil || usage.TotalTokens == 0 {
 		usage = service.ResponseText2Usage(c, state.UsageText(), info.UpstreamModelName, info.GetEstimatePromptTokens())
 		state.SetUsage(usage)
+	}
+	if c.Request.Context().Err() != nil || clientWriteFailed || info.StreamStatus.EndReason == relaycommon.StreamEndReasonPingFail {
+		return usage, nil
+	}
+	if streamErr != nil || !terminalSeen {
+		if !info.StreamStatus.HasErrors() {
+			info.StreamStatus.RecordError("upstream responses stream ended before completion")
+		}
+		if !c.Writer.Written() {
+			helper.ResetEventStreamHeaders(c)
+			if streamErr != nil {
+				return nil, streamErr
+			}
+			return nil, types.NewOpenAIError(fmt.Errorf("upstream responses stream ended before completion"), types.ErrorCodeBadResponse, http.StatusBadGateway)
+		}
+		message := "The upstream stream ended before the response was complete."
+		if writeErr := writeTextStreamError(c, info, "upstream_stream_incomplete", message); writeErr != nil {
+			logger.LogError(c, "failed to write converted stream error: "+writeErr.Error())
+		}
+		return usage, nil
 	}
 
 	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo != nil {
@@ -322,21 +382,32 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 	}
 	finalResults, err := relayconvert.FinalizeStreamResponse(c, info, state)
 	if err != nil {
+		if c.Writer.Written() {
+			info.StreamStatus.RecordError(err.Error())
+			return usage, nil
+		}
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	for _, result := range finalResults {
 		if !sendStreamResult(result) {
+			if clientWriteFailed || c.Writer.Written() {
+				info.StreamStatus.RecordError(streamErr.Error())
+				return usage, nil
+			}
 			return nil, streamErr
 		}
 	}
 	if info.RelayFormat == types.RelayFormatOpenAI && info.ShouldIncludeUsage && usage != nil {
 		if err := helper.ObjectData(c, helper.GenerateFinalUsageResponse(responseId, createAt, info.UpstreamModelName, *usage)); err != nil {
-			return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
+			info.StreamStatus.RecordError(err.Error())
+			return usage, nil
 		}
 	}
 
 	if info.RelayFormat == types.RelayFormatOpenAI {
-		helper.Done(c)
+		if err := helper.StringData(c, "[DONE]"); err != nil {
+			info.StreamStatus.RecordError(err.Error())
+		}
 	}
 	return usage, nil
 }
