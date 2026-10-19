@@ -26,6 +26,9 @@ tiktoken_cache
 .gomodcache/
 .cache
 plans
+# Upstream assessment plans are durable, reviewed repository records.
+!/docs/upstream-sync/plans/
+!/docs/upstream-sync/plans/**
 .claude
 .cursor
 
