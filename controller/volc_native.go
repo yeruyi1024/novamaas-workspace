@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -157,7 +158,7 @@ func RelayVolcNativeTaskFetch(c *gin.Context) {
 	if !ok {
 		return
 	}
-	c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task))
+	c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task, volcNativeTaskIDCompat(task, map[int]bool{})))
 }
 
 // RelayVolcNativeTaskList deliberately lists locally owned tasks rather than
@@ -181,7 +182,7 @@ func RelayVolcNativeTaskList(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	items := make([]json.RawMessage, 0, pageSize)
+	pageTasks := make([]*model.Task, 0, pageSize)
 	total := 0
 	for rows.Next() {
 		task := &model.Task{}
@@ -201,14 +202,20 @@ func RelayVolcNativeTaskList(c *gin.Context) {
 		if filter := c.Query("filter.service_tier"); filter != "" && gjson.GetBytes(task.Data, "service_tier").String() != filter {
 			continue
 		}
-		if total >= offset && len(items) < pageSize {
-			items = append(items, buildVolcNativeTaskResponse(task))
+		if total >= offset && len(pageTasks) < pageSize {
+			pageTasks = append(pageTasks, task)
 		}
 		total++
 	}
 	if err := rows.Err(); err != nil {
 		respondVolcNativeError(c, http.StatusInternalServerError, "task_lookup_failed", "failed to list tasks")
 		return
+	}
+	rows.Close()
+	items := make([]json.RawMessage, 0, len(pageTasks))
+	compatByChannel := map[int]bool{}
+	for _, task := range pageTasks {
+		items = append(items, buildVolcNativeTaskResponse(task, volcNativeTaskIDCompat(task, compatByChannel)))
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items, "total": total})
 }
@@ -222,7 +229,7 @@ func RelayVolcNativeTaskDelete(c *gin.Context) {
 		return
 	}
 	if isVolcNativeTaskTerminal(task.Status) {
-		c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task))
+		c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task, volcNativeTaskIDCompat(task, map[int]bool{})))
 		return
 	}
 
@@ -302,7 +309,7 @@ func RelayVolcNativeTaskDelete(c *gin.Context) {
 	if isVolcNativeTaskTerminal(task.Status) {
 		storageService.ScheduleTaskCleanup(task.TaskID, common.GetTimestamp())
 	}
-	c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task))
+	c.Data(http.StatusOK, "application/json", buildVolcNativeTaskResponse(task, volcNativeTaskIDCompat(task, map[int]bool{})))
 }
 
 func getVolcNativeTask(c *gin.Context) (*model.Task, bool) {
@@ -349,26 +356,46 @@ func volcNativeRequestBody(c *gin.Context) ([]byte, error) {
 	return body, nil
 }
 
-func buildVolcNativeTaskResponse(task *model.Task) []byte {
+func volcNativeTaskIDCompat(task *model.Task, cache map[int]bool) bool {
+	if enabled, ok := cache[task.ChannelId]; ok {
+		return enabled
+	}
+	enabled := false
+	if channel, err := model.CacheGetChannel(task.ChannelId); err == nil && channel != nil {
+		enabled = channel.GetOtherSettings().ReturnTaskIDCompat
+	}
+	cache[task.ChannelId] = enabled
+	return enabled
+}
+
+func buildVolcNativeTaskResponse(task *model.Task, taskIDCompat bool) []byte {
+	var body []byte
 	if status := gjson.GetBytes(task.Data, "status"); status.Exists() {
-		if body, err := sjson.SetBytes(task.Data, "id", task.TaskID); err == nil {
-			if body, err = sjson.SetBytes(body, "status", volcNativeTaskStatus(task)); err == nil {
-				if task.Properties.OriginModelName == "" || task.Properties.UpstreamModelName == "" || task.Properties.OriginModelName == task.Properties.UpstreamModelName {
-					return body
-				}
-				if body, err = helper.RestoreOriginalModelInJSONBody(body, task.Properties.OriginModelName); err == nil {
-					return body
-				}
-			}
+		patched, err := sjson.SetBytes(task.Data, "id", task.TaskID)
+		if err == nil {
+			patched, err = sjson.SetBytes(patched, "status", volcNativeTaskStatus(task))
+		}
+		if err == nil && task.Properties.OriginModelName != "" && task.Properties.UpstreamModelName != "" && task.Properties.OriginModelName != task.Properties.UpstreamModelName {
+			patched, err = helper.RestoreOriginalModelInJSONBody(patched, task.Properties.OriginModelName)
+		}
+		if err == nil {
+			body = patched
 		}
 	}
-	body, err := common.Marshal(gin.H{
-		"id":         task.TaskID,
-		"model":      volcNativeTaskModel(task),
-		"status":     volcNativeTaskStatus(task),
-		"created_at": task.CreatedAt,
-		"updated_at": task.UpdatedAt,
-	})
+	if body == nil {
+		synthesized, err := common.Marshal(gin.H{
+			"id":         task.TaskID,
+			"model":      volcNativeTaskModel(task),
+			"status":     volcNativeTaskStatus(task),
+			"created_at": task.CreatedAt,
+			"updated_at": task.UpdatedAt,
+		})
+		if err != nil {
+			return []byte(`{"status":"queued"}`)
+		}
+		body = synthesized
+	}
+	body, err := taskcommon.ApplyTaskIDCompat(body, task.TaskID, taskIDCompat)
 	if err != nil {
 		return []byte(`{"status":"queued"}`)
 	}

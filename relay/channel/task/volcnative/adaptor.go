@@ -156,8 +156,9 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 
 // DoResponse replaces the upstream task id with NewAPI's public id and restores
 // the public model alias after a mapping. The upstream id remains private in
-// Task.PrivateData and is never returned to the caller; all other response
-// fields are forwarded as received.
+// Task.PrivateData and is never returned to the caller; an upstream task_id is
+// removed (or set to the public id when the channel enables
+// return_task_id_compat). All other response fields are forwarded as received.
 func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (string, []byte, *dto.TaskError) {
 	if resp == nil || resp.Body == nil {
 		return "", nil, taskError(fmt.Errorf("upstream response is empty"), "invalid_response", http.StatusBadGateway)
@@ -173,6 +174,10 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		return "", nil, taskError(fmt.Errorf("upstream task id is empty"), "invalid_response", http.StatusBadGateway)
 	}
 	clientBody, err := sjson.SetBytes(body, "id", info.PublicTaskID)
+	if err != nil {
+		return "", nil, taskError(err, "patch_response_failed", http.StatusInternalServerError)
+	}
+	clientBody, err = taskcommon.ApplyTaskIDCompat(clientBody, info.PublicTaskID, info.ChannelMeta != nil && info.ChannelOtherSettings.ReturnTaskIDCompat)
 	if err != nil {
 		return "", nil, taskError(err, "patch_response_failed", http.StatusInternalServerError)
 	}

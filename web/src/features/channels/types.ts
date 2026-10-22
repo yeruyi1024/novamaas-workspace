@@ -105,6 +105,7 @@ export interface ChannelOtherSettings {
   allow_speed?: boolean
   claude_beta_query?: boolean
   disable_task_polling_sleep?: boolean
+  return_task_id_compat?: boolean
   base64_staging?: {
     enabled?: boolean
     storage_policy?: string

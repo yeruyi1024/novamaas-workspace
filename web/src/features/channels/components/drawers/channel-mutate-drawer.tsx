@@ -308,6 +308,7 @@ const SENSITIVE_FORM_FIELDS = [
   'allow_speed',
   'claude_beta_query',
   'disable_task_polling_sleep',
+  'return_task_id_compat',
   'base64_staging_enabled',
   'base64_staging_models',
   'upstream_model_update_check_enabled',
@@ -4338,6 +4339,33 @@ export function ChannelMutateDrawer({
                                   </FormItem>
                                 )}
                               />
+
+                              {currentType === CHANNEL_TYPE_VOLC_NATIVE && (
+                                <FormField
+                                  control={form.control}
+                                  name='return_task_id_compat'
+                                  render={({ field }) => (
+                                    <FormItem className='flex items-center justify-between gap-4 px-4 py-3'>
+                                      <div className='space-y-0.5'>
+                                        <FormLabel>
+                                          {t('Return task_id compatibility field')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                          {t(
+                                            'Add a task_id field equal to the platform id in video task responses for legacy clients. When off, task_id is removed from responses.'
+                                          )}
+                                        </FormDescription>
+                                      </div>
+                                      <FormControl>
+                                        <Switch
+                                          checked={field.value === true}
+                                          onCheckedChange={field.onChange}
+                                        />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
 
                               {supportsBase64Staging && (
                                 <>

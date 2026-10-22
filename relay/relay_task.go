@@ -21,6 +21,8 @@ import (
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 type TaskSubmitResult struct {
@@ -374,7 +376,7 @@ func sunoFetchRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *dto.Ta
 			return
 		}
 		for _, task := range taskModels {
-			tasks = append(tasks, TaskModel2Dto(task))
+			tasks = append(tasks, TokenFacingTaskDto(task))
 		}
 	} else {
 		tasks = make([]any, 0)
@@ -402,7 +404,7 @@ func sunoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *dt
 
 	respBody, err = common.Marshal(dto.TaskResponse[any]{
 		Code: "success",
-		Data: TaskModel2Dto(originTask),
+		Data: TokenFacingTaskDto(originTask),
 	})
 	return
 }
@@ -462,7 +464,7 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 	// 通用 TaskDto 格式
 	respBody, err = common.Marshal(dto.TaskResponse[any]{
 		Code: "success",
-		Data: TaskModel2Dto(originTask),
+		Data: TokenFacingTaskDto(originTask),
 	})
 	if err != nil {
 		taskResp = service.TaskErrorWrapper(err, "marshal_response_failed", http.StatusInternalServerError)
@@ -613,6 +615,31 @@ func mapTaskStatusToSimple(status model.TaskStatus) string {
 	default:
 		return "processing"
 	}
+}
+
+// TokenFacingTaskDto is TaskModel2Dto for API-token callers: a stored upstream
+// body whose top-level id/task_id equals the private upstream task id is
+// rewritten to the platform id so the upstream id is never exposed.
+func TokenFacingTaskDto(task *model.Task) *dto.TaskDto {
+	result := TaskModel2Dto(task)
+	upstreamID := task.GetUpstreamTaskID()
+	if upstreamID == "" || upstreamID == task.TaskID || len(result.Data) == 0 {
+		return result
+	}
+	data := []byte(result.Data)
+	for _, key := range []string{"id", "task_id"} {
+		value := gjson.GetBytes(data, key)
+		if value.Type != gjson.String || value.String() != upstreamID {
+			continue
+		}
+		patched, err := sjson.SetBytes(data, key, task.TaskID)
+		if err != nil {
+			continue
+		}
+		data = patched
+	}
+	result.Data = data
+	return result
 }
 
 func TaskModel2Dto(task *model.Task) *dto.TaskDto {

@@ -120,6 +120,7 @@ type ChannelOtherSettings struct {
 	UpstreamModelUpdateIgnoredModels      []string                 `json:"upstream_model_update_ignored_models,omitempty"`       // 手动忽略的模型
 	AdvancedCustom                        *AdvancedCustomConfig    `json:"advanced_custom,omitempty"`
 	Base64Staging                         *Base64StagingSettings   `json:"base64_staging,omitempty"`
+	ReturnTaskIDCompat                    bool                     `json:"return_task_id_compat,omitempty"` // 视频任务响应附带 task_id（等于平台 id）兼容旧客户端；关闭时移除该字段
 }
 
 func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {

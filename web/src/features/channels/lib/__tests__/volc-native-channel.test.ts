@@ -25,6 +25,7 @@ import {
 } from '../../constants'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
+  transformChannelToFormDefaults,
   transformFormDataToCreatePayload,
 } from '../channel-form'
 import { getChannelTypeConfig, getDefaultBaseUrl } from '../channel-type-config'
@@ -88,5 +89,62 @@ describe('Volc Native channel', () => {
     expect(
       JSON.parse(String(nonVolcResult.channel.settings))
     ).not.toHaveProperty('base64_staging')
+  })
+  test('serializes return_task_id_compat only for Volc Native when on', () => {
+    const base = {
+      ...CHANNEL_FORM_DEFAULT_VALUES,
+      name: 'ch',
+      key: 'test-key',
+      models: 'm',
+      group: ['default'],
+    }
+    const settingsOf = (type: number, value?: boolean) =>
+      JSON.parse(
+        String(
+          transformFormDataToCreatePayload({
+            ...base,
+            type,
+            return_task_id_compat: value,
+          }).channel.settings
+        )
+      )
+
+    expect(settingsOf(CHANNEL_TYPE_VOLC_NATIVE, true)).toMatchObject({
+      return_task_id_compat: true,
+      disable_task_polling_sleep: false,
+    })
+    expect(settingsOf(CHANNEL_TYPE_VOLC_NATIVE, false)).not.toHaveProperty(
+      'return_task_id_compat'
+    )
+    expect(settingsOf(CHANNEL_TYPE_VOLC_NATIVE)).not.toHaveProperty(
+      'return_task_id_compat'
+    )
+    expect(settingsOf(1, true)).not.toHaveProperty('return_task_id_compat')
+  })
+
+  test('deserializes return_task_id_compat and keeps legacy settings', () => {
+    const defaultsOf = (settings: string) =>
+      transformChannelToFormDefaults({
+        id: 1,
+        name: 'volc',
+        type: CHANNEL_TYPE_VOLC_NATIVE,
+        key: '',
+        models: 'm',
+        group: 'default',
+        setting: '',
+        settings,
+        channel_info: {},
+      } as unknown as Parameters<typeof transformChannelToFormDefaults>[0])
+
+    const on = defaultsOf(
+      '{"return_task_id_compat":true,"disable_task_polling_sleep":true}'
+    )
+    expect(on.return_task_id_compat).toBe(true)
+    expect(on.disable_task_polling_sleep).toBe(true)
+    expect(
+      defaultsOf('{"return_task_id_compat":false}').return_task_id_compat
+    ).toBe(false)
+    expect(defaultsOf('{}').return_task_id_compat).toBe(false)
+    expect(defaultsOf('').return_task_id_compat).toBe(false)
   })
 })

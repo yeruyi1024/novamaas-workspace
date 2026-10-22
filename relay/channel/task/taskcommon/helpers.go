@@ -12,7 +12,18 @@ import (
 	storageService "github.com/QuantumNous/new-api/service/storage"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/sjson"
 )
+
+// ApplyTaskIDCompat normalizes the optional top-level task_id of a passthrough
+// task response. Enabled sets it to the platform id; disabled removes it so an
+// upstream-supplied task_id can never reach the caller.
+func ApplyTaskIDCompat(body []byte, publicTaskID string, enabled bool) ([]byte, error) {
+	if enabled {
+		return sjson.SetBytes(body, "task_id", publicTaskID)
+	}
+	return sjson.DeleteBytes(body, "task_id")
+}
 
 // UnmarshalMetadata converts a map[string]any metadata to a typed struct via JSON round-trip.
 // This replaces the repeated pattern: json.Marshal(metadata) → json.Unmarshal(bytes, &target).

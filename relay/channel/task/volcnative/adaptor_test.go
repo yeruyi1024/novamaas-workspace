@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 func TestVolcNativeSeedance20RequestResolutionAndVideoBilling(t *testing.T) {
@@ -271,5 +272,46 @@ func TestVolcNativePollingRecognizesTerminalStates(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, string(model.TaskStatusFailure), result.Status)
 		assert.Equal(t, status, result.Reason)
+	}
+}
+
+func TestTaskAdaptorDoResponseTaskIDCompatSwitch(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cases := []struct {
+		name     string
+		raw      string
+		compat   bool
+		wantTask string
+	}{
+		{name: "unconfigured removes different task_id", raw: `{"id":"upstream-id","task_id":"other-upstream-id","status":"queued"}`, wantTask: ""},
+		{name: "off removes different task_id", raw: `{"id":"upstream-id","task_id":"other-upstream-id","status":"queued"}`, wantTask: ""},
+		{name: "on sets task_id to platform id", raw: `{"id":"upstream-id","task_id":"other-upstream-id","status":"queued"}`, compat: true, wantTask: "task_public_id"},
+		{name: "on adds task_id when absent", raw: `{"id":"upstream-id","status":"queued"}`, compat: true, wantTask: "task_public_id"},
+		{name: "off with id only stays id only", raw: `{"id":"upstream-id","status":"queued"}`, wantTask: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tc.raw))}
+			info := &relaycommon.RelayInfo{
+				TaskRelayInfo: &relaycommon.TaskRelayInfo{PublicTaskID: "task_public_id"},
+				ChannelMeta: &relaycommon.ChannelMeta{
+					ChannelOtherSettings: relaykitdto.ChannelOtherSettings{ReturnTaskIDCompat: tc.compat},
+				},
+			}
+
+			upstreamID, stored, taskErr := (&TaskAdaptor{}).DoResponse(ctx, resp, info)
+
+			require.Nil(t, taskErr)
+			assert.Equal(t, "upstream-id", upstreamID)
+			assert.Equal(t, tc.raw, string(stored))
+			body := recorder.Body.String()
+			assert.Equal(t, "task_public_id", gjson.Get(body, "id").String())
+			assert.Equal(t, "queued", gjson.Get(body, "status").String())
+			assert.NotContains(t, body, "upstream-id")
+			assert.Equal(t, tc.wantTask != "", gjson.Get(body, "task_id").Exists())
+			assert.Equal(t, tc.wantTask, gjson.Get(body, "task_id").String())
+		})
 	}
 }

@@ -27,7 +27,7 @@ func TestBuildVolcNativeTaskResponseReplacesUpstreamTaskID(t *testing.T) {
 		Data:   []byte(`{"id":"upstream-task-id","status":"running","watermark":false}`),
 	}
 
-	body := buildVolcNativeTaskResponse(task)
+	body := buildVolcNativeTaskResponse(task, false)
 
 	require.Equal(t, "task_public_id", gjson.GetBytes(body, "id").String())
 	require.NotContains(t, string(body), "upstream-task-id")
@@ -43,7 +43,7 @@ func TestBuildVolcNativeTaskResponseSynthesizesPendingTask(t *testing.T) {
 		},
 	}
 
-	body := buildVolcNativeTaskResponse(task)
+	body := buildVolcNativeTaskResponse(task, false)
 
 	require.Equal(t, "task_public_id", gjson.GetBytes(body, "id").String())
 	require.Equal(t, "doubao-seedance-2-0-260128", gjson.GetBytes(body, "model").String())
@@ -61,7 +61,7 @@ func TestBuildVolcNativeTaskResponseRestoresMappedAlias(t *testing.T) {
 		Data: []byte(`{"id":"upstream-task-id","status":"running","model":"doubao-seedance-2-0-260128","watermark":false}`),
 	}
 
-	body := buildVolcNativeTaskResponse(task)
+	body := buildVolcNativeTaskResponse(task, false)
 
 	require.Equal(t, "task_public_id", gjson.GetBytes(body, "id").String())
 	require.Equal(t, "public-seedance", gjson.GetBytes(body, "model").String())
@@ -72,7 +72,7 @@ func TestBuildVolcNativeTaskResponseRestoresMappedAlias(t *testing.T) {
 func TestVolcNativeResponseUsesDurableTerminalState(t *testing.T) {
 	for _, status := range []string{"cancelled", "expired"} {
 		task := &model.Task{TaskID: "task_public", Status: model.TaskStatusFailure, FailReason: status, Data: []byte(`{"id":"upstream-id","status":"running","watermark":false}`)}
-		body := buildVolcNativeTaskResponse(task)
+		body := buildVolcNativeTaskResponse(task, false)
 		require.Equal(t, status, gjson.GetBytes(body, "status").String())
 		require.Equal(t, "task_public", gjson.GetBytes(body, "id").String())
 		require.Contains(t, string(body), `"watermark":false`)
@@ -239,4 +239,120 @@ func TestVolcNativeCancelReusesSubmissionKeyAndRefundsOnce(t *testing.T) {
 	var storedTask model.Task
 	require.NoError(t, db.First(&storedTask, task.ID).Error)
 	assert.Zero(t, storedTask.Quota)
+}
+
+func TestBuildVolcNativeTaskResponseTaskIDCompat(t *testing.T) {
+	stored := &model.Task{
+		TaskID: "task_public_id",
+		Data:   []byte(`{"id":"upstream-task-id","task_id":"other-upstream-id","status":"running"}`),
+	}
+	legacyID := &model.Task{
+		TaskID: "task_public_id",
+		Data:   []byte(`{"id":"upstream-task-id","status":"running"}`),
+	}
+	pending := &model.Task{TaskID: "task_public_id"}
+
+	off := buildVolcNativeTaskResponse(stored, false)
+	assert.Equal(t, "task_public_id", gjson.GetBytes(off, "id").String())
+	assert.False(t, gjson.GetBytes(off, "task_id").Exists())
+	assert.NotContains(t, string(off), "upstream")
+
+	on := buildVolcNativeTaskResponse(stored, true)
+	assert.Equal(t, "task_public_id", gjson.GetBytes(on, "id").String())
+	assert.Equal(t, "task_public_id", gjson.GetBytes(on, "task_id").String())
+	assert.NotContains(t, string(on), "upstream")
+
+	assert.False(t, gjson.GetBytes(buildVolcNativeTaskResponse(legacyID, false), "task_id").Exists())
+	assert.Equal(t, "task_public_id", gjson.GetBytes(buildVolcNativeTaskResponse(legacyID, true), "task_id").String())
+	assert.False(t, gjson.GetBytes(buildVolcNativeTaskResponse(pending, false), "task_id").Exists())
+	assert.Equal(t, "task_public_id", gjson.GetBytes(buildVolcNativeTaskResponse(pending, true), "task_id").String())
+}
+
+func TestVolcNativeRoutesApplyChannelTaskIDCompat(t *testing.T) {
+	db := setupVolcNativeControllerTest(t)
+	cases := []struct {
+		name     string
+		settings string
+		wantTask string
+	}{
+		{name: "unconfigured", settings: ""},
+		{name: "empty settings", settings: "{}"},
+		{name: "off keeps legacy fields", settings: `{"return_task_id_compat":false,"disable_task_polling_sleep":true}`},
+		{name: "on keeps legacy fields", settings: `{"return_task_id_compat":true,"disable_task_polling_sleep":true}`, wantTask: "on"},
+	}
+	engine := gin.New()
+	engine.Use(func(c *gin.Context) { c.Set("id", 1) })
+	engine.GET("/api/v3/contents/generations/tasks", RelayVolcNativeTaskList)
+	engine.GET("/api/v3/contents/generations/tasks/:task_id", RelayVolcNativeTaskFetch)
+	engine.DELETE("/api/v3/contents/generations/tasks/:task_id", RelayVolcNativeTaskDelete)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := &model.Channel{Type: constant.ChannelTypeVolcNative, Key: "k", OtherSettings: tc.settings}
+			require.NoError(t, db.Create(ch).Error)
+			publicID := "task_" + strings.ReplaceAll(tc.name, " ", "_")
+			upstreamID := "upstream-" + publicID
+			require.NoError(t, db.Create(&model.Task{
+				TaskID: publicID, UserId: 1, ChannelId: ch.Id, Platform: volcNativeTaskPlatform,
+				Status: model.TaskStatusInProgress, Properties: model.Properties{OriginModelName: "seedance"},
+				Data:        []byte(`{"id":"` + upstreamID + `","task_id":"other-` + upstreamID + `","status":"running","watermark":false}`),
+				PrivateData: model.TaskPrivateData{UpstreamTaskID: upstreamID},
+			}).Error)
+			require.NoError(t, db.Create(&model.Task{
+				TaskID: publicID + "_done", UserId: 1, ChannelId: ch.Id, Platform: volcNativeTaskPlatform,
+				Status: model.TaskStatusFailure, FailReason: volcNativeCancelReason,
+				Data:        []byte(`{"id":"term-` + upstreamID + `","task_id":"other-term","status":"running"}`),
+				PrivateData: model.TaskPrivateData{UpstreamTaskID: "term-" + upstreamID},
+			}).Error)
+
+			check := func(t *testing.T, body string, id string) {
+				assert.Equal(t, id, gjson.Get(body, "id").String())
+				assert.NotContains(t, body, "upstream")
+				assert.NotContains(t, body, "other-")
+				assert.NotContains(t, body, "term-")
+				assert.Equal(t, tc.wantTask != "", gjson.Get(body, "task_id").Exists())
+				if tc.wantTask != "" {
+					assert.Equal(t, id, gjson.Get(body, "task_id").String())
+				}
+			}
+
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v3/contents/generations/tasks/"+publicID, nil))
+			require.Equal(t, http.StatusOK, recorder.Code)
+			check(t, recorder.Body.String(), publicID)
+			assert.False(t, gjson.Get(recorder.Body.String(), "watermark").Bool())
+
+			recorder = httptest.NewRecorder()
+			engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v3/contents/generations/tasks/"+upstreamID, nil))
+			assert.Equal(t, http.StatusNotFound, recorder.Code)
+			assert.NotContains(t, recorder.Body.String(), "upstream")
+
+			recorder = httptest.NewRecorder()
+			engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v3/contents/generations/tasks?page_size=100&filter.status=running", nil))
+			require.Equal(t, http.StatusOK, recorder.Code)
+			found := false
+			for _, item := range gjson.Get(recorder.Body.String(), "items").Array() {
+				if item.Get("id").String() == publicID {
+					found = true
+					check(t, item.Raw, publicID)
+				}
+			}
+			assert.True(t, found)
+
+			recorder = httptest.NewRecorder()
+			engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/api/v3/contents/generations/tasks/"+publicID+"_done", nil))
+			require.Equal(t, http.StatusOK, recorder.Code)
+			check(t, recorder.Body.String(), publicID+"_done")
+			assert.Equal(t, volcNativeCancelReason, gjson.Get(recorder.Body.String(), "status").String())
+
+			var stored model.Task
+			require.NoError(t, db.Where("task_id = ?", publicID).First(&stored).Error)
+			assert.Equal(t, upstreamID, stored.GetUpstreamTaskID())
+			assert.Contains(t, string(stored.Data), "other-"+upstreamID)
+			var storedChannel model.Channel
+			require.NoError(t, db.First(&storedChannel, ch.Id).Error)
+			assert.Equal(t, tc.settings, storedChannel.OtherSettings)
+			assert.Equal(t, tc.wantTask != "", storedChannel.GetOtherSettings().ReturnTaskIDCompat)
+		})
+	}
 }

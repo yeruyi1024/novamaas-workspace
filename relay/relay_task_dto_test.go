@@ -140,3 +140,32 @@ func TestVideoFetchByIDRefreshesAliTaskFromUpstream(t *testing.T) {
 	require.NoError(t, db.First(&reloaded, task.ID).Error)
 	assert.Equal(t, model.TaskStatus(model.TaskStatusInProgress), reloaded.Status, "the polling service must retain ownership of terminal settlement")
 }
+
+func TestTokenFacingTaskDtoReplacesUpstreamIDInStoredData(t *testing.T) {
+	task := &model.Task{
+		TaskID:      "task_public_id",
+		PrivateData: model.TaskPrivateData{UpstreamTaskID: "upstream-id"},
+		Data:        []byte(`{"id":"upstream-id","task_id":"upstream-id","other":"keep","nested":{"id":"upstream-id"}}`),
+	}
+
+	result := TokenFacingTaskDto(task)
+
+	assert.Equal(t, "task_public_id", gjson.GetBytes(result.Data, "id").String())
+	assert.Equal(t, "task_public_id", gjson.GetBytes(result.Data, "task_id").String())
+	assert.Equal(t, "keep", gjson.GetBytes(result.Data, "other").String())
+	assert.Equal(t, "upstream-id", gjson.GetBytes(result.Data, "nested.id").String())
+	assert.Equal(t, "task_public_id", result.TaskID)
+	assert.Contains(t, string(task.Data), `"id":"upstream-id"`)
+}
+
+func TestTokenFacingTaskDtoLeavesUnrelatedAndLegacyDataUntouched(t *testing.T) {
+	legacy := &model.Task{TaskID: "legacy-id", Data: []byte(`{"id":"legacy-id","status":"ok"}`)}
+	assert.JSONEq(t, `{"id":"legacy-id","status":"ok"}`, string(TokenFacingTaskDto(legacy).Data))
+
+	other := &model.Task{
+		TaskID:      "task_public_id",
+		PrivateData: model.TaskPrivateData{UpstreamTaskID: "upstream-id"},
+		Data:        []byte(`{"id":"something-else","status":"ok"}`),
+	}
+	assert.JSONEq(t, `{"id":"something-else","status":"ok"}`, string(TokenFacingTaskDto(other).Data))
+}

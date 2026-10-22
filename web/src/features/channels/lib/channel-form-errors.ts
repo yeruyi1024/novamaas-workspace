@@ -52,6 +52,7 @@ const ADVANCED_SETTINGS_FIELDS = new Set<FieldPath<ChannelFormValues>>([
   'allow_speed',
   'claude_beta_query',
   'disable_task_polling_sleep',
+  'return_task_id_compat',
   'base64_staging_enabled',
   'base64_staging_models',
   'upstream_model_update_check_enabled',
