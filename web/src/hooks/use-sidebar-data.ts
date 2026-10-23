@@ -39,6 +39,7 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
+import { useAdminManualAccess } from '@/features/admin-manual/use-admin-manual-access'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -49,6 +50,7 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const manual = useAdminManualAccess()
 
   return {
     navGroups: [
@@ -131,6 +133,16 @@ export function useSidebarData(): SidebarData {
         id: 'admin',
         title: t('Admin'),
         items: [
+          ...(manual.available
+            ? [
+                {
+                  title: t('Platform integration guide'),
+                  url: '/admin-manual' as const,
+                  icon: FileText,
+                  requiredRole: ROLE.ADMIN,
+                },
+              ]
+            : []),
           {
             title: t('Channels'),
             url: '/channels',
