@@ -23,6 +23,7 @@ import {
   AssetSyncManagement,
   StorageManagement,
 } from '@/features/system-settings/storage'
+import { ImageStudioStorageSettings } from '@/features/system-settings/storage/image-studio-storage-settings'
 import {
   STORAGE_DEFAULT_SECTION,
   STORAGE_SECTION_IDS,
@@ -46,5 +47,6 @@ function StorageSection() {
   const { section } = Route.useParams()
   if (section === 'asset-library') return <AssetLibrarySettings />
   if (section === 'asset-sync') return <AssetSyncManagement />
+  if (section === 'image-studio') return <ImageStudioStorageSettings />
   return <StorageManagement />
 }

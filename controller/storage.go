@@ -10,11 +10,40 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
 	storageService "github.com/QuantumNous/new-api/service/storage"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+func GetImageStudioStoragePolicies(c *gin.Context) {
+	policies := make([]*model.StoragePolicy, 0, 2)
+	for _, purpose := range []string{model.StorageObjectPurposeImageStudio, model.StorageObjectPurposeImageStudioReference} {
+		policy, err := storageService.GetImageStudioPolicy(purpose)
+		if err != nil {
+			storageAPIError(c, http.StatusInternalServerError, err)
+			return
+		}
+		policies = append(policies, policy)
+	}
+	common.ApiSuccess(c, policies)
+}
+
+func UpdateImageStudioStoragePolicy(c *gin.Context) {
+	var input storageService.PolicyInput
+	if err := common.DecodeJson(http.MaxBytesReader(c.Writer, c.Request.Body, 8192), &input); err != nil {
+		storageAPIError(c, http.StatusBadRequest, errors.New("invalid image studio storage policy"))
+		return
+	}
+	policy, err := storageService.SaveImageStudioPolicy(c.Param("purpose"), input)
+	if err != nil {
+		storageAPIError(c, storageAPIStatus(err, http.StatusBadRequest), err)
+		return
+	}
+	recordManageAudit(c, "storage.policy_update", map[string]interface{}{"key": policy.Key, "profile_id": policy.StorageProfileID, "enabled": policy.Enabled})
+	common.ApiSuccess(c, policy)
+}
 
 func ListStorageProfiles(c *gin.Context) {
 	profiles, err := storageService.ListProfiles()

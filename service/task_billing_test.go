@@ -1323,3 +1323,13 @@ func TestSettle_NonPerCallBilling_AppliesAdaptorAdjustment(t *testing.T) {
 	require.NotNil(t, log)
 	assert.Equal(t, model.LogTypeRefund, log.Type)
 }
+
+func TestImageSnapshotAvailabilityInConsumeLog(t *testing.T) {
+	for _, stored := range []bool{false, true} {
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		common.SetContextKey(ctx, constant.ContextKeyRequestSnapshotStored, stored)
+		other := GenerateTextOtherInfo(ctx, &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}}, 1, 1, 1, 0, 0, 0, 1)
+		assert.Equal(t, stored, other["request_body_available"] == true)
+		assert.Equal(t, float64(1), other["model_ratio"])
+	}
+}

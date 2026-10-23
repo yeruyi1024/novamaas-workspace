@@ -12,7 +12,8 @@ var (
 	ImageGenerationModels = []string{
 		"dall-e-3",
 		"dall-e-2",
-		"gpt-image-1",
+		"gpt-image-",
+		"seedream",
 		"prefix:imagen-",
 		"flux-",
 		"flux.1-",

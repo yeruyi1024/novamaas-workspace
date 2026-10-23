@@ -244,6 +244,7 @@ export interface LogOtherData {
   is_task?: boolean
   task_id?: string
   request_body_available?: boolean
+  // Authz resource required to read the archived snapshot, when restricted.
   request_body_ref?: string
   request_body?: unknown
   temporary_media_converted?: boolean

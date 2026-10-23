@@ -14,6 +14,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"gorm.io/gorm"
 )
 
 func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID string, assetPublicID string, fileName string, contentType string, size int64, body io.Reader) (*model.StorageObject, error) {
@@ -98,6 +99,12 @@ func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, 
 	if err := model.DB.Where("id = ? AND purpose = ? AND status = ?", objectID, model.StorageObjectPurposeAssetLibrary, model.StorageObjectStatusUploaded).First(&object).Error; err != nil {
 		return "", err
 	}
+	return presignPermanentObject(ctx, &object, ttl, mode, downloadName)
+}
+
+// presignPermanentObject signs an already authorized asset or generated image
+// using the same storage credentials, thumbnail options and download naming.
+func presignPermanentObject(ctx context.Context, object *model.StorageObject, ttl time.Duration, mode AssetObjectURLMode, downloadName string) (string, error) {
 	profile, err := model.GetStorageProfileByID(object.StorageProfileID)
 	if err != nil || profile == nil {
 		return "", fmt.Errorf("asset storage profile is unavailable")
@@ -111,11 +118,25 @@ func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, 
 		return "", err
 	}
 	if ttl <= 0 {
-		policy, policyErr := model.GetStoragePolicyByKey(model.StoragePolicyAssetLibrary)
+		var policy *model.StoragePolicy
+		var policyErr error
+		if object.StoragePolicyID > 0 {
+			policy = &model.StoragePolicy{}
+			policyErr = model.DB.First(policy, object.StoragePolicyID).Error
+		} else {
+			policy, policyErr = model.GetStoragePolicyByKey(model.StoragePolicyAssetLibrary)
+		}
 		if policyErr != nil || policy == nil {
 			return "", fmt.Errorf("asset storage policy is unavailable")
 		}
 		ttl = policySignedURLTTL(policy)
+	}
+	if object.DeleteAfter > 0 {
+		remaining := time.Duration(object.DeleteAfter-common.GetTimestamp()) * time.Second
+		if remaining <= 0 {
+			return "", gorm.ErrRecordNotFound
+		}
+		ttl = min(ttl, remaining)
 	}
 	options := ObjectGetOptions{}
 	switch mode {

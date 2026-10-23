@@ -12,6 +12,7 @@ import (
 	"time"
 
 	common2 "github.com/QuantumNous/new-api/common"
+	rootconstant "github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/constant"
@@ -488,6 +489,24 @@ func keepUpstreamRedirectResponse(_ *http.Request, _ []*http.Request) error {
 }
 
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	if value, ok := common2.GetContextKey(c, rootconstant.ContextKeyUpstreamRequestRecorder); ok {
+		record, _ := value.(common.UpstreamRequestRecorder)
+		if record == nil || req.GetBody == nil {
+			return nil, errors.New("upstream request cannot be replayed for auditing")
+		}
+		reader, err := req.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		body, err := io.ReadAll(io.LimitReader(reader, rootconstant.MaxVideoTaskRequestBodyBytes+1))
+		_ = reader.Close()
+		if err != nil {
+			return nil, err
+		}
+		if err = record(c, body); err != nil {
+			return nil, fmt.Errorf("archive upstream request: %w", err)
+		}
+	}
 	client, err := service.GetHttpClientWithProxySettings(info.ChannelSetting.Proxy, info.ChannelSetting)
 	if err != nil {
 		return nil, fmt.Errorf("new proxy http client failed: %w", err)

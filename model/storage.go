@@ -34,16 +34,18 @@ const (
 	AssetLibraryAllowedMIMETypes = "image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/ogg"
 	legacyRelayMediaMIMETypes    = "image/jpeg,image/png,image/webp"
 
-	StorageObjectPurposeRelayMediaTemp  = "relay_media_temp"
-	StorageObjectPurposeAssetLibrary    = "asset_library"
-	StorageObjectPurposeBillingArchive  = "billing_archive"
-	StorageObjectPurposeRequestSnapshot = "request_snapshot"
-	StorageObjectStatusUploading        = "uploading"
-	StorageObjectStatusUploaded         = "uploaded"
-	StorageObjectStatusDeletePending    = "delete_pending"
-	StorageObjectStatusDeleting         = "deleting"
-	StorageObjectStatusDeleteFailed     = "delete_failed"
-	StorageObjectStatusDeleted          = "deleted"
+	StorageObjectPurposeRelayMediaTemp       = "relay_media_temp"
+	StorageObjectPurposeAssetLibrary         = "asset_library"
+	StorageObjectPurposeImageStudio          = "image_studio"
+	StorageObjectPurposeImageStudioReference = "image_studio_reference"
+	StorageObjectPurposeBillingArchive       = "billing_archive"
+	StorageObjectPurposeRequestSnapshot      = "request_snapshot"
+	StorageObjectStatusUploading             = "uploading"
+	StorageObjectStatusUploaded              = "uploaded"
+	StorageObjectStatusDeletePending         = "delete_pending"
+	StorageObjectStatusDeleting              = "deleting"
+	StorageObjectStatusDeleteFailed          = "delete_failed"
+	StorageObjectStatusDeleted               = "deleted"
 )
 
 type StorageProfile struct {
@@ -113,6 +115,19 @@ type StorageObject struct {
 	CreatedAt        int64  `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt        int64  `json:"updated_at" gorm:"bigint"`
 	DeletedAt        int64  `json:"deleted_at" gorm:"bigint;index"`
+}
+
+func ListImageStudioReferenceObjects(ctx context.Context, userID int, page *common.PageInfo) ([]StorageObject, int64, error) {
+	query := DB.WithContext(ctx).Model(&StorageObject{}).
+		Where("owner_user_id = ? AND purpose = ? AND status = ? AND delete_after > ?",
+			userID, StorageObjectPurposeImageStudioReference, StorageObjectStatusUploaded, common.GetTimestamp())
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var objects []StorageObject
+	err := query.Order("id desc").Offset(page.GetStartIdx()).Limit(page.GetPageSize()).Find(&objects).Error
+	return objects, total, err
 }
 
 func (profile *StorageProfile) BeforeCreate(_ *gorm.DB) error {

@@ -110,3 +110,37 @@ export const getAllTaskLogs = (params: GetTaskLogsParams) =>
 
 export const getUserTaskLogs = (params: GetTaskLogsParams) =>
   fetchLogs('/api/task', params, false)
+
+// Image studio task metadata; generation and consumption remain in their ledgers.
+export type StudioTaskLog = {
+  channel_id?: number
+  id: string
+  owner_user_id: number
+  model: string
+  status: string
+  request_id?: string
+  created_at: number
+  updated_at: number
+  duration_ms: number
+  error_message?: string
+}
+
+export async function getStudioTaskLogs(params: {
+  p: number
+  page_size: number
+  scope: 'all' | 'self'
+  channel_id?: number
+  filter?: string
+  start_timestamp: number
+  end_timestamp: number
+}) {
+  const response = await api.get<{
+    success: boolean
+    message?: string
+    data: { items: StudioTaskLog[]; total: number }
+  }>('/api/image-studio/logs', { params })
+  if (!response.data.success) {
+    throw new Error(response.data.message || 'Failed to load logs')
+  }
+  return response.data.data
+}

@@ -426,8 +426,12 @@ func validatePolicy(policy *model.StoragePolicy) error {
 	if policy.SignedURLTTLSeconds < minSignedURLTTLSeconds || policy.SignedURLTTLSeconds > maxSignedURLTTLSeconds {
 		return fmt.Errorf("signed URL TTL must be between %d and %d seconds", minSignedURLTTLSeconds, maxSignedURLTTLSeconds)
 	}
-	if policy.RetentionSeconds < policy.SignedURLTTLSeconds || policy.RetentionSeconds > maxRetentionSeconds {
-		return errors.New("retention must be at least the signed URL TTL and no more than 30 days")
+	retentionLimit := int64(maxRetentionSeconds)
+	if policy.Purpose == model.StorageObjectPurposeImageStudio || policy.Purpose == model.StorageObjectPurposeImageStudioReference {
+		retentionLimit = 365 * 24 * 3600
+	}
+	if policy.RetentionSeconds < policy.SignedURLTTLSeconds || policy.RetentionSeconds > retentionLimit {
+		return fmt.Errorf("retention must be at least the signed URL TTL and no more than %d days", retentionLimit/(24*3600))
 	}
 	if policy.MaxFileBytes <= 0 || policy.MaxFileBytes > maxStorageBytes {
 		return errors.New("invalid per-file size limit")

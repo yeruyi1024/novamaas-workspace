@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	channelconstant "github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/claude"
@@ -105,9 +106,48 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 	return bytes.NewReader(jsonData), nil
 }
 
+// seedreamSizes maps the OpenAI-style sizes the image studio offers to
+// Seedream's 2K recommendations. Seedream 4.5 and later reject totals below
+// about 3.7M pixels, which the 1024-based presets do not reach.
+var seedreamSizes = map[string]string{
+	"1024x1024": "2048x2048",
+	"1536x1024": "2496x1664",
+	"1024x1536": "1664x2496",
+	"1792x1024": "2816x1584",
+	"1024x1792": "1584x2816",
+}
+
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
+	seedream := info.ChannelMeta != nil && strings.Contains(strings.ToLower(info.UpstreamModelName), "seedream")
+	if size, ok := seedreamSizes[request.Size]; ok && seedream {
+		request.Size = size
+	}
 	switch info.RelayMode {
 	case constant.RelayModeImagesGenerations:
+		return request, nil
+	case constant.RelayModeImagesEdits:
+		// Seedream takes reference URLs in "image", not OpenAI's images[].image_url.
+		if seedream && len(request.Image) == 0 && len(request.Images) > 0 {
+			var references []struct {
+				ImageURL string `json:"image_url"`
+			}
+			if err := common.Unmarshal(request.Images, &references); err != nil {
+				return nil, fmt.Errorf("invalid reference images: %w", err)
+			}
+			urls := make([]string, 0, len(references))
+			for _, reference := range references {
+				if reference.ImageURL != "" {
+					urls = append(urls, reference.ImageURL)
+				}
+			}
+			if len(urls) > 0 {
+				var err error
+				if request.Image, err = common.Marshal(urls); err != nil {
+					return nil, err
+				}
+				request.Images = nil
+			}
+		}
 		return request, nil
 	// 根据官方文档,并没有发现豆包生图支持表单请求:https://www.volcengine.com/docs/82379/1824121
 	//case constant.RelayModeImagesEdits:

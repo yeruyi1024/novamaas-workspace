@@ -75,55 +75,71 @@ func TestCaptureVideoTaskRequestBodyRequiresJSON(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestProcessChannelErrorStoresVideoTaskRequestBody(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}, &model.TaskRequestBody{}))
-	previousDB, previousLogDB := model.DB, model.LOG_DB
-	previousErrorLogEnabled := constant.ErrorLogEnabled
-	previousRedisEnabled := common.RedisEnabled
-	model.DB, model.LOG_DB = db, db
-	constant.ErrorLogEnabled = true
-	common.RedisEnabled = false
-	t.Cleanup(func() {
-		model.DB, model.LOG_DB = previousDB, previousLogDB
-		constant.ErrorLogEnabled = previousErrorLogEnabled
-		common.RedisEnabled = previousRedisEnabled
-	})
+func TestProcessChannelErrorStoresArchivedRequestAvailability(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		video bool
+	}{{name: "video task", video: true}, {name: "image request"}} {
+		t.Run(tt.name, func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+			require.NoError(t, err)
+			require.NoError(t, db.AutoMigrate(&model.Log{}, &model.User{}, &model.TaskRequestBody{}))
+			previousDB, previousLogDB := model.DB, model.LOG_DB
+			previousErrorLogEnabled := constant.ErrorLogEnabled
+			previousRedisEnabled := common.RedisEnabled
+			model.DB, model.LOG_DB = db, db
+			constant.ErrorLogEnabled = true
+			common.RedisEnabled = false
+			t.Cleanup(func() {
+				model.DB, model.LOG_DB = previousDB, previousLogDB
+				constant.ErrorLogEnabled = previousErrorLogEnabled
+				common.RedisEnabled = previousRedisEnabled
+			})
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", nil)
-	c.Set("id", 41)
-	c.Set("username", "video-user")
-	c.Set("token_name", "video-token")
-	c.Set("original_model", "video-model")
-	c.Set("channel_id", 8)
-	c.Set("channel_name", "video-channel")
-	c.Set("channel_type", constant.ChannelTypeVolcNative)
-	c.Set("group", "default")
-	c.Set(string(constant.ContextKeyRequestStartTime), time.Now())
-	common.SetContextKey(c, constant.ContextKeyVideoTaskOriginalRequestBody, `{"prompt":"failed request"}`)
-	common.SetContextKey(c, constant.ContextKeyVideoTaskRequestBodyStored, true)
-	common.SetContextKey(c, constant.ContextKeyVideoTaskPublicID, "task_failed")
-	common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, true)
-	common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, 1)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/v3/contents/generations/tasks", nil)
+			c.Set("id", 41)
+			c.Set("username", "video-user")
+			c.Set("token_name", "video-token")
+			c.Set("original_model", "video-model")
+			c.Set("channel_id", 8)
+			c.Set("channel_name", "video-channel")
+			c.Set("channel_type", constant.ChannelTypeVolcNative)
+			c.Set("group", "default")
+			c.Set(string(constant.ContextKeyRequestStartTime), time.Now())
+			common.SetContextKey(c, constant.ContextKeyVideoTaskOriginalRequestBody, `{"prompt":"failed request"}`)
+			if tt.video {
+				common.SetContextKey(c, constant.ContextKeyVideoTaskRequestBodyStored, true)
+				common.SetContextKey(c, constant.ContextKeyVideoTaskPublicID, "task_failed")
+			} else {
+				common.SetContextKey(c, constant.ContextKeyRequestSnapshotStored, true)
+			}
+			common.SetContextKey(c, constant.ContextKeyTemporaryMediaConverted, true)
+			common.SetContextKey(c, constant.ContextKeyTemporaryMediaConvertedCount, 1)
 
-	processChannelError(
-		c,
-		types.ChannelError{ChannelId: 8, ChannelType: constant.ChannelTypeVolcNative},
-		types.NewErrorWithStatusCode(errors.New("upstream failed"), types.ErrorCodeBadResponseStatusCode, http.StatusBadGateway),
-	)
+			processChannelError(
+				c,
+				types.ChannelError{ChannelId: 8, ChannelType: constant.ChannelTypeVolcNative},
+				types.NewErrorWithStatusCode(errors.New("upstream failed"), types.ErrorCodeBadResponseStatusCode, http.StatusBadGateway),
+			)
 
-	var log model.Log
-	require.NoError(t, db.First(&log).Error)
-	var other map[string]any
-	require.NoError(t, common.Unmarshal([]byte(log.Other), &other))
-	assert.Equal(t, true, other["is_task"])
-	assert.Equal(t, true, other["request_body_available"])
-	assert.Equal(t, "task_failed", other["task_id"])
-	assert.NotContains(t, other, "request_body")
-	assert.Equal(t, true, other["temporary_media_converted"])
-	assert.Equal(t, float64(1), other["temporary_media_converted_count"])
+			var log model.Log
+			require.NoError(t, db.First(&log).Error)
+			var other map[string]any
+			require.NoError(t, common.Unmarshal([]byte(log.Other), &other))
+			assert.Equal(t, true, other["request_body_available"])
+			if tt.video {
+				assert.Equal(t, true, other["is_task"])
+				assert.Equal(t, "task_failed", other["task_id"])
+			} else {
+				assert.NotContains(t, other, "is_task")
+				assert.NotContains(t, other, "task_id")
+			}
+			assert.NotContains(t, other, "request_body")
+			assert.Equal(t, true, other["temporary_media_converted"])
+			assert.Equal(t, float64(1), other["temporary_media_converted_count"])
+		})
+	}
 }
 
 func TestGetTaskRequestBodyAllowsAdminLookup(t *testing.T) {

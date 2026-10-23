@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
@@ -53,6 +53,7 @@ describe('common log financial summary', () => {
   })
 
   afterEach(() => {
+    cleanup()
     vi.clearAllMocks()
     useAuthStore.getState().auth.setUser(null)
   })

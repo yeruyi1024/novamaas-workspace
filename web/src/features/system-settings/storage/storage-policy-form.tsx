@@ -51,11 +51,12 @@ import {
 } from './storage-schemas'
 import type { StoragePolicy, StorageProfile } from './types'
 
-type RelayMediaPolicyFormProps = {
+type StoragePolicyFormProps = {
   policy: StoragePolicy
   profiles: StorageProfile[]
   isSaving: boolean
   onSave: (values: StoragePolicyFormValues) => void
+  purpose?: string
 }
 
 function NumberField({
@@ -63,6 +64,7 @@ function NumberField({
   name,
   label,
   description,
+  max,
 }: {
   form: ReturnType<typeof useForm<StoragePolicyFormValues>>
   name:
@@ -73,6 +75,7 @@ function NumberField({
     | 'max_files'
   label: string
   description?: string
+  max?: number
 }) {
   return (
     <FormField
@@ -85,6 +88,7 @@ function NumberField({
             <Input
               type='number'
               min={1}
+              max={max}
               step={1}
               value={field.value}
               onBlur={field.onBlur}
@@ -99,15 +103,17 @@ function NumberField({
   )
 }
 
-export function RelayMediaPolicyForm({
+export function StoragePolicyForm({
   policy,
   profiles,
   isSaving,
   onSave,
-}: RelayMediaPolicyFormProps) {
+  purpose,
+}: StoragePolicyFormProps) {
   const { t } = useTranslation()
+  const imageLimit = purpose === 'image_studio_reference' ? 20 : 64
   const form = useForm<StoragePolicyFormValues>({
-    resolver: zodResolver(createStoragePolicySchema(t)),
+    resolver: zodResolver(createStoragePolicySchema(t, Boolean(purpose))),
     defaultValues: storagePolicyToForm(policy),
   })
 
@@ -118,15 +124,38 @@ export function RelayMediaPolicyForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('Relay media temporary storage')}</CardTitle>
+        <CardTitle>
+          {purpose
+            ? t(
+                purpose === 'image_studio'
+                  ? 'Generated image'
+                  : 'Reference images'
+              )
+            : t('Relay media temporary storage')}
+        </CardTitle>
         <CardDescription>
-          {t(
-            'Controls Base64 materialization for supported relay channels. Objects remain private and upstream receives a time-limited signed URL.'
-          )}
+          {purpose
+            ? t(
+                'Storage, retention and size limits apply to new uploads. Existing images keep their original storage and expiry.'
+              )
+            : t(
+                'Controls Base64 materialization for supported relay channels. Objects remain private and upstream receives a time-limited signed URL.'
+              )}
         </CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSave)}>
+        <form
+          aria-label={
+            purpose
+              ? t(
+                  purpose === 'image_studio'
+                    ? 'Generated image'
+                    : 'Reference images'
+                )
+              : undefined
+          }
+          onSubmit={form.handleSubmit(onSave)}
+        >
           <CardContent className='grid gap-4 sm:grid-cols-2'>
             <FormField
               control={form.control}
@@ -135,12 +164,18 @@ export function RelayMediaPolicyForm({
                 <FormItem className='bg-muted/40 flex items-center justify-between gap-4 rounded-lg p-3 sm:col-span-2'>
                   <div className='space-y-1'>
                     <FormLabel>
-                      {t('Enable temporary storage policy')}
+                      {purpose
+                        ? t('Enable storage policy')
+                        : t('Enable temporary storage policy')}
                     </FormLabel>
                     <FormDescription>
-                      {t(
-                        'A Volc Native or DoubaoVideo channel must also enable Base64 staging before this policy is used.'
-                      )}
+                      {purpose
+                        ? t(
+                            'Uploads are rejected while this policy is disabled.'
+                          )
+                        : t(
+                            'A Volc Native or DoubaoVideo channel must also enable Base64 staging before this policy is used.'
+                          )}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -192,7 +227,12 @@ export function RelayMediaPolicyForm({
                 <FormItem>
                   <FormLabel>{t('Object prefix')}</FormLabel>
                   <FormControl>
-                    <Input placeholder='temporary/relay-media' {...field} />
+                    <Input
+                      placeholder={
+                        purpose ? `images/${purpose}` : 'temporary/relay-media'
+                      }
+                      {...field}
+                    />
                   </FormControl>
                   <FormDescription>
                     {t(
@@ -215,29 +255,43 @@ export function RelayMediaPolicyForm({
               form={form}
               name='retention_hours'
               label={t('Maximum retention (hours)')}
-              description={t(
-                'Terminal tasks are cleaned immediately; this value is the failure-safe deadline.'
-              )}
+              description={
+                purpose
+                  ? t(
+                      'Retention is applied when a file is stored, from 1 hour up to 365 days.'
+                    )
+                  : t(
+                      'Terminal tasks are cleaned immediately; this value is the failure-safe deadline.'
+                    )
+              }
             />
             <NumberField
               form={form}
               name='max_file_mib'
+              max={purpose ? imageLimit : 512}
               label={t('Maximum file size (MiB)')}
             />
-            <NumberField
-              form={form}
-              name='max_total_mib'
-              label={t('Maximum request size (MiB)')}
-            />
-            <NumberField
-              form={form}
-              name='max_files'
-              label={t('Maximum files per request')}
-            />
+            {!purpose && (
+              <>
+                <NumberField
+                  form={form}
+                  name='max_total_mib'
+                  label={t('Maximum request size (MiB)')}
+                />
+                <NumberField
+                  form={form}
+                  name='max_files'
+                  label={t('Maximum files per request')}
+                />
+              </>
+            )}
             <FormItem>
               <FormLabel>{t('Allowed media types')}</FormLabel>
               <Input
-                value={RELAY_MEDIA_ALLOWED_MIME_TYPES.replaceAll(',', ', ')}
+                value={(purpose
+                  ? policy.allowed_mime_types
+                  : RELAY_MEDIA_ALLOWED_MIME_TYPES
+                ).replaceAll(',', ', ')}
                 disabled
               />
               <FormDescription>

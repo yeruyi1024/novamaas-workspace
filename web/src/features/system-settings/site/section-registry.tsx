@@ -69,6 +69,7 @@ const SITE_SECTIONS = [
         <HeaderNavigationSection
           config={headerNavConfig}
           initialSerialized={headerNavSerialized}
+          imageStudioEnabled={settings['image_studio_setting.enabled'] ?? true}
         />
       )
     },

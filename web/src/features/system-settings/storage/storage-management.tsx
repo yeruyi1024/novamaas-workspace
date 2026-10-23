@@ -55,8 +55,8 @@ import {
   updateRelayMediaStoragePolicy,
   updateStorageProfile,
 } from './api'
-import { RelayMediaPolicyForm } from './relay-media-policy-form'
 import { RequestSnapshotManagement } from './request-snapshot-management'
+import { StoragePolicyForm } from './storage-policy-form'
 import { StorageProfileDialog } from './storage-profile-dialog'
 import {
   storagePolicyToInput,
@@ -274,7 +274,7 @@ export function StorageManagement() {
                 </Card>
 
                 {policyQuery.data && (
-                  <RelayMediaPolicyForm
+                  <StoragePolicyForm
                     policy={policyQuery.data}
                     profiles={profilesQuery.data ?? []}
                     isSaving={policyMutation.isPending}

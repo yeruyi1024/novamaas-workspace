@@ -29,6 +29,7 @@ import { WebhookSettingsButton } from '@/features/webhooks/components/webhook-se
 import { useSidebarConfig } from '@/hooks/use-sidebar-config'
 
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
+import { StudioTaskLogs } from './components/studio-task-logs'
 import {
   type LogsViewScope,
   UsageLogsProvider,
@@ -43,7 +44,7 @@ import {
 } from './section-registry'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
-const TASK_LOG_SECTIONS = ['drawing', 'task'] as const
+const TASK_LOG_SECTIONS = ['task', 'drawing'] as const
 
 const SECTION_META: Record<UsageLogsSectionId, { titleKey: string }> = {
   common: {
@@ -62,6 +63,8 @@ function UsageLogsContent() {
   const [webhookDialogOpen, setWebhookDialogOpen] = useState(false)
   const navigate = useNavigate()
   const params = route.useParams()
+  const search = route.useSearch()
+  const drawingSource = search.drawingSource ?? 'studio'
   const activeCategory: UsageLogsSectionId =
     params.section && isUsageLogsSectionId(params.section)
       ? params.section
@@ -163,7 +166,11 @@ function UsageLogsContent() {
               </Tabs>
             )}
             <div className='min-h-0 flex-1'>
-              <UsageLogsTable logCategory={activeCategory} />
+              {activeCategory === 'drawing' && drawingSource === 'studio' ? (
+                <StudioTaskLogs />
+              ) : (
+                <UsageLogsTable logCategory={activeCategory} />
+              )}
             </div>
           </div>
         </SectionPageLayout.Content>

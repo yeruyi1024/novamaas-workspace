@@ -331,6 +331,8 @@ func SetApiRouter(router *gin.Engine) {
 			storageRoute.PUT("/policies/relay-media-temp", controller.UpdateRelayMediaStoragePolicy)
 			storageRoute.GET("/policies/asset-library", controller.GetAssetLibraryStoragePolicy)
 			storageRoute.PUT("/policies/asset-library", controller.UpdateAssetLibraryStoragePolicy)
+			storageRoute.GET("/policies/image-studio", controller.GetImageStudioStoragePolicies)
+			storageRoute.PUT("/policies/image-studio/:purpose", controller.UpdateImageStudioStoragePolicy)
 		}
 		assetLibraryRoute := apiRouter.Group("/asset-library")
 		assetLibraryRoute.Use(middleware.TokenOrUserAuth(), middleware.DisableCache())
@@ -378,6 +380,24 @@ func SetApiRouter(router *gin.Engine) {
 			assetLibraryAdminRoute.GET("/request-logs/:id", controller.GetAssetRequestLogDetail)
 			assetLibraryAdminRoute.GET("/sync-jobs", controller.ListAssetSyncJobs)
 			assetLibraryAdminRoute.POST("/sync-jobs/:id/retry", controller.RetryAssetSyncJob)
+		}
+		imageStudioRoute := apiRouter.Group("/image-studio")
+		imageStudioRoute.Use(middleware.DisableCache())
+		imageStudioRoute.GET("/settings", controller.GetImageStudioSettings)
+		imageStudioRoute.GET("/logs", middleware.UserAuth(), controller.ListImageStudioLogs)
+		imageStudioRoute.Use(middleware.UserAuth(), controller.ImageStudioEnabled())
+		{
+			imageStudioRoute.GET("/models", controller.ListImageStudioModels)
+			imageStudioRoute.GET("/references", controller.ListImageStudioReferences)
+			imageStudioRoute.POST("/references", middleware.CriticalRateLimit(), controller.UploadImageStudioReference)
+			imageStudioRoute.POST("/prompt-assist", middleware.CriticalRateLimit(), controller.PromptAssistImageStudio)
+			imageStudioRoute.GET("/runs", controller.ListImageStudioRuns)
+			imageStudioRoute.POST("/runs", middleware.CriticalRateLimit(), controller.CreateImageStudioRun)
+			imageStudioRoute.GET("/runs/poll", controller.PollImageStudioRuns)
+			imageStudioRoute.GET("/runs/:id", controller.GetImageStudioRun)
+			imageStudioRoute.DELETE("/runs/:id", controller.DeleteImageStudioRun)
+			imageStudioRoute.POST("/results/:id/save", middleware.CriticalRateLimit(), controller.SaveImageStudioResult)
+			imageStudioRoute.DELETE("/results/:id", controller.DeleteImageStudioResult)
 		}
 		performanceRoute := apiRouter.Group("/performance")
 		performanceRoute.Use(middleware.RootAuth())

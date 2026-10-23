@@ -146,6 +146,7 @@ export type SiteSettings = {
   'legal.user_agreement': string
   'legal.privacy_policy': string
   HeaderNavModules: string
+  'image_studio_setting.enabled': boolean
   SidebarModulesAdmin: string
 }
 

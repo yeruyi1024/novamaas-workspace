@@ -22,6 +22,7 @@ export const STORAGE_DEFAULT_SECTION = 'object-storage'
 export const STORAGE_SECTION_IDS = [
   STORAGE_DEFAULT_SECTION,
   'asset-library',
+  'image-studio',
   'asset-sync',
 ] as const
 
@@ -38,6 +39,10 @@ export function getStorageSectionNavItems(t: TFunction) {
     {
       title: t('Asset synchronization'),
       url: '/system-settings/storage/asset-sync',
+    },
+    {
+      title: t('Image creation'),
+      url: '/system-settings/storage/image-studio',
     },
   ]
 }

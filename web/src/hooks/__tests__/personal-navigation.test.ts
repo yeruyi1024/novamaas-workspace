@@ -1,11 +1,23 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react'
 import i18next from 'i18next'
-import { expect, test } from 'vitest'
+import { createElement, type ReactNode } from 'react'
+import { afterEach, expect, test } from 'vitest'
 
 import { useSidebarData } from '../use-sidebar-data'
 
+let client: QueryClient
+afterEach(() => client?.clear())
+
 test('personal navigation lists profile, statements and wallet in order', () => {
-  const { result } = renderHook(() => useSidebarData())
+  client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity } },
+  })
+  client.setQueryData(['status'], {})
+  const { result } = renderHook(() => useSidebarData(), {
+    wrapper: (props: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, props.children),
+  })
   const items = result.current.navGroups.find(
     (group) => group.id === 'personal'
   )?.items

@@ -30,6 +30,27 @@ import type {
   RequestSnapshotStatus,
 } from './types'
 
+export async function getImageStudioStoragePolicies() {
+  return (
+    await api.get<StorageAPIResponse<StoragePolicy[]>>(
+      '/api/storage/policies/image-studio'
+    )
+  ).data
+}
+
+export async function updateImageStudioStoragePolicy(
+  purpose: string,
+  input: StoragePolicyInput
+) {
+  return (
+    await api.put<StorageAPIResponse<StoragePolicy>>(
+      `/api/storage/policies/image-studio/${encodeURIComponent(purpose)}`,
+      input,
+      { skipBusinessError: true, skipErrorHandler: true }
+    )
+  ).data
+}
+
 export async function listStorageProfiles() {
   const response = await api.get<StorageAPIResponse<StorageProfile[]>>(
     '/api/storage/profiles'

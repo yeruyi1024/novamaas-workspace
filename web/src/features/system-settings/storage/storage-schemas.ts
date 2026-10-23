@@ -86,7 +86,7 @@ export type StorageProfileFormValues = z.infer<
   ReturnType<typeof createStorageProfileSchema>
 >
 
-export const createStoragePolicySchema = (t: Translate) =>
+export const createStoragePolicySchema = (t: Translate, imageStudio = false) =>
   z
     .object({
       enabled: z.boolean(),
@@ -100,8 +100,14 @@ export const createStoragePolicySchema = (t: Translate) =>
           t('Object prefix contains invalid characters')
         ),
       signed_url_ttl_hours: z.number().min(1).max(168),
-      retention_hours: z.number().min(1).max(720),
-      max_file_mib: z.number().min(1).max(512),
+      retention_hours: z
+        .number()
+        .min(1)
+        .max(imageStudio ? 365 * 24 : 720),
+      max_file_mib: z
+        .number()
+        .min(1)
+        .max(imageStudio ? 64 : 512),
       max_total_mib: z.number().min(1).max(512),
       max_files: z.number().int().min(1).max(100),
     })
@@ -120,7 +126,7 @@ export const createStoragePolicySchema = (t: Translate) =>
           message: t('Retention must be at least the signed URL lifetime'),
         })
       }
-      if (value.max_total_mib < value.max_file_mib) {
+      if (!imageStudio && value.max_total_mib < value.max_file_mib) {
         context.addIssue({
           code: 'custom',
           path: ['max_total_mib'],
