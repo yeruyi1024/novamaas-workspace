@@ -52,7 +52,7 @@ const DirectoryLink = createLink(
   }
 )
 
-export function Document(props: { content: string }) {
+export function Document(props: { content: string; section?: 'admin' }) {
   const { t } = useTranslation()
   const hash = useLocation({ select: (location) => location.hash })
   const blocks = useMemo(() => {
@@ -241,7 +241,11 @@ export function Document(props: { content: string }) {
               <div
                 key={position}
                 role='region'
-                aria-label={t('API documentation')}
+                aria-label={
+                  props.section === 'admin'
+                    ? t('Administrator manual')
+                    : t('API documentation')
+                }
                 tabIndex={0}
                 className='docs-table border-border/70 my-3 min-w-0 overflow-x-auto rounded-xl border outline-offset-4'
               >

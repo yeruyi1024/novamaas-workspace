@@ -62,6 +62,19 @@ const mockDocuments = [
   },
 ]
 
+const manualDocuments = [
+  {
+    id: 'overview',
+    title: '手册概览',
+    content: '## 接入流程\n\n管理员内部接入说明。',
+  },
+  {
+    id: 'common',
+    title: '登录接入',
+    content: '## 会话管理\n\nmanual-session-cookie',
+  },
+]
+
 const initialAdapter = api.defaults.adapter
 const initialConfig = useSystemConfigStore.getState()
 let client: QueryClient
@@ -69,6 +82,8 @@ let requireAuth: boolean
 let enabled: boolean
 let failDocs: boolean
 let apiDocuments: typeof mockDocuments
+let requestedPaths: string[]
+let failManual: boolean
 
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
@@ -80,7 +95,10 @@ beforeEach(() => {
   enabled = true
   failDocs = false
   apiDocuments = mockDocuments
+  requestedPaths = []
+  failManual = false
   api.defaults.adapter = async (config) => {
+    requestedPaths.push(config.url ?? '')
     let data: unknown = ''
     if (config.url === '/api/status') {
       data = {
@@ -105,6 +123,18 @@ beforeEach(() => {
         )
       }
       data = apiDocuments
+    }
+    if (config.url === '/api/docs/admin') {
+      if (failManual) {
+        throw new AxiosError('Forbidden', undefined, config, undefined, {
+          data: {},
+          status: 403,
+          statusText: 'Forbidden',
+          headers: {},
+          config,
+        })
+      }
+      data = manualDocuments
     }
     return {
       data: { success: true, data },
@@ -160,6 +190,17 @@ async function renderDocumentation(path = '/docs') {
     </QueryClientProvider>
   )
   return router
+}
+
+function signInReader(role: number) {
+  useAuthStore.setState((state) => ({
+    auth: {
+      ...state.auth,
+      user: { id: 90, username: 'docs-reader', role },
+      accessToken: 'docs-test-token',
+      accessExpiresAt: 9999999999,
+    },
+  }))
 }
 
 test('search finds body parameters and navigates to matching articles', async () => {
@@ -347,4 +388,92 @@ test('a new login session retries a failed documentation request for the same us
   expect(
     await screen.findByRole('heading', { level: 1, name: '快速开始' })
   ).toBeVisible()
+})
+
+test('administrators read and search the manual inside the existing documentation page', async () => {
+  signInReader(10)
+  const user = userEvent.setup()
+  const router = await renderDocumentation()
+  await screen.findByRole('heading', { level: 1, name: '快速开始' })
+  await user.click(screen.getByRole('link', { name: 'Administrator manual' }))
+  await screen.findByRole('heading', { level: 1, name: '手册概览' })
+  expect(router.state.location.pathname).toBe('/docs')
+  expect(router.state.location.search.section).toBe('admin')
+  expect(
+    screen.getByRole('link', { name: 'Administrator manual' })
+  ).toHaveAttribute('aria-current', 'page')
+  fireEvent.change(
+    screen.getByRole('searchbox', { name: 'Search documentation' }),
+    {
+      target: { value: 'manual-session-cookie' },
+    }
+  )
+  const directory = screen.getByRole('navigation', {
+    name: 'Administrator manual',
+  })
+  await user.click(within(directory).getByRole('link', { name: /登录接入/ }))
+  await screen.findByRole('heading', { level: 1, name: '登录接入' })
+  const outline = screen.getByRole('navigation', { name: 'On this page' })
+  await user.click(within(outline).getByRole('link', { name: '会话管理' }))
+  expect(router.state.location.search).toEqual({
+    section: 'admin',
+    article: 'common',
+  })
+  expect(decodeURIComponent(router.state.location.hash)).toBe('会话管理')
+  expect(
+    requestedPaths.filter((path) => path === '/api/docs/admin')
+  ).toHaveLength(1)
+  expect(requestedPaths.some((path) => path.includes('/admin-manual'))).toBe(
+    false
+  )
+  await user.click(screen.getByRole('link', { name: 'API documentation' }))
+  await screen.findByRole('heading', { level: 1, name: '快速开始' })
+  expect(
+    screen.getByRole('searchbox', { name: 'Search documentation' })
+  ).toHaveValue('')
+})
+
+test('ordinary users cannot request the administrator category through a direct documentation link', async () => {
+  signInReader(1)
+  await renderDocumentation('/docs?section=admin')
+  await screen.findByRole('heading', { name: 'Documentation unavailable' })
+  expect(
+    screen.queryByRole('link', { name: 'Administrator manual' })
+  ).not.toBeInTheDocument()
+  expect(screen.getByText('Administrator access required')).toBeVisible()
+  expect(requestedPaths).not.toContain('/api/docs/admin')
+  expect(screen.queryByText('manual-session-cookie')).not.toBeInTheDocument()
+})
+
+test('losing the administrator role removes previously displayed manual content and its entry', async () => {
+  signInReader(10)
+  await renderDocumentation('/docs?section=admin&article=common')
+  await screen.findByRole('heading', { level: 1, name: '登录接入' })
+  act(() =>
+    useAuthStore
+      .getState()
+      .auth.setUser({ id: 90, username: 'docs-reader', role: 1 })
+  )
+  await screen.findByRole('heading', { name: 'Documentation unavailable' })
+  expect(screen.queryByText('manual-session-cookie')).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('link', { name: 'Administrator manual' })
+  ).not.toBeInTheDocument()
+})
+
+test('a rejected manual revalidation hides content that was previously delivered', async () => {
+  signInReader(10)
+  await renderDocumentation('/docs?section=admin&article=common')
+  await screen.findByRole('heading', { level: 1, name: '登录接入' })
+  failManual = true
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ['api-docs'] })
+  })
+  await screen.findByRole('heading', { name: 'Documentation unavailable' })
+  expect(screen.queryByText('manual-session-cookie')).not.toBeInTheDocument()
+  expect(
+    within(
+      screen.getByRole('navigation', { name: 'Administrator manual' })
+    ).queryAllByRole('link')
+  ).toHaveLength(0)
 })

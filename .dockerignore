@@ -16,3 +16,5 @@ docs
 !docs/platform-api/
 !docs/platform-api/*.go
 !docs/platform-api/*.md
+!docs/platform-api/admin/
+!docs/platform-api/admin/*.md

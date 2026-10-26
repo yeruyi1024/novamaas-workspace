@@ -25,6 +25,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/docs/')({
   validateSearch: z.object({
+    section: z.literal('admin').optional().catch(undefined),
     article: z.string().max(80).optional().catch(undefined),
   }),
   beforeLoad: async ({ location }) => {
