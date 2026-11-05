@@ -25,6 +25,11 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 	dsn := fmt.Sprintf("file:asset-library-%s?mode=memory&cache=shared&_busy_timeout=30000", t.Name())
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
+	connection, err := db.DB()
+	require.NoError(t, err)
+	// SQLite has no row locks; serialize fixture transactions while HTTP work
+	// remains concurrent, avoiding shared-cache lock-upgrade deadlocks.
+	connection.SetMaxOpenConns(1)
 	require.NoError(t, db.AutoMigrate(
 		&model.User{},
 		&model.Channel{},
@@ -36,6 +41,7 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 		&model.MediaAsset{},
 		&model.AssetGroupReplica{},
 		&model.AssetReplica{},
+		&model.SystemTaskLock{},
 		&model.StorageObject{},
 	))
 	model.DB = db

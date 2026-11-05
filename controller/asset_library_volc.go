@@ -232,7 +232,7 @@ func listVolcAssets(c *gin.Context, ownerUserID int, input volcAssetActionReques
 			} else if strings.EqualFold(status, "Processing") {
 				statuses = append(statuses, model.AssetStatusProcessing)
 			} else if strings.EqualFold(status, "Failed") || strings.EqualFold(status, "Rejected") {
-				statuses = append(statuses, model.AssetStatusUnavailable)
+				statuses = append(statuses, model.AssetStatusUnavailable, model.AssetStatusSyncFailed)
 			}
 		}
 		if len(statuses) == 0 {
@@ -321,9 +321,12 @@ func volcAssetResponse(asset *assetService.AssetView, previewURL string) gin.H {
 		"Moderation": gin.H{"Strategy": "Default"}, "ProjectName": "default",
 		"CreateTime": volcAssetTime(asset.CreatedAt), "UpdateTime": volcAssetTime(asset.UpdatedAt),
 	}
-	if asset.Status == model.AssetStatusUnavailable {
+	if asset.Status == model.AssetStatusUnavailable || asset.Status == model.AssetStatusSyncFailed {
 		result["Status"] = "Failed"
 		result["FailureReason"] = asset.UnavailableReason
+		if asset.Status == model.AssetStatusSyncFailed {
+			result["FailureReason"] = "synchronization_failed"
+		}
 	} else if asset.Status == model.AssetStatusProcessing {
 		result["Status"] = "Processing"
 	}

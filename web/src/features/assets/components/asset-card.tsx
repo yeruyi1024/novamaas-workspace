@@ -174,7 +174,9 @@ export function AssetCard(props: {
 }) {
   const { t } = useTranslation()
   const reference = `asset://${props.asset.id}`
-  const unavailable = props.asset.status === 'unavailable'
+  const failed = props.asset.status === 'failed'
+  const unavailable = props.asset.status === 'unavailable' || failed
+  const statusLabel = failed ? t('Failed') : t('Asset unavailable')
   const processing = props.asset.status === 'processing'
   const deleteButton = (
     <Button
@@ -202,12 +204,12 @@ export function AssetCard(props: {
             render={
               <button
                 type='button'
-                aria-label={`${t('Asset unavailable')}: ${t('View details')}`}
+                aria-label={`${statusLabel}: ${t('View details')}`}
                 onClick={() => props.onPreview(props.asset)}
               />
             }
           >
-            {t('Asset unavailable')}
+            {statusLabel}
           </Badge>
         )}
         {processing && (

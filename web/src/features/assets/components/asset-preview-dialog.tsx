@@ -43,8 +43,12 @@ export function AssetPreviewDialog(props: {
   downloading: boolean
 }) {
   const { t } = useTranslation()
-  const unavailable = props.asset.status === 'unavailable'
-  let unavailableReason = t('The upstream provider rejected this asset.')
+  const failed = props.asset.status === 'failed'
+  const unavailable = props.asset.status === 'unavailable' || failed
+  const statusLabel = failed ? t('Failed') : t('Asset unavailable')
+  let unavailableReason = failed
+    ? t('Request failed')
+    : t('The upstream provider rejected this asset.')
   if (props.asset.unavailable_reason === 'real_person') {
     unavailableReason = t(
       'Real-person content was rejected by the upstream provider.'
@@ -108,7 +112,7 @@ export function AssetPreviewDialog(props: {
         </DialogHeader>
         {unavailable && (
           <Alert variant='destructive'>
-            <AlertTitle>{t('Asset unavailable')}</AlertTitle>
+            <AlertTitle>{statusLabel}</AlertTitle>
             <AlertDescription>
               {unavailableReason}{' '}
               {t('Upload revised material and use its new asset ID.')}

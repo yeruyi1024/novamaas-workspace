@@ -361,7 +361,7 @@ func MarkSystemTaskLeaseExpired(taskID string) error {
 
 func ExpireStaleSystemTaskLocks(now int64) error {
 	var locks []*SystemTaskLock
-	if err := DB.Where("locked_until < ?", now).Find(&locks).Error; err != nil {
+	if err := DB.Where("locked_until < ? AND type <> ?", now, AssetSyncLeaderLockType).Find(&locks).Error; err != nil {
 		return err
 	}
 	for _, lock := range locks {

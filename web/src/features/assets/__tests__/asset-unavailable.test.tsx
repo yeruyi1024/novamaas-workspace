@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
@@ -51,6 +51,20 @@ vi.mock('../api', () => ({
   testAssetWebhookEndpoint: vi.fn(),
   uploadMediaAsset: vi.fn(),
 }))
+vi.mock('@/features/webhooks/api', async (importOriginal) => {
+  const api = await importOriginal<typeof import('@/features/webhooks/api')>()
+  return {
+    ...api,
+    getWebhookCapabilities: vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        asset_library_enabled: false,
+        media_tasks_enabled: false,
+        manual_enabled: false,
+      },
+    }),
+  }
+})
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let queryClient: QueryClient
@@ -69,6 +83,13 @@ const rejectedAsset: MediaAsset = {
   unavailable_reason: 'sensitive_content',
   created_at: 1,
   updated_at: 2,
+}
+
+function assetsResponse(items: MediaAsset[]) {
+  return {
+    success: true,
+    data: { items, total: items.length, page: 1, page_size: 40 },
+  }
 }
 
 beforeEach(() => {
@@ -92,10 +113,7 @@ beforeEach(() => {
     success: true,
     data: { items: [group], total: 1, page: 1, page_size: 1 },
   })
-  vi.mocked(listMediaAssets).mockResolvedValue({
-    success: true,
-    data: { items: [rejectedAsset], total: 1, page: 1, page_size: 40 },
-  })
+  vi.mocked(listMediaAssets).mockResolvedValue(assetsResponse([rejectedAsset]))
   vi.mocked(getMediaAssetPreview).mockResolvedValue({
     success: true,
     data: { url: 'https://example.com/hero.png', expires_at: 100 },
@@ -110,7 +128,10 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => queryClient.clear())
+afterEach(() => {
+  queryClient.clear()
+  vi.useRealTimers()
+})
 
 test('a rejected asset in a mixed row keeps its reason out of the card and reveals it from the thumbnail status', async () => {
   vi.mocked(listMediaAssets).mockResolvedValue({
@@ -270,3 +291,60 @@ test('an asset under review does not expose a usable asset reference yet', async
     screen.queryByRole('button', { name: 'Copy asset reference' })
   ).not.toBeInTheDocument()
 })
+
+test('technical synchronization failure shows an error without a content rejection message', async () => {
+  vi.mocked(listMediaAssets).mockResolvedValue(
+    assetsResponse([
+      { ...rejectedAsset, status: 'failed', unavailable_reason: undefined },
+    ])
+  )
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AssetLibrary />
+    </QueryClientProvider>
+  )
+  await userEvent
+    .setup()
+    .click(await screen.findByRole('button', { name: 'Failed: View details' }))
+  const dialog = screen.getByRole('dialog', { name: 'Hero image' })
+  expect(within(dialog).getByText(/Request failed/)).toBeVisible()
+  expect(
+    within(dialog).queryByText(/rejected this asset/)
+  ).not.toBeInTheDocument()
+  expect(screen.queryByText('Under review')).not.toBeInTheDocument()
+})
+
+test.each([false, true])(
+  'processing refresh uses three seconds, then thirty seconds (request failed: %s)',
+  async (failed) => {
+    vi.useFakeTimers()
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    const pending = {
+      ...rejectedAsset,
+      status: 'processing',
+      unavailable_reason: undefined,
+    }
+    const ready = { ...pending, id: 'ready-asset', status: 'ready' }
+    const request = vi
+      .mocked(listMediaAssets)
+      .mockResolvedValueOnce(assetsResponse([ready, pending]))
+    if (failed) {
+      request.mockRejectedValueOnce(new Error('Temporarily unavailable'))
+    }
+    request.mockResolvedValue(assetsResponse([ready]))
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AssetLibrary />
+      </QueryClientProvider>
+    )
+    await act(() => vi.advanceTimersByTimeAsync(1))
+    expect(screen.getByText('Under review')).toBeVisible()
+    await act(() => vi.advanceTimersByTimeAsync(3_001))
+    expect(listMediaAssets).toHaveBeenCalledTimes(2)
+    await act(() => vi.advanceTimersByTimeAsync(29_000))
+    expect(listMediaAssets).toHaveBeenCalledTimes(2)
+    await act(() => vi.advanceTimersByTimeAsync(1_001))
+    expect(listMediaAssets).toHaveBeenCalledTimes(3)
+    expect(screen.queryByText('Under review')).not.toBeInTheDocument()
+  }
+)

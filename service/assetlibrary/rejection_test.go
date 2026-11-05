@@ -1,6 +1,7 @@
 package assetlibrary
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -224,7 +225,7 @@ func TestRejectedUpstreamAssetBecomesUnavailableAndVideoMappingReturnsActionable
 	replica := model.AssetReplica{AssetID: asset.ID, ChannelID: 9, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusSyncing, UpstreamAssetID: "upstream-123", LockedBy: "worker-1", Progress: 50}
 	require.NoError(t, db.Create(&replica).Error)
 
-	syncReplica("worker-1", &replica)
+	syncReplica(context.Background(), "worker-1", &replica)
 	require.NoError(t, db.First(&asset, asset.ID).Error)
 	require.NoError(t, db.First(&replica, replica.ID).Error)
 	assert.Equal(t, model.AssetStatusUnavailable, asset.Status)
@@ -257,7 +258,7 @@ func TestRejectedUpstreamAssetBecomesUnavailableAndVideoMappingReturnsActionable
 	assert.Error(t, RetrySyncJob(replica.ID))
 	queuedReplica := model.AssetReplica{AssetID: asset.ID, ChannelID: 10, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusSyncing, LockedBy: "worker-2"}
 	require.NoError(t, db.Create(&queuedReplica).Error)
-	syncReplica("worker-2", &queuedReplica)
+	syncReplica(context.Background(), "worker-2", &queuedReplica)
 	require.NoError(t, db.First(&queuedReplica, queuedReplica.ID).Error)
 	assert.Equal(t, model.AssetReplicaStatusRejected, queuedReplica.Status)
 	assert.Equal(t, model.AssetUnavailableSensitiveContent, queuedReplica.LastError)

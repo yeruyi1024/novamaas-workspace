@@ -469,34 +469,8 @@ func DeleteAsset(publicID string, ownerUserID int, isAdmin bool) error {
 	if err != nil {
 		return err
 	}
-	now := common.GetTimestamp()
 	return model.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.MediaAsset{}).Where("id = ?", asset.ID).Updates(map[string]any{
-			"status": model.AssetStatusDeleted, "updated_at": now,
-		}).Error; err != nil {
-			return err
-		}
-		var count int64
-		if err := tx.Model(&model.AssetReplica{}).Where("asset_id = ? AND upstream_asset_id <> '' AND status <> ?", asset.ID, model.AssetReplicaStatusDeleted).Count(&count).Error; err != nil {
-			return err
-		}
-		if count == 0 {
-			return tx.Model(&model.StorageObject{}).
-				Where("id = ? AND status <> ?", asset.StorageObjectID, model.StorageObjectStatusDeleted).
-				Updates(map[string]any{
-					"status":       model.StorageObjectStatusDeletePending,
-					"delete_after": now,
-					"last_error":   "asset deleted",
-					"updated_at":   now,
-				}).Error
-		}
-		return tx.Model(&model.AssetReplica{}).Where("asset_id = ? AND status <> ?", asset.ID, model.AssetReplicaStatusDeleted).Updates(map[string]any{
-			"operation":    model.AssetReplicaOperationDelete,
-			"status":       model.AssetReplicaStatusDeleting,
-			"next_sync_at": now,
-			"last_error":   "",
-			"updated_at":   now,
-		}).Error
+		return model.RequestAssetDeletion(tx, asset.ID)
 	})
 }
 
@@ -776,22 +750,11 @@ func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJo
 }
 
 func RetrySyncJob(replicaID int64) error {
-	readyAssets := model.DB.Model(&model.MediaAsset{}).Select("id").Where("status IN ?", []string{model.AssetStatusProcessing, model.AssetStatusReady})
-	result := model.DB.Model(&model.AssetReplica{}).
-		Where("id = ? AND status = ? AND asset_id IN (?)", replicaID, model.AssetReplicaStatusFailed, readyAssets).
-		Updates(map[string]any{
-			"status":       model.AssetReplicaStatusPending,
-			"attempts":     0,
-			"next_sync_at": common.GetTimestamp(),
-			"locked_by":    "",
-			"lease_until":  0,
-			"last_error":   "",
-			"updated_at":   common.GetTimestamp(),
-		})
-	if result.Error != nil {
-		return result.Error
+	retried, err := model.RetryAssetReplicaSynchronization(replicaID)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected != 1 {
+	if !retried {
 		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("only failed synchronization jobs can be retried")}
 	}
 	return nil

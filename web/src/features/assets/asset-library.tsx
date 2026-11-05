@@ -161,7 +161,11 @@ export function AssetLibrary() {
         })
       ),
     placeholderData: keepPreviousData,
-    refetchInterval: 30_000,
+    refetchInterval: (query) =>
+      query.state.status !== 'error' &&
+      query.state.data?.items.some((asset) => asset.status === 'processing')
+        ? 3_000
+        : 30_000,
   })
   const uploadGroups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data])
   const hasOwnGroups = (ownGroupsQuery.data?.total ?? 0) > 0
