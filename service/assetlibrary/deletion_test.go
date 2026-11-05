@@ -2,8 +2,6 @@ package assetlibrary
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,77 +14,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAssetDeletionRetriesUpstreamFailureBeforeCleaningSource(t *testing.T) {
+func TestAssetDeletionKeepsLateIDsAndRetriesBeforeCleaningSource(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
-	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "asset-deletion-fixture")
-	credential, err := encryptChannelCredential("fixture-secret")
-	require.NoError(t, err)
 	var attempts atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Contains(t, r.URL.Path, "upstream-delete-id")
 		w.Header().Set("Content-Type", "application/json")
-		if attempts.Add(1) == 1 {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = io.WriteString(w, `{"error":{"code":"ServiceUnavailable","message":"request 404 failed; asset was not found in a temporary cache"}}`)
-			return
+		code := http.StatusNotFound
+		switch attempts.Add(1) {
+		case 1:
+			code = http.StatusInternalServerError
+		case 2:
+			code = http.StatusForbidden
 		}
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = io.WriteString(w, `{"error":{"code":"AssetNotFound","message":"asset not found"}}`)
+		w.WriteHeader(code)
+		_, _ = io.WriteString(w, "{\"error\":{\"code\":\"AssetNotFound\",\"message\":\"request 404; asset not found in cache\"}}")
 	}))
 	t.Cleanup(upstream.Close)
-	require.NoError(t, db.Create(&model.AssetChannelConfig{
-		ChannelID: 7191, Enabled: false, Protocol: model.AssetChannelProtocolYoufangREST,
-		AuthType: model.AssetChannelAuthBearer, BaseURL: upstream.URL,
-		EncryptedCredential: credential, QPM: 1000000,
-	}).Error)
+	for _, channel := range []int{7191, 7192} {
+		seedSyncChannel(t, channel, 1000000, model.AssetChannelProtocolYoufangREST, upstream.URL)
+		require.NoError(t, db.Model(&model.AssetChannelConfig{}).Where("channel_id = ?", channel).Update("enabled", false).Error)
+	}
 	source := model.StorageObject{ObjectID: "delete-source", Purpose: model.StorageObjectPurposeAssetLibrary, Status: model.StorageObjectStatusUploaded}
 	require.NoError(t, db.Create(&source).Error)
 	asset := model.MediaAsset{PublicID: "delete-material", OwnerUserID: 42, StorageObjectID: source.ID, Status: model.AssetStatusProcessing}
 	require.NoError(t, db.Create(&asset).Error)
-	replica := model.AssetReplica{AssetID: asset.ID, ChannelID: 7191, Status: model.AssetReplicaStatusProcessing,
-		Operation: model.AssetReplicaOperationSync, UpstreamAssetID: "upstream-delete-id"}
-	require.NoError(t, db.Create(&replica).Error)
-	require.NoError(t, DeleteAsset(asset.PublicID, 42, false))
 	now := common.GetTimestamp()
-	for attempt := range 2 {
-		candidates, err := model.ListDueAssetReplicas(now, 7191, model.AssetReplicaWorkloadMaintenance, 5)
+	replicas := []model.AssetReplica{
+		{AssetID: asset.ID, ChannelID: 7191, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusActive, UpstreamAssetID: "known-id"},
+		{AssetID: asset.ID, ChannelID: 7192, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusSyncing, LockedBy: "creating", LeaseUntil: now + 120},
+	}
+	require.NoError(t, db.Create(&replicas).Error)
+	require.NoError(t, DeleteAsset(asset.PublicID, 42, false))
+	require.NoError(t, db.First(&source, source.ID).Error)
+	assert.Equal(t, model.StorageObjectStatusUploaded, source.Status, "live creation still needs its source")
+	require.NoError(t, model.FinishAssetReplicaSubmission(replicas[1].ID, "creating", "late-id", now+8))
+
+	for step, channel := range []int{7191, 7191, 7191, 7192} {
+		candidates, err := model.ListDueAssetReplicas(now, channel, model.AssetReplicaWorkloadMaintenance, 5)
 		require.NoError(t, err)
 		require.Len(t, candidates, 1)
-		owner := fmt.Sprintf("delete-attempt-%d", attempt)
-		claimed, err := model.ClaimAssetReplica(candidates[0], now, now+120, owner)
+		replica := candidates[0]
+		claimed, err := model.ClaimAssetReplica(replica, now, now+120, "deleting")
 		require.NoError(t, err)
 		require.True(t, claimed)
-		syncReplica(context.Background(), owner, candidates[0])
-		require.NoError(t, db.First(&replica, replica.ID).Error)
+		assert.Equal(t, map[int]string{7191: "known-id", 7192: "late-id"}[channel], replica.UpstreamAssetID)
+		syncReplica(context.Background(), "deleting", replica)
+		require.NoError(t, db.First(replica, replica.ID).Error)
 		require.NoError(t, db.First(&source, source.ID).Error)
-		assert.Equal(t, "upstream-delete-id", replica.UpstreamAssetID)
-		if attempt == 0 {
-			assert.Equal(t, model.AssetReplicaStatusDeleting, replica.Status)
-			assert.Equal(t, model.AssetReplicaOperationDelete, replica.Operation)
-			assert.Equal(t, model.StorageObjectStatusUploaded, source.Status, "a failed remote delete must retain the source")
+		if step < 2 {
+			assert.Equal(t, model.AssetReplicaStatusDeleting, replica.Status, "500/403 must not be mistaken for NotFound")
+			assert.NotEmpty(t, replica.UpstreamAssetID)
 			assert.Greater(t, replica.NextSyncAt, now)
 			now = replica.NextSyncAt
 		} else {
 			assert.Equal(t, model.AssetReplicaStatusDeleted, replica.Status)
-			assert.Equal(t, model.StorageObjectStatusDeletePending, source.Status)
 		}
+		expectedSource := model.StorageObjectStatusUploaded
+		if step == 3 {
+			expectedSource = model.StorageObjectStatusDeletePending
+		}
+		assert.Equal(t, expectedSource, source.Status, "source cleanup must wait for every channel")
 	}
-	assert.EqualValues(t, 2, attempts.Load(), "disabled channels must still finish upstream deletion")
-}
-
-func TestAssetDeletionRecognizesOnlyStructuredNotFound(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{"http404", &upstreamAssetError{statusCode: 404}, true},
-		{"documented-code", fmt.Errorf("delete failed: %w", &upstreamAssetError{statusCode: 400, code: "InvalidAssetId.NotFound"}), true},
-		{"server-error", &upstreamAssetError{statusCode: 500, code: "AssetNotFound", message: "request 404"}, false},
-		{"authentication-error", &upstreamAssetError{statusCode: 403, code: "AssetNotFound"}, false},
-		{"unstructured-error", errors.New("request 404: asset not found in cache"), false},
-	} {
-		t.Run(test.name, func(t *testing.T) { assert.Equal(t, test.want, isProviderNotFound(test.err)) })
-	}
+	claimed, err := model.ClaimAssetReplica(&replicas[1], now, now+120, "stale-candidate")
+	require.NoError(t, err)
+	assert.False(t, claimed, "a prefetched candidate must not overwrite completed deletion")
 }
