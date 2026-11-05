@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -254,19 +255,49 @@ func (client *volcActionClient) call(ctx context.Context, action string, payload
 	}, nil
 }
 
-func waitForChannelRate(ctx context.Context, channelID int, qpm int) error {
+type channelRateReservationKey struct{}
+
+// channelRateReservation carries a request slot the scheduler already took
+// when it dispatched a job, so the job's first upstream call does not take a
+// second one.
+type channelRateReservation struct {
+	channelID int
+	used      atomic.Bool
+}
+
+func withChannelRateReservation(ctx context.Context, channelID int) context.Context {
+	return context.WithValue(ctx, channelRateReservationKey{}, &channelRateReservation{channelID: channelID})
+}
+
+// channelRateDelay reports how long until the channel's next request slot.
+func channelRateDelay(channelID int) time.Duration {
+	channelRateState.Lock()
+	defer channelRateState.Unlock()
+	return max(0, time.Until(channelRateState.next[channelID]))
+}
+
+func reserveChannelRate(channelID int, qpm int) time.Time {
 	if qpm <= 0 {
 		qpm = 60
 	}
 	interval := time.Minute / time.Duration(qpm)
 	now := time.Now()
 	channelRateState.Lock()
+	defer channelRateState.Unlock()
 	allowedAt := channelRateState.next[channelID]
 	if allowedAt.Before(now) {
 		allowedAt = now
 	}
 	channelRateState.next[channelID] = allowedAt.Add(interval)
-	channelRateState.Unlock()
+	return allowedAt
+}
+
+func waitForChannelRate(ctx context.Context, channelID int, qpm int) error {
+	if reservation, ok := ctx.Value(channelRateReservationKey{}).(*channelRateReservation); ok &&
+		reservation.channelID == channelID && reservation.used.CompareAndSwap(false, true) {
+		return nil
+	}
+	allowedAt := reserveChannelRate(channelID, qpm)
 	if delay := time.Until(allowedAt); delay > 0 {
 		timer := time.NewTimer(delay)
 		defer timer.Stop()

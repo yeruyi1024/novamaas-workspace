@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -248,48 +249,86 @@ func QueueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int) error {
 	return nil
 }
 
+// AssetReplicaWorkload names the kind of upstream request a due replica needs.
+// The scheduler shares each channel's request budget between workloads.
+type AssetReplicaWorkload string
+
+const (
+	AssetReplicaWorkloadSubmit      AssetReplicaWorkload = "submit"
+	AssetReplicaWorkloadPoll        AssetReplicaWorkload = "poll"
+	AssetReplicaWorkloadMaintenance AssetReplicaWorkload = "maintenance"
+)
+
+func dueAssetReplicas(query *gorm.DB, now int64) *gorm.DB {
+	return query.Where(
+		"((status IN ? AND next_sync_at <= ?) OR (status = ? AND next_sync_at <= ? AND lease_until <= ?) OR (status = ? AND lease_until <= ?))",
+		[]string{AssetReplicaStatusPending, AssetReplicaStatusProcessing, AssetReplicaStatusFailed, AssetReplicaStatusDeleting}, now,
+		AssetReplicaStatusActive, now, now,
+		AssetReplicaStatusSyncing, now,
+	)
+}
+
+// ListDueAssetReplicas reads due work without leasing it. Callers lease only
+// the replica they are about to send, so waiting work stays visible and keeps
+// its place in the queue.
+func ListDueAssetReplicas(now int64, channelID int, workload AssetReplicaWorkload, limit int) ([]*AssetReplica, error) {
+	query := dueAssetReplicas(DB.Where("channel_id = ?", channelID), now)
+	switch workload {
+	case AssetReplicaWorkloadSubmit:
+		query = query.Where("operation <> ? AND status <> ? AND upstream_asset_id = ?", AssetReplicaOperationDelete, AssetReplicaStatusActive, "")
+	case AssetReplicaWorkloadPoll:
+		query = query.Where("operation <> ? AND status <> ? AND upstream_asset_id <> ?", AssetReplicaOperationDelete, AssetReplicaStatusActive, "")
+	case AssetReplicaWorkloadMaintenance:
+		query = query.Where("(operation = ? OR status = ?)", AssetReplicaOperationDelete, AssetReplicaStatusActive)
+	default:
+		return nil, fmt.Errorf("invalid asset replica workload %q", workload)
+	}
+	var candidates []*AssetReplica
+	err := query.Order("next_sync_at asc, id asc").Limit(limit).Find(&candidates).Error
+	return candidates, err
+}
+
+// ClaimAssetReplica leases one candidate if it is still due. A false result
+// means another worker took it or its state changed after it was read.
+func ClaimAssetReplica(candidate *AssetReplica, now int64, leaseUntil int64, lockedBy string) (bool, error) {
+	claimedStatus := AssetReplicaStatusSyncing
+	if candidate.Status == AssetReplicaStatusActive {
+		// Keep an already usable replica active while the periodic review is
+		// in flight so task submissions do not observe a false sync gap.
+		claimedStatus = AssetReplicaStatusActive
+	}
+	result := dueAssetReplicas(DB.Model(&AssetReplica{}).Where("id = ? AND status = ?", candidate.ID, candidate.Status), now).
+		Updates(map[string]any{
+			"status":      claimedStatus,
+			"locked_by":   lockedBy,
+			"lease_until": leaseUntil,
+			"updated_at":  now,
+		})
+	if result.Error != nil || result.RowsAffected != 1 {
+		return false, result.Error
+	}
+	candidate.ClaimedFromStatus = candidate.Status
+	candidate.Status = claimedStatus
+	candidate.LockedBy = lockedBy
+	candidate.LeaseUntil = leaseUntil
+	return true, nil
+}
+
 func ClaimAssetReplicas(now int64, leaseUntil int64, lockedBy string, limit int) ([]*AssetReplica, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	var candidates []*AssetReplica
-	if err := DB.Where(
-		"((status IN ? AND next_sync_at <= ?) OR (status = ? AND next_sync_at <= ? AND lease_until <= ?) OR (status = ? AND lease_until <= ?))",
-		[]string{AssetReplicaStatusPending, AssetReplicaStatusProcessing, AssetReplicaStatusFailed, AssetReplicaStatusDeleting}, now,
-		AssetReplicaStatusActive, now, now,
-		AssetReplicaStatusSyncing, now,
-	).Order("next_sync_at asc").Limit(limit).Find(&candidates).Error; err != nil {
+	if err := dueAssetReplicas(DB, now).Order("next_sync_at asc").Limit(limit).Find(&candidates).Error; err != nil {
 		return nil, err
 	}
 	claimed := make([]*AssetReplica, 0, len(candidates))
 	for _, candidate := range candidates {
-		claimedStatus := AssetReplicaStatusSyncing
-		if candidate.Status == AssetReplicaStatusActive {
-			// Keep an already usable replica active while the periodic review is
-			// in flight so task submissions do not observe a false sync gap.
-			claimedStatus = AssetReplicaStatusActive
+		ok, err := ClaimAssetReplica(candidate, now, leaseUntil, lockedBy)
+		if err != nil {
+			return nil, err
 		}
-		result := DB.Model(&AssetReplica{}).
-			Where("id = ? AND ((status IN ? AND next_sync_at <= ?) OR (status = ? AND next_sync_at <= ? AND lease_until <= ?) OR (status = ? AND lease_until <= ?))",
-				candidate.ID,
-				[]string{AssetReplicaStatusPending, AssetReplicaStatusProcessing, AssetReplicaStatusFailed, AssetReplicaStatusDeleting}, now,
-				AssetReplicaStatusActive, now, now,
-				AssetReplicaStatusSyncing, now,
-			).
-			Updates(map[string]any{
-				"status":      claimedStatus,
-				"locked_by":   lockedBy,
-				"lease_until": leaseUntil,
-				"updated_at":  now,
-			})
-		if result.Error != nil {
-			return nil, result.Error
-		}
-		if result.RowsAffected == 1 {
-			candidate.ClaimedFromStatus = candidate.Status
-			candidate.Status = claimedStatus
-			candidate.LockedBy = lockedBy
-			candidate.LeaseUntil = leaseUntil
+		if ok {
 			claimed = append(claimed, candidate)
 		}
 	}

@@ -14,56 +14,257 @@ import (
 	storageService "github.com/QuantumNous/new-api/service/storage"
 
 	"github.com/bytedance/gopkg/util/gopool"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 const (
-	assetSyncInterval            = 10 * time.Second
+	assetSyncScanInterval        = time.Second
 	assetSyncLease               = 2 * time.Minute
-	assetSyncBatch               = 20
+	assetSyncChannelConcurrency  = 2
+	assetSyncCandidateLimit      = 5
+	assetFirstPollDelay          = 8 * time.Second
 	assetActiveReviewWindow      = 48 * time.Hour
 	assetActiveReviewInterval    = 30 * time.Minute
 	assetActiveReconcileInterval = 24 * time.Hour
 	assetActiveRetryInterval     = 5 * time.Minute
 )
 
+// assetSyncTurns is the weighted rotation used when several kinds of work are
+// waiting on one channel. Status checks get two turns so finished uploads are
+// noticed while a batch is still being submitted. A kind with no due work
+// passes its turn on, so an idle kind never leaves request slots unused.
+var assetSyncTurns = [...]model.AssetReplicaWorkload{
+	model.AssetReplicaWorkloadSubmit,
+	model.AssetReplicaWorkloadPoll,
+	model.AssetReplicaWorkloadPoll,
+	model.AssetReplicaWorkloadMaintenance,
+}
+
 var assetSyncOnce sync.Once
 
+const (
+	assetSyncLeaderKey   = "asset_sync:leader"
+	assetSyncLeaderTTL   = 30 * time.Second
+	assetSyncLeaderRenew = 10 * time.Second
+)
+
+// Renew only a lock this node still owns, so a node that stalled past the TTL
+// cannot extend the lease of the node that replaced it.
+var renewAssetSyncLeader = redis.NewScript(`if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("PEXPIRE", KEYS[1], ARGV[2]) else return 0 end`)
+
+// StartSyncTask starts the asset scheduler on every eligible node; a Redis
+// lock lets exactly one of them dispatch at a time. Each node paces upstream
+// requests in memory, so this single dispatcher is what keeps a channel within
+// its QPM. If the leader stops, another node takes over once the lock expires.
+// Without Redis every eligible node dispatches, as before. ASSET_SYNC_ENABLED
+// can exclude a node without changing NODE_TYPE.
 func StartSyncTask() {
 	assetSyncOnce.Do(func() {
-		if !common.IsMasterNode {
+		if !common.GetEnvOrDefaultBool("ASSET_SYNC_ENABLED", common.IsMasterNode) {
 			return
 		}
-		runnerID := fmt.Sprintf("%s-assets-%s", common.NodeName, common.GetRandomString(8))
-		gopool.Go(func() {
-			runSyncPass(runnerID)
-			ticker := time.NewTicker(assetSyncInterval)
-			defer ticker.Stop()
-			for range ticker.C {
-				runSyncPass(runnerID)
-			}
-		})
+		if !common.RedisEnabled {
+			common.SysLog("asset synchronization runs without leader election because Redis is disabled; run it on one node to keep upstream QPM accurate")
+		}
+		scheduler := newAssetSyncScheduler(fmt.Sprintf("%s-assets-%s", common.NodeName, common.GetRandomString(8)))
+		gopool.Go(scheduler.run)
 	})
 }
 
-func runSyncPass(runnerID string) {
-	for range assetSyncBatch {
-		now := common.GetTimestamp()
-		attemptID := runnerID + "-" + common.GetRandomString(16)
-		replicas, err := model.ClaimAssetReplicas(now, now+int64(assetSyncLease/time.Second), attemptID, 1)
-		if err != nil {
-			logger.LogWarn(context.Background(), fmt.Sprintf("claim asset replicas failed: %v", err))
-			return
-		}
-		if len(replicas) == 0 {
-			return
-		}
-		syncReplica(attemptID, replicas[0])
+// holdsAssetSyncLeadership acquires or renews the lock that makes this node the
+// only asset dispatcher.
+func holdsAssetSyncLeadership(ctx context.Context, runnerID string) (bool, error) {
+	if !common.RedisEnabled {
+		return true, nil
+	}
+	renewed, err := renewAssetSyncLeader.Run(ctx, common.RDB, []string{assetSyncLeaderKey}, runnerID, assetSyncLeaderTTL.Milliseconds()).Int()
+	if err != nil {
+		return false, err
+	}
+	if renewed == 1 {
+		return true, nil
+	}
+	return common.RDB.SetNX(ctx, assetSyncLeaderKey, runnerID, assetSyncLeaderTTL).Result()
+}
+
+// assetSyncScheduler is the single dispatcher for asset synchronization. Each
+// time a channel has a free request slot it reads that channel's due work,
+// picks the next kind by weighted rotation and leases only the replica it is
+// about to send. Work that cannot be sent yet stays unleased in the database.
+type assetSyncScheduler struct {
+	runnerID string
+	mu       sync.Mutex
+	inFlight map[int]int
+	turns    map[int]int
+	// dispatched counts started jobs; only the dispatch goroutine touches it.
+	dispatched int
+	jobs       sync.WaitGroup
+	finished   chan struct{}
+}
+
+func newAssetSyncScheduler(runnerID string) *assetSyncScheduler {
+	return &assetSyncScheduler{
+		runnerID: runnerID,
+		inFlight: make(map[int]int),
+		turns:    make(map[int]int),
+		finished: make(chan struct{}, 1),
 	}
 }
 
-func syncReplica(runnerID string, replica *model.AssetReplica) {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+func (scheduler *assetSyncScheduler) run() {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	leader := false
+	var nextLeaderCheck time.Time
+	for {
+		select {
+		case <-timer.C:
+		case <-scheduler.finished:
+		}
+		if now := time.Now(); !now.Before(nextLeaderCheck) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			held, err := holdsAssetSyncLeadership(ctx, scheduler.runnerID)
+			cancel()
+			nextLeaderCheck = now.Add(assetSyncLeaderRenew)
+			if err != nil {
+				// Leadership cannot be proven, so stop dispatching rather than risk
+				// two nodes sending against one channel budget.
+				logger.LogWarn(context.Background(), fmt.Sprintf("asset synchronization leader check failed: %v", err))
+			} else if held != leader {
+				common.SysLog(fmt.Sprintf("asset synchronization leader=%t runner=%s", held, scheduler.runnerID))
+			}
+			leader = held && err == nil
+		}
+		// Since Go 1.23 Reset discards a pending tick, so no drain is needed.
+		if !leader {
+			timer.Reset(time.Until(nextLeaderCheck))
+			continue
+		}
+		timer.Reset(min(scheduler.dispatch(), time.Until(nextLeaderCheck)))
+	}
+}
+
+// runSyncPass processes currently due work round by round until none is left.
+func runSyncPass(runnerID string) {
+	scheduler := newAssetSyncScheduler(runnerID)
+	for range 20 {
+		before := scheduler.dispatched
+		scheduler.dispatch()
+		scheduler.jobs.Wait()
+		if scheduler.dispatched == before {
+			return
+		}
+	}
+}
+
+// dispatch starts at most one job per channel and returns how long to wait
+// before the next round.
+func (scheduler *assetSyncScheduler) dispatch() time.Duration {
+	wait := assetSyncScanInterval
+	var configs []model.AssetChannelConfig
+	if err := model.DB.Select("channel_id", "qpm").Find(&configs).Error; err != nil {
+		logger.LogWarn(context.Background(), fmt.Sprintf("load asset channels for synchronization failed: %v", err))
+		return 5 * time.Second
+	}
+	for _, config := range configs {
+		scheduler.mu.Lock()
+		busy := scheduler.inFlight[config.ChannelID] >= assetSyncChannelConcurrency
+		scheduler.mu.Unlock()
+		if busy {
+			continue // a finishing job wakes the scheduler
+		}
+		if delay := channelRateDelay(config.ChannelID); delay > 0 {
+			wait = min(wait, delay)
+			continue
+		}
+		replica, err := scheduler.claimNext(config.ChannelID)
+		if err != nil {
+			logger.LogWarn(context.Background(), fmt.Sprintf("claim asset replica failed: channel_id=%d error=%v", config.ChannelID, err))
+			continue
+		}
+		if replica == nil {
+			continue
+		}
+		reserveChannelRate(config.ChannelID, config.QPM)
+		scheduler.mu.Lock()
+		scheduler.inFlight[config.ChannelID]++
+		scheduler.mu.Unlock()
+		scheduler.dispatched++
+		scheduler.jobs.Add(1)
+		gopool.Go(func() {
+			defer scheduler.finish(replica.ChannelID)
+			syncReplica(withChannelRateReservation(context.Background(), replica.ChannelID), replica.LockedBy, replica)
+		})
+		// More work may already be due on this channel once its next slot opens.
+		wait = min(wait, max(channelRateDelay(config.ChannelID), 10*time.Millisecond))
+	}
+	return wait
+}
+
+func (scheduler *assetSyncScheduler) finish(channelID int) {
+	scheduler.mu.Lock()
+	scheduler.inFlight[channelID]--
+	scheduler.mu.Unlock()
+	scheduler.jobs.Done()
+	select {
+	case scheduler.finished <- struct{}{}:
+	default:
+	}
+}
+
+// claimNext leases the oldest due replica of the next kind in the channel's
+// rotation, skipping kinds with nothing due.
+func (scheduler *assetSyncScheduler) claimNext(channelID int) (*model.AssetReplica, error) {
+	now := common.GetTimestamp()
+	start := scheduler.turns[channelID]
+	loaded := make(map[model.AssetReplicaWorkload]bool, len(assetSyncTurns))
+	for offset := range assetSyncTurns {
+		turn := (start + offset) % len(assetSyncTurns)
+		workload := assetSyncTurns[turn]
+		if loaded[workload] {
+			continue // already found nothing claimable for this kind
+		}
+		loaded[workload] = true
+		candidates, err := model.ListDueAssetReplicas(now, channelID, workload, assetSyncCandidateLimit)
+		if err != nil {
+			return nil, err
+		}
+		for _, candidate := range candidates {
+			attemptID := scheduler.runnerID + "-" + common.GetRandomString(16)
+			claimed, err := model.ClaimAssetReplica(candidate, now, now+int64(assetSyncLease/time.Second), attemptID)
+			if err != nil {
+				return nil, err
+			}
+			if claimed {
+				scheduler.turns[channelID] = turn + 1
+				return candidate, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// processingPollDelay spaces status checks out as an upload takes longer, so a
+// slow asset does not keep spending the channel's request budget.
+func processingPollDelay(replica *model.AssetReplica, now int64) time.Duration {
+	if replica.CreatedAt <= 0 {
+		return 15 * time.Second
+	}
+	switch elapsed := now - replica.CreatedAt; {
+	case elapsed < 60:
+		return 3 * time.Second
+	case elapsed < 120:
+		return 5 * time.Second
+	case elapsed < 300:
+		return 10 * time.Second
+	default:
+		return 15 * time.Second
+	}
+}
+
+func syncReplica(parent context.Context, runnerID string, replica *model.AssetReplica) {
+	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
 	ctx = withRequestLogContext(ctx, "sync", replica.ID, replica.AssetID)
 	var asset model.MediaAsset
@@ -105,21 +306,21 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, 24*time.Hour, "asset channel is disabled")
 		return
 	}
-	upstreamGroupID := ""
-	if client.requiresGroup() {
-		var group model.AssetGroup
-		if err = model.DB.First(&group, asset.GroupID).Error; err != nil {
-			failReplica(runnerID, replica, err)
-			return
-		}
-		groupReplica, groupErr := ensureGroupReplica(ctx, client, &group, replica.ChannelID)
-		if groupErr != nil {
-			failReplica(runnerID, replica, groupErr)
-			return
-		}
-		upstreamGroupID = groupReplica.UpstreamGroupID
-	}
 	if replica.UpstreamAssetID == "" {
+		upstreamGroupID := ""
+		if client.requiresGroup() {
+			var group model.AssetGroup
+			if err = model.DB.First(&group, asset.GroupID).Error; err != nil {
+				failReplica(runnerID, replica, err)
+				return
+			}
+			groupReplica, groupErr := ensureGroupReplica(ctx, client, &group, replica.ChannelID)
+			if groupErr != nil {
+				failReplica(runnerID, replica, groupErr)
+				return
+			}
+			upstreamGroupID = groupReplica.UpstreamGroupID
+		}
 		sourceURL, err := storageService.PresignAssetObject(ctx, asset.StorageObjectID, 24*time.Hour, storageService.AssetObjectURLOriginal, "")
 		if err != nil {
 			failReplica(runnerID, replica, err)
@@ -134,7 +335,9 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 			failReplica(runnerID, replica, err)
 			return
 		}
-		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 50, upstreamID, 10*time.Second, "")
+		// Upstream processing takes several seconds; an earlier check would
+		// almost always spend a request on a "processing" answer.
+		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 50, upstreamID, assetFirstPollDelay, "")
 		return
 	}
 	result, err := client.getAsset(ctx, replica.UpstreamAssetID)
@@ -162,7 +365,7 @@ func syncReplica(runnerID string, replica *model.AssetReplica) {
 		}
 		failReplica(runnerID, replica, errors.New(message))
 	default:
-		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 75, replica.UpstreamAssetID, 15*time.Second, "")
+		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 75, replica.UpstreamAssetID, processingPollDelay(replica, common.GetTimestamp()), "")
 	}
 }
 
