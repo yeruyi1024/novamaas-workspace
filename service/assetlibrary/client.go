@@ -48,8 +48,10 @@ type volcActionClient struct {
 
 var channelRateState = struct {
 	sync.Mutex
-	next map[int]time.Time
-}{next: make(map[int]time.Time)}
+	next       map[int]time.Time
+	sentNext   map[int]time.Time
+	reviewNext map[int]time.Time
+}{next: make(map[int]time.Time), sentNext: make(map[int]time.Time), reviewNext: make(map[int]time.Time)}
 
 // Share the transport just as the default HTTP client did, including across
 // ephemeral provider clients created for individual asset operations.
@@ -262,11 +264,41 @@ type channelRateReservationKey struct{}
 // second one.
 type channelRateReservation struct {
 	channelID int
+	qpm       int
+	allowedAt time.Time
+	workload  model.AssetReplicaWorkload
 	used      atomic.Bool
 }
 
-func withChannelRateReservation(ctx context.Context, channelID int) context.Context {
-	return context.WithValue(ctx, channelRateReservationKey{}, &channelRateReservation{channelID: channelID})
+func withChannelRateReservation(ctx context.Context, channelID, qpm int, allowedAt time.Time, workload model.AssetReplicaWorkload) context.Context {
+	return context.WithValue(ctx, channelRateReservationKey{}, &channelRateReservation{channelID: channelID, qpm: qpm, allowedAt: allowedAt, workload: workload})
+}
+
+// Jobs that finish locally never consume an upstream time slot. Do not undo a
+// later reservation made by another job or an administrative connection test.
+func releaseUnusedChannelReservation(ctx context.Context) {
+	reservation, ok := ctx.Value(channelRateReservationKey{}).(*channelRateReservation)
+	if !ok || reservation.used.Load() {
+		return
+	}
+	channelRateState.Lock()
+	defer channelRateState.Unlock()
+	if channelRateState.next[reservation.channelID].Equal(reservation.allowedAt.Add(channelRateInterval(reservation.qpm))) {
+		channelRateState.next[reservation.channelID] = reservation.allowedAt
+	}
+}
+
+func channelRateInterval(qpm int) time.Duration {
+	if qpm <= 0 {
+		qpm = 60
+	}
+	return (time.Minute + time.Duration(qpm) - 1) / time.Duration(qpm)
+}
+
+func channelReviewRateDelay(channelID int) time.Duration {
+	channelRateState.Lock()
+	defer channelRateState.Unlock()
+	return max(0, time.Until(channelRateState.reviewNext[channelID]))
 }
 
 // channelRateDelay reports how long until the channel's next request slot.
@@ -277,10 +309,7 @@ func channelRateDelay(channelID int) time.Duration {
 }
 
 func reserveChannelRate(channelID int, qpm int) time.Time {
-	if qpm <= 0 {
-		qpm = 60
-	}
-	interval := time.Minute / time.Duration(qpm)
+	interval := channelRateInterval(qpm)
 	now := time.Now()
 	channelRateState.Lock()
 	defer channelRateState.Unlock()
@@ -293,21 +322,44 @@ func reserveChannelRate(channelID int, qpm int) time.Time {
 }
 
 func waitForChannelRate(ctx context.Context, channelID int, qpm int) error {
+	allowedAt := time.Time{}
+	review := false
 	if reservation, ok := ctx.Value(channelRateReservationKey{}).(*channelRateReservation); ok &&
 		reservation.channelID == channelID && reservation.used.CompareAndSwap(false, true) {
-		return nil
+		allowedAt = reservation.allowedAt
+		review = reservation.workload == model.AssetReplicaWorkloadReview
+	} else {
+		allowedAt = reserveChannelRate(channelID, qpm)
 	}
-	allowedAt := reserveChannelRate(channelID, qpm)
-	if delay := time.Until(allowedAt); delay > 0 {
-		timer := time.NewTimer(delay)
-		defer timer.Stop()
+	interval := channelRateInterval(qpm)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		channelRateState.Lock()
+		if channelRateState.sentNext[channelID].After(allowedAt) {
+			allowedAt = channelRateState.sentNext[channelID]
+		}
+		if review && channelRateState.reviewNext[channelID].After(allowedAt) {
+			allowedAt = channelRateState.reviewNext[channelID]
+		}
+		if now := time.Now(); !now.Before(allowedAt) {
+			channelRateState.sentNext[channelID] = now.Add(interval)
+			if review {
+				channelRateState.reviewNext[channelID] = now.Add(10 * interval)
+			}
+			channelRateState.Unlock()
+			return nil
+		}
+		channelRateState.Unlock()
+		timer := time.NewTimer(time.Until(allowedAt))
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return ctx.Err()
 		case <-timer.C:
 		}
 	}
-	return nil
 }
 
 func (client *volcActionClient) sign(request *http.Request, body []byte) {

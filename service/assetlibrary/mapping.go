@@ -60,6 +60,9 @@ func ResolveRequestAssetIDs(body []byte, ownerUserID int, channelID int) ([]byte
 		if asset.OwnerUserID != ownerUserID || asset.Status == model.AssetStatusDeleted {
 			return nil, 0, &RequestError{StatusCode: http.StatusNotFound, Err: fmt.Errorf("asset %s does not exist or is not accessible", publicID)}
 		}
+		if asset.Status == model.AssetStatusSyncFailed {
+			return nil, 0, &RequestError{StatusCode: http.StatusUnprocessableEntity, Code: "asset_sync_failed", Err: fmt.Errorf("asset %s synchronization failed; retry synchronization or upload the material again", publicID)}
+		}
 		if asset.Status == model.AssetStatusUnavailable {
 			reason := "upstream rejected this material"
 			switch asset.UnavailableReason {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"strings"
 	"sync"
 	"time"
@@ -14,14 +15,12 @@ import (
 	storageService "github.com/QuantumNous/new-api/service/storage"
 
 	"github.com/bytedance/gopkg/util/gopool"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 const (
 	assetSyncScanInterval        = time.Second
 	assetSyncLease               = 2 * time.Minute
-	assetSyncChannelConcurrency  = 2
 	assetSyncCandidateLimit      = 5
 	assetFirstPollDelay          = 8 * time.Second
 	assetActiveReviewWindow      = 48 * time.Hour
@@ -39,53 +38,26 @@ var assetSyncTurns = [...]model.AssetReplicaWorkload{
 	model.AssetReplicaWorkloadPoll,
 	model.AssetReplicaWorkloadPoll,
 	model.AssetReplicaWorkloadMaintenance,
+	model.AssetReplicaWorkloadReview,
 }
 
 var assetSyncOnce sync.Once
 
-const (
-	assetSyncLeaderKey   = "asset_sync:leader"
-	assetSyncLeaderTTL   = 30 * time.Second
-	assetSyncLeaderRenew = 10 * time.Second
-)
-
-// Renew only a lock this node still owns, so a node that stalled past the TTL
-// cannot extend the lease of the node that replaced it.
-var renewAssetSyncLeader = redis.NewScript(`if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("PEXPIRE", KEYS[1], ARGV[2]) else return 0 end`)
-
-// StartSyncTask starts the asset scheduler on every eligible node; a Redis
-// lock lets exactly one of them dispatch at a time. Each node paces upstream
-// requests in memory, so this single dispatcher is what keeps a channel within
-// its QPM. If the leader stops, another node takes over once the lock expires.
-// Without Redis every eligible node dispatches, as before. ASSET_SYNC_ENABLED
-// can exclude a node without changing NODE_TYPE.
+// Eligible API nodes compete for one shared database lease. An explicit
+// ASSET_SYNC_ENABLED=false excludes a node without changing NODE_TYPE.
 func StartSyncTask() {
 	assetSyncOnce.Do(func() {
-		if !common.GetEnvOrDefaultBool("ASSET_SYNC_ENABLED", common.IsMasterNode) {
+		if !common.GetEnvOrDefaultBool("ASSET_SYNC_ENABLED", true) {
 			return
 		}
-		if !common.RedisEnabled {
-			common.SysLog("asset synchronization runs without leader election because Redis is disabled; run it on one node to keep upstream QPM accurate")
-		}
 		scheduler := newAssetSyncScheduler(fmt.Sprintf("%s-assets-%s", common.NodeName, common.GetRandomString(8)))
-		gopool.Go(scheduler.run)
+		gopool.Go(func() { scheduler.run(context.Background()) })
 	})
 }
 
-// holdsAssetSyncLeadership acquires or renews the lock that makes this node the
-// only asset dispatcher.
-func holdsAssetSyncLeadership(ctx context.Context, runnerID string) (bool, error) {
-	if !common.RedisEnabled {
-		return true, nil
-	}
-	renewed, err := renewAssetSyncLeader.Run(ctx, common.RDB, []string{assetSyncLeaderKey}, runnerID, assetSyncLeaderTTL.Milliseconds()).Int()
-	if err != nil {
-		return false, err
-	}
-	if renewed == 1 {
-		return true, nil
-	}
-	return common.RDB.SetNX(ctx, assetSyncLeaderKey, runnerID, assetSyncLeaderTTL).Result()
+type assetSyncQueue struct {
+	channelID int
+	workload  model.AssetReplicaWorkload
 }
 
 // assetSyncScheduler is the single dispatcher for asset synchronization. Each
@@ -93,10 +65,14 @@ func holdsAssetSyncLeadership(ctx context.Context, runnerID string) (bool, error
 // picks the next kind by weighted rotation and leases only the replica it is
 // about to send. Work that cannot be sent yet stays unleased in the database.
 type assetSyncScheduler struct {
-	runnerID string
-	mu       sync.Mutex
-	inFlight map[int]int
-	turns    map[int]int
+	runnerID     string
+	mu           sync.Mutex
+	inFlight     map[assetSyncQueue]int
+	turns        map[int]int
+	pending      map[assetSyncQueue][]*model.AssetReplica
+	scanAfter    map[assetSyncQueue]time.Time
+	configs      []model.AssetChannelConfig
+	configsUntil time.Time
 	// dispatched counts started jobs; only the dispatch goroutine touches it.
 	dispatched int
 	jobs       sync.WaitGroup
@@ -105,74 +81,97 @@ type assetSyncScheduler struct {
 
 func newAssetSyncScheduler(runnerID string) *assetSyncScheduler {
 	return &assetSyncScheduler{
-		runnerID: runnerID,
-		inFlight: make(map[int]int),
-		turns:    make(map[int]int),
-		finished: make(chan struct{}, 1),
+		runnerID:  runnerID,
+		inFlight:  make(map[assetSyncQueue]int),
+		pending:   make(map[assetSyncQueue][]*model.AssetReplica),
+		scanAfter: make(map[assetSyncQueue]time.Time),
+		turns:     make(map[int]int),
+		finished:  make(chan struct{}, 1),
 	}
 }
 
-func (scheduler *assetSyncScheduler) run() {
+func (scheduler *assetSyncScheduler) run(ctx context.Context) {
 	timer := time.NewTimer(0)
 	defer timer.Stop()
-	leader := false
-	var nextLeaderCheck time.Time
+	var leaderCtx context.Context
+	var cancelLeader context.CancelFunc
+	var expiry *time.Timer
+	defer func() {
+		if expiry != nil {
+			expiry.Stop()
+		}
+		if cancelLeader != nil {
+			cancelLeader()
+		}
+		scheduler.jobs.Wait()
+	}()
+	var checkAt, lastError time.Time
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-timer.C:
 		case <-scheduler.finished:
 		}
-		if now := time.Now(); !now.Before(nextLeaderCheck) {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			held, err := holdsAssetSyncLeadership(ctx, scheduler.runnerID)
+		if started := time.Now(); !started.Before(checkAt) {
+			checkCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			held, err := model.TryHoldAssetSyncLeadership(checkCtx, scheduler.runnerID, 30)
 			cancel()
-			nextLeaderCheck = now.Add(assetSyncLeaderRenew)
-			if err != nil {
-				// Leadership cannot be proven, so stop dispatching rather than risk
-				// two nodes sending against one channel budget.
-				logger.LogWarn(context.Background(), fmt.Sprintf("asset synchronization leader check failed: %v", err))
-			} else if held != leader {
-				common.SysLog(fmt.Sprintf("asset synchronization leader=%t runner=%s", held, scheduler.runnerID))
+			checkAt = started.Add(10 * time.Second)
+			wasLeader := leaderCtx != nil && leaderCtx.Err() == nil
+			if err != nil || !held {
+				if cancelLeader != nil {
+					cancelLeader()
+				}
+				leaderCtx = nil
+				if err != nil && (lastError.IsZero() || time.Since(lastError) >= time.Minute) {
+					logger.LogWarn(ctx, fmt.Sprintf("asset synchronization leader check failed: %v", err))
+					lastError = time.Now()
+				}
+			} else {
+				// If the old expiry callback has started, its context cannot be
+				// reused. Its cancellation must never affect the new lease.
+				if expiry != nil && !expiry.Stop() {
+					cancelLeader()
+					leaderCtx = nil
+				}
+				if leaderCtx == nil || leaderCtx.Err() != nil {
+					leaderCtx, cancelLeader = context.WithCancel(ctx)
+				}
+				// Stop before the DB lease expires, even if a claim/renewal stalls.
+				// Starting from the request time also subtracts DB/network latency.
+				expiry = time.AfterFunc(time.Until(started.Add(27*time.Second)), cancelLeader)
 			}
-			leader = held && err == nil
+			isLeader := leaderCtx != nil && leaderCtx.Err() == nil
+			if wasLeader != isLeader {
+				common.SysLog(fmt.Sprintf("asset synchronization leader=%t runner=%s", isLeader, scheduler.runnerID))
+			}
 		}
-		// Since Go 1.23 Reset discards a pending tick, so no drain is needed.
-		if !leader {
-			timer.Reset(time.Until(nextLeaderCheck))
+		if leaderCtx == nil || leaderCtx.Err() != nil {
+			timer.Reset(max(time.Millisecond, time.Until(checkAt)))
 			continue
 		}
-		timer.Reset(min(scheduler.dispatch(), time.Until(nextLeaderCheck)))
-	}
-}
-
-// runSyncPass processes currently due work round by round until none is left.
-func runSyncPass(runnerID string) {
-	scheduler := newAssetSyncScheduler(runnerID)
-	for range 20 {
-		before := scheduler.dispatched
-		scheduler.dispatch()
-		scheduler.jobs.Wait()
-		if scheduler.dispatched == before {
-			return
-		}
+		timer.Reset(min(scheduler.dispatch(leaderCtx), max(time.Millisecond, time.Until(checkAt))))
 	}
 }
 
 // dispatch starts at most one job per channel and returns how long to wait
 // before the next round.
-func (scheduler *assetSyncScheduler) dispatch() time.Duration {
-	wait := assetSyncScanInterval
-	var configs []model.AssetChannelConfig
-	if err := model.DB.Select("channel_id", "qpm").Find(&configs).Error; err != nil {
-		logger.LogWarn(context.Background(), fmt.Sprintf("load asset channels for synchronization failed: %v", err))
-		return 5 * time.Second
+func (scheduler *assetSyncScheduler) dispatch(parent context.Context) time.Duration {
+	if parent.Err() != nil {
+		return assetSyncScanInterval
 	}
-	for _, config := range configs {
-		scheduler.mu.Lock()
-		busy := scheduler.inFlight[config.ChannelID] >= assetSyncChannelConcurrency
-		scheduler.mu.Unlock()
-		if busy {
-			continue // a finishing job wakes the scheduler
+	wait := assetSyncScanInterval
+	if !time.Now().Before(scheduler.configsUntil) {
+		if err := model.DB.Select("channel_id", "qpm").Find(&scheduler.configs).Error; err != nil {
+			logger.LogWarn(context.Background(), fmt.Sprintf("load asset channels for synchronization failed: %v", err))
+			return 5 * time.Second
+		}
+		scheduler.configsUntil = time.Now().Add(assetSyncScanInterval)
+	}
+	for _, config := range scheduler.configs {
+		if parent.Err() != nil {
+			break
 		}
 		if delay := channelRateDelay(config.ChannelID); delay > 0 {
 			wait = min(wait, delay)
@@ -186,15 +185,21 @@ func (scheduler *assetSyncScheduler) dispatch() time.Duration {
 		if replica == nil {
 			continue
 		}
-		reserveChannelRate(config.ChannelID, config.QPM)
+		if parent.Err() != nil {
+			_ = model.FinishAssetReplica(replica.ID, replica.LockedBy, replica.ClaimedFromStatus, replica.Progress, replica.UpstreamAssetID, replica.NextSyncAt, replica.LastError, replica.Operation)
+			break
+		}
+		allowedAt := reserveChannelRate(config.ChannelID, config.QPM)
+		ctx := withChannelRateReservation(parent, config.ChannelID, config.QPM, allowedAt, replicaWorkload(replica))
+		key := assetSyncQueue{config.ChannelID, replicaWorkload(replica)}
 		scheduler.mu.Lock()
-		scheduler.inFlight[config.ChannelID]++
+		scheduler.inFlight[key]++
 		scheduler.mu.Unlock()
 		scheduler.dispatched++
 		scheduler.jobs.Add(1)
 		gopool.Go(func() {
-			defer scheduler.finish(replica.ChannelID)
-			syncReplica(withChannelRateReservation(context.Background(), replica.ChannelID), replica.LockedBy, replica)
+			defer scheduler.finish(key, ctx)
+			syncReplica(ctx, replica.LockedBy, replica)
 		})
 		// More work may already be due on this channel once its next slot opens.
 		wait = min(wait, max(channelRateDelay(config.ChannelID), 10*time.Millisecond))
@@ -202,9 +207,10 @@ func (scheduler *assetSyncScheduler) dispatch() time.Duration {
 	return wait
 }
 
-func (scheduler *assetSyncScheduler) finish(channelID int) {
+func (scheduler *assetSyncScheduler) finish(key assetSyncQueue, ctx context.Context) {
+	releaseUnusedChannelReservation(ctx)
 	scheduler.mu.Lock()
-	scheduler.inFlight[channelID]--
+	scheduler.inFlight[key]--
 	scheduler.mu.Unlock()
 	scheduler.jobs.Done()
 	select {
@@ -226,11 +232,27 @@ func (scheduler *assetSyncScheduler) claimNext(channelID int) (*model.AssetRepli
 			continue // already found nothing claimable for this kind
 		}
 		loaded[workload] = true
-		candidates, err := model.ListDueAssetReplicas(now, channelID, workload, assetSyncCandidateLimit)
-		if err != nil {
-			return nil, err
+		key := assetSyncQueue{channelID, workload}
+		scheduler.mu.Lock()
+		busy := scheduler.inFlight[key] > 0
+		scheduler.mu.Unlock()
+		if busy || (workload == model.AssetReplicaWorkloadReview && channelReviewRateDelay(channelID) > 0) {
+			continue
 		}
-		for _, candidate := range candidates {
+		if len(scheduler.pending[key]) == 0 {
+			if time.Now().Before(scheduler.scanAfter[key]) {
+				continue
+			}
+			candidates, err := model.ListDueAssetReplicas(now, channelID, workload, assetSyncCandidateLimit)
+			if err != nil {
+				return nil, err
+			}
+			scheduler.pending[key] = candidates
+			scheduler.scanAfter[key] = time.Now().Add(assetSyncScanInterval)
+		}
+		for len(scheduler.pending[key]) > 0 {
+			candidate := scheduler.pending[key][0]
+			scheduler.pending[key] = scheduler.pending[key][1:]
 			attemptID := scheduler.runnerID + "-" + common.GetRandomString(16)
 			claimed, err := model.ClaimAssetReplica(candidate, now, now+int64(assetSyncLease/time.Second), attemptID)
 			if err != nil {
@@ -243,6 +265,19 @@ func (scheduler *assetSyncScheduler) claimNext(channelID int) (*model.AssetRepli
 		}
 	}
 	return nil, nil
+}
+
+func replicaWorkload(replica *model.AssetReplica) model.AssetReplicaWorkload {
+	if replica.Operation == model.AssetReplicaOperationDelete {
+		return model.AssetReplicaWorkloadMaintenance
+	}
+	if replica.Status == model.AssetReplicaStatusActive || replica.ClaimedFromStatus == model.AssetReplicaStatusActive || replica.Progress >= 100 {
+		return model.AssetReplicaWorkloadReview
+	}
+	if replica.UpstreamAssetID == "" {
+		return model.AssetReplicaWorkloadSubmit
+	}
+	return model.AssetReplicaWorkloadPoll
 }
 
 // processingPollDelay spaces status checks out as an upload takes longer, so a
@@ -278,6 +313,36 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		}
 		return
 	}
+	deleting := asset.Status == model.AssetStatusDeleted || replica.Operation == model.AssetReplicaOperationDelete
+	var deleteID string
+	if deleting {
+		from := replica.ClaimedFromStatus
+		if err := model.DB.Where("id = ? AND locked_by = ?", replica.ID, runnerID).First(replica).Error; err != nil {
+			failReplica(runnerID, replica, err)
+			return
+		}
+		replica.ClaimedFromStatus = from
+		deleteID = replica.UpstreamAssetID
+		if deleteID == "" {
+			if err := model.AcknowledgeAssetReplicaDeletion(replica.ID, runnerID, ""); err != nil {
+				logger.LogWarn(ctx, fmt.Sprintf("finish asset cancellation failed: %v", err))
+			}
+			return
+		}
+	}
+	if !deleting && replica.ClaimedFromStatus != model.AssetReplicaStatusActive && replica.Progress < 100 {
+		if replica.CreatedAt == 0 {
+			replica.CreatedAt = common.GetTimestamp()
+			if err := model.DB.Model(replica).Where("locked_by = ?", runnerID).Update("created_at", replica.CreatedAt).Error; err != nil {
+				failReplica(runnerID, replica, err)
+				return
+			}
+		}
+		if common.GetTimestamp() >= replica.CreatedAt+300 {
+			finishReplicaLater(runnerID, replica, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, 0, "asset synchronization timed out after 5 minutes")
+			return
+		}
+	}
 	var config model.AssetChannelConfig
 	if err := model.DB.Where("channel_id = ?", replica.ChannelID).First(&config).Error; err != nil {
 		failReplica(runnerID, replica, err)
@@ -288,18 +353,14 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		failReplica(runnerID, replica, err)
 		return
 	}
-	if asset.Status == model.AssetStatusDeleted || replica.Operation == model.AssetReplicaOperationDelete {
-		if replica.UpstreamAssetID != "" {
-			if err = client.deleteAsset(ctx, replica.UpstreamAssetID); err != nil && !isProviderNotFound(err) {
-				failReplica(runnerID, replica, err)
-				return
-			}
-		}
-		if err = model.FinishAssetReplica(replica.ID, runnerID, model.AssetReplicaStatusDeleted, 100, replica.UpstreamAssetID, 0, ""); err != nil {
-			logger.LogWarn(context.Background(), fmt.Sprintf("finish asset replica deletion failed: replica_id=%d error=%v", replica.ID, err))
+	if deleting {
+		if err := client.deleteAsset(ctx, deleteID); err != nil && !isProviderNotFound(err) {
+			failReplica(runnerID, replica, err)
 			return
 		}
-		cleanupDeletedAssetStorage(&asset)
+		if err := model.AcknowledgeAssetReplicaDeletion(replica.ID, runnerID, deleteID); err != nil {
+			logger.LogWarn(ctx, fmt.Sprintf("acknowledge asset deletion failed: %v", err))
+		}
 		return
 	}
 	if !config.Enabled {
@@ -326,6 +387,17 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 			failReplica(runnerID, replica, err)
 			return
 		}
+		allowed, err := model.CanSubmitAssetReplica(replica.ID, runnerID)
+		if err != nil {
+			failReplica(runnerID, replica, err)
+			return
+		}
+		if !allowed {
+			if err := model.FinishAssetReplica(replica.ID, runnerID, model.AssetReplicaStatusPending, replica.Progress, replica.UpstreamAssetID, common.GetTimestamp(), ""); err != nil {
+				logger.LogWarn(ctx, fmt.Sprintf("cancel stale submission failed: %v", err))
+			}
+			return
+		}
 		upstreamID, err := client.createAsset(ctx, upstreamGroupID, asset.Name, asset.AssetType, sourceURL)
 		if err != nil {
 			if reason := upstreamContentRejectionReason(err); reason != "" {
@@ -337,7 +409,9 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		}
 		// Upstream processing takes several seconds; an earlier check would
 		// almost always spend a request on a "processing" answer.
-		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 50, upstreamID, assetFirstPollDelay, "")
+		if err := model.FinishAssetReplicaSubmission(replica.ID, runnerID, upstreamID, common.GetTimestamp()+int64(assetFirstPollDelay/time.Second)); err != nil {
+			logger.LogWarn(ctx, fmt.Sprintf("persist asset submission failed: replica_id=%d error=%v", replica.ID, err))
+		}
 		return
 	}
 	result, err := client.getAsset(ctx, replica.UpstreamAssetID)
@@ -363,9 +437,13 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		if message == "" {
 			message = "upstream asset processing failed"
 		}
-		failReplica(runnerID, replica, errors.New(message))
+		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, 0, message)
 	default:
-		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, 75, replica.UpstreamAssetID, processingPollDelay(replica, common.GetTimestamp()), "")
+		progress := 75
+		if replica.ClaimedFromStatus == model.AssetReplicaStatusActive || replica.Progress >= 100 {
+			progress = 100 // Review processing must not restart initial synchronization.
+		}
+		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, progress, replica.UpstreamAssetID, processingPollDelay(replica, common.GetTimestamp()), "")
 	}
 }
 
@@ -406,9 +484,15 @@ func rejectReplicaAndQueueWebhook(runnerID string, replica *model.AssetReplica, 
 
 func activeReviewDelay(replica *model.AssetReplica) time.Duration {
 	if replica != nil && replica.CreatedAt > 0 && common.GetTimestamp()-replica.CreatedAt < int64(assetActiveReviewWindow/time.Second) {
-		return assetActiveReviewInterval
+		return jitteredAssetReviewDelay(replica.ID, assetActiveReviewInterval)
 	}
-	return assetActiveReconcileInterval
+	return jitteredAssetReviewDelay(replica.ID, assetActiveReconcileInterval)
+}
+
+func jitteredAssetReviewDelay(id int64, interval time.Duration) time.Duration {
+	h := fnv.New32a()
+	_, _ = fmt.Fprint(h, id)
+	return interval * time.Duration(80+h.Sum32()%41) / 100
 }
 
 func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.AssetGroup, channelID int) (*model.AssetGroupReplica, error) {
@@ -442,13 +526,24 @@ func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.
 }
 
 func failReplica(runnerID string, replica *model.AssetReplica, err error) {
-	if replica.ClaimedFromStatus == model.AssetReplicaStatusActive {
-		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusActive, 100, replica.UpstreamAssetID, assetActiveRetryInterval, truncateError(err))
+	if errors.Is(err, context.Canceled) {
+		_ = model.FinishAssetReplica(replica.ID, runnerID, replica.ClaimedFromStatus, replica.Progress, replica.UpstreamAssetID, common.GetTimestamp(), replica.LastError, replica.Operation)
+		return
+	}
+	if replica.ClaimedFromStatus == model.AssetReplicaStatusActive || replica.Progress >= 100 {
+		status := model.AssetReplicaStatusProcessing
+		if replica.ClaimedFromStatus == model.AssetReplicaStatusActive {
+			status = model.AssetReplicaStatusActive
+		}
+		finishReplicaLater(runnerID, replica, status, 100, replica.UpstreamAssetID, assetActiveRetryInterval, truncateError(err))
 		logger.LogWarn(context.Background(), fmt.Sprintf("active asset review failed and will retry: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
 		return
 	}
 	next := common.GetTimestamp() + int64(model.AssetReplicaBackoff(replica.Attempts)/time.Second)
-	if finishErr := model.FinishAssetReplica(replica.ID, runnerID, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, next, truncateError(err)); finishErr != nil {
+	if replica.CreatedAt > 0 && replica.Progress < 100 && replica.Operation != model.AssetReplicaOperationDelete {
+		next = min(next, replica.CreatedAt+300)
+	}
+	if finishErr := model.FinishAssetReplica(replica.ID, runnerID, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, next, truncateError(err), replica.Operation); finishErr != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("record asset replica failure: replica_id=%d error=%v", replica.ID, finishErr))
 	}
 	logger.LogWarn(context.Background(), fmt.Sprintf("asset replica synchronization failed: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
@@ -456,21 +551,13 @@ func failReplica(runnerID string, replica *model.AssetReplica, err error) {
 
 func finishReplicaLater(runnerID string, replica *model.AssetReplica, status string, progress int, upstreamID string, delay time.Duration, message string) {
 	next := common.GetTimestamp() + int64(delay/time.Second)
+	if delay == 0 {
+		next = 0
+	} else if replica.CreatedAt > 0 && replica.Progress < 100 && replica.ClaimedFromStatus != model.AssetReplicaStatusActive && replica.Operation != model.AssetReplicaOperationDelete {
+		next = min(next, replica.CreatedAt+300)
+	}
 	if err := model.FinishAssetReplica(replica.ID, runnerID, status, progress, upstreamID, next, message); err != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("finish asset replica pass failed: replica_id=%d error=%v", replica.ID, err))
-	}
-}
-
-func cleanupDeletedAssetStorage(asset *model.MediaAsset) {
-	var remaining int64
-	if err := model.DB.Model(&model.AssetReplica{}).Where("asset_id = ? AND status <> ?", asset.ID, model.AssetReplicaStatusDeleted).Count(&remaining).Error; err != nil {
-		logger.LogWarn(context.Background(), fmt.Sprintf("count deleting asset replicas failed: asset_id=%s error=%v", asset.PublicID, err))
-		return
-	}
-	if remaining == 0 {
-		if err := storageService.DeleteAssetObject(asset.StorageObjectID, "asset replicas deleted"); err != nil {
-			logger.LogWarn(context.Background(), fmt.Sprintf("schedule asset object deletion failed: asset_id=%s error=%v", asset.PublicID, err))
-		}
 	}
 }
 
@@ -486,9 +573,16 @@ func truncateError(err error) string {
 }
 
 func isProviderNotFound(err error) bool {
-	if err == nil {
+	var upstream *upstreamAssetError
+	if !errors.As(err, &upstream) {
 		return false
 	}
-	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "notfound") || strings.Contains(message, "not found") || strings.Contains(message, "404")
+	if upstream.statusCode == 404 {
+		return true
+	}
+	if upstream.statusCode != 400 && (upstream.statusCode < 200 || upstream.statusCode >= 300) {
+		return false
+	}
+	code := strings.NewReplacer("_", "", "-", "", ".", "").Replace(strings.ToLower(upstream.code))
+	return strings.HasSuffix(code, "notfound")
 }

@@ -247,13 +247,26 @@ func TestActivationCannotReviveTerminalAsset(t *testing.T) {
 			db := setupAssetLibraryTestDB(t)
 			asset := model.MediaAsset{PublicID: "asset-terminal", StorageObjectID: 8001, Status: status}
 			require.NoError(t, db.Create(&asset).Error)
-			replica := model.AssetReplica{AssetID: asset.ID, ChannelID: 1, Status: model.AssetReplicaStatusSyncing, LockedBy: "activation-worker"}
+			replica := model.AssetReplica{AssetID: asset.ID, ChannelID: 1, Operation: model.AssetReplicaOperationSync,
+				Status: model.AssetReplicaStatusSyncing, UpstreamAssetID: "late-active-copy", LockedBy: "activation-worker"}
 			require.NoError(t, db.Create(&replica).Error)
-			require.Error(t, activateReplicaAndQueueWebhook("activation-worker", &replica))
+			err := activateReplicaAndQueueWebhook("activation-worker", &replica)
+			if status == model.AssetStatusDeleted {
+				require.NoError(t, err, "a late Active result must continue deletion")
+			} else {
+				require.Error(t, err)
+			}
 			require.NoError(t, db.First(&asset, asset.ID).Error)
 			assert.Equal(t, status, asset.Status)
 			require.NoError(t, db.First(&replica, replica.ID).Error)
-			assert.Equal(t, model.AssetReplicaStatusSyncing, replica.Status)
+			if status == model.AssetStatusDeleted {
+				assert.Equal(t, model.AssetReplicaStatusDeleting, replica.Status)
+				assert.Equal(t, model.AssetReplicaOperationDelete, replica.Operation)
+				assert.Equal(t, "late-active-copy", replica.UpstreamAssetID)
+				assert.Empty(t, replica.LockedBy)
+			} else {
+				assert.Equal(t, model.AssetReplicaStatusSyncing, replica.Status)
+			}
 			var count int64
 			require.NoError(t, db.Model(&model.AssetWebhookDelivery{}).Count(&count).Error)
 			assert.Zero(t, count)

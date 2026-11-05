@@ -36,6 +36,7 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 		&model.MediaAsset{},
 		&model.AssetGroupReplica{},
 		&model.AssetReplica{},
+		&model.SystemTaskLock{},
 		&model.StorageObject{},
 	))
 	model.DB = db

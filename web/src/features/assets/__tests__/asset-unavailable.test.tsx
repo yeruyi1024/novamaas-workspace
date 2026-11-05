@@ -51,6 +51,20 @@ vi.mock('../api', () => ({
   testAssetWebhookEndpoint: vi.fn(),
   uploadMediaAsset: vi.fn(),
 }))
+vi.mock('@/features/webhooks/api', async (importOriginal) => {
+  const api = await importOriginal<typeof import('@/features/webhooks/api')>()
+  return {
+    ...api,
+    getWebhookCapabilities: vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        asset_library_enabled: false,
+        media_tasks_enabled: false,
+        manual_enabled: false,
+      },
+    }),
+  }
+})
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let queryClient: QueryClient
@@ -269,4 +283,33 @@ test('an asset under review does not expose a usable asset reference yet', async
   expect(
     screen.queryByRole('button', { name: 'Copy asset reference' })
   ).not.toBeInTheDocument()
+})
+
+test('technical synchronization failure offers details without a content rejection message', async () => {
+  vi.mocked(listMediaAssets).mockResolvedValue({
+    success: true,
+    data: {
+      items: [
+        { ...rejectedAsset, status: 'failed', unavailable_reason: undefined },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 40,
+    },
+  })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AssetLibrary />
+    </QueryClientProvider>
+  )
+  const user = userEvent.setup()
+  await user.click(
+    await screen.findByRole('button', { name: 'Failed: View details' })
+  )
+  const dialog = screen.getByRole('dialog', { name: 'Hero image' })
+  expect(within(dialog).getByText(/Request failed/)).toBeVisible()
+  expect(
+    within(dialog).queryByText(/rejected this asset/)
+  ).not.toBeInTheDocument()
+  expect(screen.queryByText('Under review')).not.toBeInTheDocument()
 })
