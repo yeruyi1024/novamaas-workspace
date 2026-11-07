@@ -138,7 +138,7 @@ func exportLogs(c *gin.Context, all bool) {
 		return
 	}
 
-	file, err := workbook.Write()
+	file, err := workbook.Write(startTimestamp, endTimestamp)
 	if err != nil {
 		common.SysError("failed to build log export: " + err.Error())
 		common.ApiError(c, errors.New("导出日志失败"))

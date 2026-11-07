@@ -22,7 +22,7 @@ func TestLogExportWorkbookWritesTypedCellsWithReadableFormats(t *testing.T) {
 		Other: `{"cache_tokens":800,"cache_creation_tokens_5m":50,"cache_creation_tokens_1h":25}`, Content: "=HYPERLINK(\"https://example.invalid\")",
 	})
 	workbook.Add(&model.Log{CreatedAt: createdAt - 60, Type: model.LogTypeConsume, Username: "alice", RequestId: "req-2", ModelName: "model-b"})
-	out, err := workbook.Write()
+	out, err := workbook.Write(createdAt-60, createdAt)
 	require.NoError(t, err)
 
 	book, err := excelize.OpenReader(bytes.NewReader(out.Bytes()))
@@ -64,7 +64,7 @@ func TestLogExportWorkbookFoldsTheLaterLogsOfATaskIntoItsFirstCharge(t *testing.
 	workbook.Add(&model.Log{CreatedAt: createdAt + 10, Type: model.LogTypeConsume, Quota: 500000, ModelName: "video-model", RequestId: "submit-2", Other: `{"task_id":"task_2","is_task":true}`})
 	workbook.Add(&model.Log{CreatedAt: createdAt, Type: model.LogTypeConsume, Quota: 500000, ModelName: "video-model", RequestId: "submit-1", Other: `{"task_id":"task_1","is_task":true}`})
 	workbook.Add(&model.Log{CreatedAt: createdAt - 60, Type: model.LogTypeRefund, Quota: 100000, RequestId: "orphan-refund", Other: `{"task_id":"task_other"}`})
-	out, err := workbook.Write()
+	out, err := workbook.Write(createdAt-60, createdAt+400)
 	require.NoError(t, err)
 
 	book, err := excelize.OpenReader(bytes.NewReader(out.Bytes()))
@@ -84,6 +84,17 @@ func TestLogExportWorkbookFoldsTheLaterLogsOfATaskIntoItsFirstCharge(t *testing.
 	assert.Equal(t, "退款", rows[3][1])
 	assert.Equal(t, "orphan-refund", rows[3][16])
 	assert.Equal(t, []string{"", "", "$0.200000", "($0.200000)"}, rows[3][10:14], "a refund on its own row has no charge; it is the refund and the net is negative")
+	assert.Equal(t, []string{"汇总", "使用日志"}, book.GetSheetList())
+	summary, err := book.GetRows("汇总")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"消费金额", "$2.200000"}, summary[6])
+	assert.Equal(t, []string{"退款金额", "$0.600000"}, summary[7])
+	assert.Equal(t, []string{"净消费金额", "$1.600000"}, summary[8])
+	assert.Equal(t, []string{"原始日志条数", "5"}, summary[10])
+	assert.Equal(t, []string{"导出明细行数", "3"}, summary[11])
+	assert.Equal(t, time.Unix(createdAt-60, 0).In(billingLocation).Format(time.DateTime), summary[2][1])
+	assert.Equal(t, time.Unix(createdAt+400, 0).In(billingLocation).Format(time.DateTime), summary[3][1])
+	assert.Equal(t, []string{"币种", "USD"}, summary[4])
 }
 
 func TestLogExportWorkbookFoldsAnOlderTaskLogThatRecordedNoTaskID(t *testing.T) {
@@ -97,7 +108,7 @@ func TestLogExportWorkbookFoldsAnOlderTaskLogThatRecordedNoTaskID(t *testing.T) 
 	// Newest first, as the export reads them: only the refund's log has a task ID.
 	workbook.Add(&model.Log{UserId: 9, CreatedAt: createdAt + 120, Type: model.LogTypeRefund, Quota: 200000, RequestId: "refund", Other: `{"task_id":"task_old"}`})
 	workbook.Add(&model.Log{UserId: 9, CreatedAt: createdAt, Type: model.LogTypeConsume, Quota: 500000, RequestId: "hold", Other: `{"is_task":true}`})
-	out, err := workbook.Write()
+	out, err := workbook.Write(createdAt, createdAt+120)
 	require.NoError(t, err)
 
 	book, err := excelize.OpenReader(bytes.NewReader(out.Bytes()))
@@ -109,4 +120,35 @@ func TestLogExportWorkbookFoldsAnOlderTaskLogThatRecordedNoTaskID(t *testing.T) 
 	require.Len(t, rows, 2, "the hold and its refund are one row")
 	assert.Equal(t, "hold", rows[1][16])
 	assert.Equal(t, []string{"$1.000000", "$0.000000", "$0.400000", "$0.600000"}, rows[1][10:14], "charged, refunded, and what the task cost")
+}
+
+func TestLogExportSummaryHandlesNoLogsAndRefundOnlySelections(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		refund  int
+		wantNet string
+	}{
+		{"empty selection", 0, "0"},
+		{"refund only", 100000, "-0.2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			workbook, err := NewLogExportWorkbook(false)
+			require.NoError(t, err)
+			defer workbook.Close()
+			if tc.refund > 0 {
+				workbook.Add(&model.Log{CreatedAt: 1790000000, Type: model.LogTypeRefund, Quota: tc.refund})
+			}
+			out, err := workbook.Write(1790000000, 1790000100)
+			require.NoError(t, err)
+			book, err := excelize.OpenReader(bytes.NewReader(out.Bytes()))
+			require.NoError(t, err)
+			defer book.Close()
+			value, err := book.GetCellValue("汇总", "B9", excelize.Options{RawCellValue: true})
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantNet, value)
+			cellType, err := book.GetCellType("汇总", "B9")
+			require.NoError(t, err)
+			assert.Contains(t, []excelize.CellType{excelize.CellTypeNumber, excelize.CellTypeUnset}, cellType, "Excel also permits omitting the type attribute for numeric cells")
+		})
+	}
 }

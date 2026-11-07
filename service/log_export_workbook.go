@@ -43,11 +43,11 @@ type logExportRow struct {
 // refund when the real cost is known. They are folded into one row: what was
 // charged, the settlement adjustment, and what the task cost.
 type LogExportWorkbook struct {
-	book       *excelize.File
-	withUser   bool
-	rate, unit decimal.Decimal
-	symbol     string
-	rows       []logExportRow
+	book                 *excelize.File
+	withUser             bool
+	rate, unit           decimal.Decimal
+	symbol, currencyCode string
+	rows                 []logExportRow
 }
 
 // NewLogExportWorkbook starts a workbook; withUser adds the user column that
@@ -65,7 +65,7 @@ func NewLogExportWorkbook(withUser bool) (*LogExportWorkbook, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &LogExportWorkbook{book: excelize.NewFile(), withUser: withUser, rate: rate, unit: unit, symbol: currency.Symbol}, nil
+	return &LogExportWorkbook{book: excelize.NewFile(), withUser: withUser, rate: rate, unit: unit, symbol: currency.Symbol, currencyCode: currency.Code}, nil
 }
 
 // Add records one log; the sheet is written by Write.
@@ -150,17 +150,28 @@ func (w *LogExportWorkbook) amount(quota int) float64 {
 }
 
 // Write finishes the workbook and returns the file.
-func (w *LogExportWorkbook) Write() (*bytes.Buffer, error) {
+func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Buffer, error) {
 	withAdjustments, err := w.foldTaskAdjustments()
 	if err != nil {
 		return nil, err
 	}
 	// A refund whose charge is not in the export is a row of its own, and its
 	// amount shows as an adjustment, so the adjustment columns serve it too.
+	logCount := len(w.rows)
+	var charge, refunds decimal.Decimal
 	for _, row := range w.rows {
 		withAdjustments = withAdjustments || row.logType == model.LogTypeRefund
+		switch row.logType {
+		case model.LogTypeConsume:
+			charge = charge.Add(decimal.NewFromInt(int64(row.quota)))
+		case model.LogTypeRefund:
+			refunds = refunds.Add(decimal.NewFromInt(int64(row.quota)))
+		}
 	}
-	if err := w.book.SetSheetName("Sheet1", "使用日志"); err != nil {
+	if err := w.book.SetSheetName("Sheet1", "汇总"); err != nil {
+		return nil, err
+	}
+	if _, err := w.book.NewSheet("使用日志"); err != nil {
 		return nil, err
 	}
 	writer, err := w.book.NewStreamWriter("使用日志")
@@ -283,6 +294,62 @@ func (w *LogExportWorkbook) Write() (*bytes.Buffer, error) {
 		return nil, err
 	}
 	if err := w.book.AutoFilter("使用日志", fmt.Sprintf("A1:%s%d", last, max(next-1, 1)), nil); err != nil {
+		return nil, err
+	}
+	// Count each source log once, including logs folded into a task's row.
+	// Convert only after summing quota so the total is not a sum of rounded fees.
+	amount := func(quota decimal.Decimal) any {
+		return billingExcelAmount(quota.Mul(w.rate).Div(w.unit).StringFixed(6))
+	}
+	wallTimes := make([]time.Time, 2)
+	for i, timestamp := range []int64{startTimestamp, endTimestamp} {
+		local := time.Unix(timestamp, 0).In(billingLocation)
+		wallTimes[i] = time.Date(local.Year(), local.Month(), local.Day(), local.Hour(), local.Minute(), local.Second(), 0, time.UTC)
+	}
+	summary := [][]any{
+		{"本次导出汇总"},
+		{},
+		{fmt.Sprintf("开始时间(UTC%+d)", offset/3600), wallTimes[0]},
+		{fmt.Sprintf("结束时间(UTC%+d)", offset/3600), wallTimes[1]},
+		{"币种", w.currencyCode},
+		{},
+		{"消费金额", amount(charge)},
+		{"退款金额", amount(refunds)},
+		{"净消费金额", amount(charge.Sub(refunds))},
+		{},
+		{"原始日志条数", logCount},
+		{"导出明细行数", next - 2},
+		{},
+		{"统计范围", "仅统计本次筛选导出的消费和退款。"},
+	}
+	for i, row := range summary {
+		if err := w.book.SetSheetRow("汇总", fmt.Sprintf("A%d", i+1), &row); err != nil {
+			return nil, err
+		}
+		if err := w.book.SetRowHeight("汇总", i+1, 22); err != nil {
+			return nil, err
+		}
+	}
+	if err := w.book.SetColWidth("汇总", "A", "A", 24); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetColWidth("汇总", "B", "B", 62); err != nil {
+		return nil, err
+	}
+	title, err := w.book.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true, Size: 14, Color: "19335E"}})
+	if err != nil {
+		return nil, err
+	}
+	for _, style := range []struct {
+		from, to string
+		id       int
+	}{{"A1", "B1", title}, {"B3", "B4", timeStyle}, {"B7", "B9", signedMoney}, {"B11", "B12", count}} {
+		if err := w.book.SetCellStyle("汇总", style.from, style.to, style.id); err != nil {
+			return nil, err
+		}
+	}
+	showGridLines := false
+	if err := w.book.SetSheetView("汇总", 0, &excelize.ViewOptions{ShowGridLines: &showGridLines}); err != nil {
 		return nil, err
 	}
 	return w.book.WriteToBuffer()
