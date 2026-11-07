@@ -69,6 +69,7 @@ import {
   bindAssetChannelLibrary,
   mergeAssetLibraries,
   updateAssetLibraryStoragePolicy,
+  deleteAssetLibraryConnection,
 } from './api'
 import { AssetLibraryAccountCard } from './asset-library-account-card'
 import { AssetLibraryChannelsDialog } from './asset-library-channels-dialog'
@@ -668,8 +669,11 @@ export function AssetLibrarySettings() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<AssetLibraryConnection | null>(null)
-  const [managingChannels, setManagingChannels] = useState<AssetLibraryConnection | null>(null)
+  const [managingChannels, setManagingChannels] =
+    useState<AssetLibraryConnection | null>(null)
   const [mergeOpen, setMergeOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] =
+    useState<AssetLibraryConnection | null>(null)
   const [logLibraryId, setLogLibraryId] = useState<number | null>(null)
   const [syncTarget, setSyncTarget] = useState<AssetLibraryConnection | null>(
     null
@@ -695,9 +699,10 @@ export function AssetLibrarySettings() {
     refetchInterval: (query) =>
       query.state.data?.some(
         (library) =>
-          library.channels.length > 0 &&
-          library.enabled &&
-          library.summary.pending + library.summary.processing > 0
+          Boolean(library.delete_requested_at) ||
+          (library.channels.length > 0 &&
+            library.enabled &&
+            library.summary.pending + library.summary.processing > 0)
       )
         ? 5000
         : false,
@@ -765,6 +770,16 @@ export function AssetLibrarySettings() {
     },
     onError: (error) => toast.error(errorMessage(error)),
   })
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) =>
+      assertSuccess(await deleteAssetLibraryConnection(id)),
+    onSuccess: async () => {
+      await invalidate()
+      setDeleteTarget(null)
+      toast.success(t('Account deletion queued'))
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
   const mergeMutation = useMutation({
     mutationFn: async () => assertSuccess(await mergeAssetLibraries()),
     onSuccess: async (report) => {
@@ -786,19 +801,32 @@ export function AssetLibrarySettings() {
   const channelsMutation = useMutation({
     mutationFn: async (channelIDs: number[]) => {
       if (!managingChannels) throw new Error('No library selected')
-      const linked = new Set(managingChannels.channels.map((channel) => channel.id))
+      const linked = new Set(
+        managingChannels.channels.map((channel) => channel.id)
+      )
       const requested = new Set(channelIDs)
       // Unlink first so a channel moving between accounts is released before
       // it is claimed. Each call is one atomic ownership change.
       for (const id of linked) {
-        if (!requested.has(id)) assertSuccess(await bindAssetChannelLibrary(id, 0, false))
+        if (!requested.has(id)) {
+          assertSuccess(await bindAssetChannelLibrary(id, 0, false))
+        }
       }
       for (const id of requested) {
-        if (!linked.has(id)) assertSuccess(await bindAssetChannelLibrary(id, managingChannels.id))
+        if (!linked.has(id)) {
+          assertSuccess(await bindAssetChannelLibrary(id, managingChannels.id))
+        }
       }
     },
-    onSuccess: async () => {await invalidate(); setManagingChannels(null); toast.success(t('Channel associations saved'))},
-    onError: (error) => {toast.error(errorMessage(error)); void invalidate()},
+    onSuccess: async () => {
+      await invalidate()
+      setManagingChannels(null)
+      toast.success(t('Channel associations saved'))
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error))
+      void invalidate()
+    },
   })
   const manageLibraryChannels = (library: AssetLibraryConnection) => {
     channelsMutation.reset()
@@ -860,7 +888,10 @@ export function AssetLibrarySettings() {
                     {t('Provider asset libraries')}
                   </h2>
                   <div className='flex flex-wrap gap-2'>
-                    <Button variant='outline' onClick={() => setMergeOpen(true)}>
+                    <Button
+                      variant='outline'
+                      onClick={() => setMergeOpen(true)}
+                    >
                       {t('Merge identical accounts')}
                     </Button>
                     <Button onClick={() => setEditing({ ...EMPTY_LIBRARY })}>
@@ -890,6 +921,7 @@ export function AssetLibrarySettings() {
                       onManageChannels={manageLibraryChannels}
                       onViewLogs={setLogLibraryId}
                       onSyncMissing={setSyncTarget}
+                      onDelete={setDeleteTarget}
                     />
                   ))}
                 </div>
@@ -907,6 +939,7 @@ export function AssetLibrarySettings() {
                           onManageChannels={manageLibraryChannels}
                           onViewLogs={setLogLibraryId}
                           onSyncMissing={setSyncTarget}
+                          onDelete={setDeleteTarget}
                         />
                       ))}
                     </div>
@@ -930,10 +963,28 @@ export function AssetLibrarySettings() {
         library={managingChannels}
         channels={settingsQuery.data?.channels ?? []}
         saving={channelsMutation.isPending}
-        error={channelsMutation.error ? errorMessage(channelsMutation.error) : undefined}
-        onOpenChange={(open) => {if (!open) {setManagingChannels(null); channelsMutation.reset()}}}
+        error={
+          channelsMutation.error
+            ? errorMessage(channelsMutation.error)
+            : undefined
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setManagingChannels(null)
+            channelsMutation.reset()
+          }
+        }}
         onSave={(ids) => channelsMutation.mutate(ids)}
-        onReload={async () => {const result = await librariesQuery.refetch(); const latest = result.data?.find((library) => library.id === managingChannels?.id); if (latest) {setManagingChannels(latest); channelsMutation.reset()} }}
+        onReload={async () => {
+          const result = await librariesQuery.refetch()
+          const latest = result.data?.find(
+            (library) => library.id === managingChannels?.id
+          )
+          if (latest) {
+            setManagingChannels(latest)
+            channelsMutation.reset()
+          }
+        }}
       />
       {logLibraryId !== null && (
         <AssetRequestLogDialog
@@ -971,6 +1022,42 @@ export function AssetLibrarySettings() {
             <Button
               disabled={syncMutation.isPending || !syncTarget}
               onClick={() => syncTarget && syncMutation.mutate(syncTarget.id)}
+            >
+              {t('Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) =>
+          !open && !deleteMutation.isPending && setDeleteTarget(null)
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Delete account and copies')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'Delete {{library}} and its upstream copies? Copies still used by another account are kept. Platform assets and upstream groups are retained. This cannot be undone.',
+                { library: deleteTarget?.name ?? '' }
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteTarget(null)}
+            >
+              {t('Cancel')}
+            </Button>
+            <Button
+              variant='destructive'
+              disabled={deleteMutation.isPending || !deleteTarget}
+              onClick={() =>
+                deleteTarget && deleteMutation.mutate(deleteTarget.id)
+              }
             >
               {t('Confirm')}
             </Button>

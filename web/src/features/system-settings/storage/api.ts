@@ -179,6 +179,14 @@ export async function listAssetLibraryConnections() {
   return response.data
 }
 
+export async function deleteAssetLibraryConnection(id: number) {
+  const response = await api.delete<StorageAPIResponse>(
+    `/api/asset-library/admin/libraries/${id}`,
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
 export async function saveAssetLibraryConnection(
   id: number,
   input: AssetLibraryConnectionInput
@@ -228,12 +236,14 @@ export async function syncAssetLibraryMissing(id: number) {
 }
 
 export async function mergeAssetLibraries() {
-  const response = await api.post<
-    StorageAPIResponse<AssetLibraryMergeReport>
-  >('/api/asset-library/admin/libraries/merge', undefined, {
-    skipBusinessError: true,
-    skipErrorHandler: true,
-  })
+  const response = await api.post<StorageAPIResponse<AssetLibraryMergeReport>>(
+    '/api/asset-library/admin/libraries/merge',
+    undefined,
+    {
+      skipBusinessError: true,
+      skipErrorHandler: true,
+    }
+  )
   return response.data
 }
 

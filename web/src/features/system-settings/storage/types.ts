@@ -159,6 +159,7 @@ export type AssetLibraryChannel = {
 }
 
 export type AssetLibraryConnection = AssetChannelConfig & {
+  delete_requested_at?: number
   id: number
   name: string
   provider_name: string

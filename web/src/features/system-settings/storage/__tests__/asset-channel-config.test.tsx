@@ -33,6 +33,7 @@ import {
   bindAssetChannelLibrary,
   mergeAssetLibraries,
   syncAssetLibraryMissing,
+  deleteAssetLibraryConnection,
 } from '../api'
 import { AssetLibrarySettings } from '../asset-library-settings'
 
@@ -83,6 +84,10 @@ vi.mock('../api', () => ({
     data: { merged_groups: 2, deferred_groups: 0, unreadable_accounts: 0 },
   })),
   syncAssetLibraryMissing: vi.fn(async () => ({
+    success: true,
+    data: undefined,
+  })),
+  deleteAssetLibraryConnection: vi.fn(async () => ({
     success: true,
     data: undefined,
   })),
@@ -154,7 +159,9 @@ vi.mock('../api', () => ({
   updateAssetChannelConfig: vi.fn(),
   updateAssetLibraryStoragePolicy: vi.fn(),
 }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}))
 
 let queryClient: QueryClient
 
@@ -178,15 +185,118 @@ function renderSettings() {
 }
 
 describe('asset channel protocol configuration', () => {
+  test('linked accounts do not expose account deletion', async () => {
+    renderSettings()
+    await screen.findByRole('button', { name: 'Manage channels' })
+    expect(
+      screen.queryByRole('button', { name: 'Delete account and copies' })
+    ).not.toBeInTheDocument()
+  })
+
+  test.each([0, 1])(
+    'deleting accounts freeze configuration and allow retry only after a failure (%i)',
+    async (failed) => {
+      vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+        success: true,
+        data: [
+          {
+            ...libraryFixture,
+            channels: [],
+            delete_requested_at: 1,
+            summary: { ...libraryFixture.summary, failed },
+          },
+        ],
+      })
+      renderSettings()
+      expect(
+        await screen.findByRole('button', { name: 'Manage channels' })
+      ).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Configure' })).toBeDisabled()
+      const deletion = screen.getByRole('button', {
+        name: 'Delete account and copies',
+      })
+      if (failed > 0) {
+        expect(deletion).toBeEnabled()
+      } else {
+        expect(deletion).toBeDisabled()
+      }
+    }
+  )
+
+  test('deleting an unlinked account requires confirmation and submits only its account ID', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [{ ...libraryFixture, channels: [] }],
+    })
+    renderSettings()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete account and copies' })
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Delete account and copies',
+    })
+    expect(
+      within(dialog).getByText(
+        /Platform assets and upstream groups are retained/
+      )
+    ).toBeInTheDocument()
+    expect(deleteAssetLibraryConnection).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() =>
+      expect(deleteAssetLibraryConnection).toHaveBeenCalledWith(17)
+    )
+    expect(deleteAssetLibraryConnection).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Delete account and copies' })
+      ).not.toBeInTheDocument()
+    )
+  })
+
+  test('failed deletion requests keep the confirmation open for retry', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [{ ...libraryFixture, channels: [] }],
+    })
+    vi.mocked(deleteAssetLibraryConnection).mockRejectedValueOnce(
+      new Error('deletion rejected')
+    )
+    renderSettings()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete account and copies' })
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Delete account and copies',
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() =>
+      expect(deleteAssetLibraryConnection).toHaveBeenCalledTimes(1)
+    )
+    expect(dialog).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: 'Confirm' })
+      ).toBeEnabled()
+    )
+  })
+
   test('removes an association independently of unreadable account credentials', async () => {
     renderSettings()
-    fireEvent.click(await screen.findByRole('button', { name: 'Manage channels' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Manage channels' })
-    const channel = within(dialog).getByRole('checkbox', { name: 'Seedance upstream · ID 7' })
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Manage channels' })
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Manage channels',
+    })
+    const channel = within(dialog).getByRole('checkbox', {
+      name: 'Seedance upstream · ID 7',
+    })
     expect(channel).toBeChecked()
     fireEvent.click(channel)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(bindAssetChannelLibrary).toHaveBeenCalledWith(7, 0, false))
+    await waitFor(() =>
+      expect(bindAssetChannelLibrary).toHaveBeenCalledWith(7, 0, false)
+    )
     expect(saveAssetLibraryConnection).not.toHaveBeenCalled()
   })
   test('disables channels owned by another account while keeping its own and unbound channels selectable', async () => {
@@ -234,7 +344,9 @@ describe('asset channel protocol configuration', () => {
       ],
     })
     renderSettings()
-    fireEvent.click(await screen.findByRole('button', { name: 'Manage channels' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Manage channels' })
+    )
     const dialog = await screen.findByRole('dialog', {
       name: 'Manage channels',
     })
@@ -425,7 +537,9 @@ describe('asset channel protocol configuration', () => {
         })
       )
     )
-    expect(vi.mocked(saveAssetLibraryConnection).mock.calls[0]?.[1]).not.toHaveProperty('channel_ids')
+    expect(
+      vi.mocked(saveAssetLibraryConnection).mock.calls[0]?.[1]
+    ).not.toHaveProperty('channel_ids')
     expect(syncAssetLibraryMissing).not.toHaveBeenCalled()
   })
 
@@ -440,7 +554,9 @@ describe('asset channel protocol configuration', () => {
       ],
     })
     renderSettings()
-    fireEvent.click(await screen.findByRole('button', { name: 'Manage channels' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Manage channels' })
+    )
     expect(await screen.findByRole('checkbox')).toBeChecked()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
@@ -480,9 +596,7 @@ describe('asset channel protocol configuration', () => {
     const dialog = await screen.findByRole('dialog', {
       name: 'Merge identical accounts',
     })
-    expect(
-      within(dialog).getByText(/nothing is deleted/)
-    ).toBeVisible()
+    expect(within(dialog).getByText(/nothing is deleted/)).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(mergeAssetLibraries).toHaveBeenCalledTimes(1))
   })
@@ -493,9 +607,7 @@ describe('asset channel protocol configuration', () => {
       data: [{ ...libraryFixture, channels: [], legacy_channel_id: 7 }],
     })
     renderSettings()
-    const summary = await screen.findByText(
-      'Unlinked / historical library · 1'
-    )
+    const summary = await screen.findByText('Unlinked / historical library · 1')
     fireEvent.click(summary)
     expect(
       screen.getByText(

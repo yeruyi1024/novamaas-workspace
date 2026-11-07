@@ -175,6 +175,20 @@ func (scheduler *assetSyncScheduler) dispatch(parent context.Context) time.Durat
 		scheduler.configsUntil = time.Now().Add(assetSyncScanInterval)
 	}
 	for _, config := range scheduler.configs {
+		if config.DeleteRequestedAt > 0 {
+			finished, err := model.FinalizeAssetLibraryDeletion(config.LibraryID)
+			if err != nil {
+				logger.LogWarn(parent, fmt.Sprintf("finalize asset library deletion failed: library_id=%d error=%v", config.LibraryID, err))
+				continue
+			}
+			if finished {
+				scheduler.configsUntil = time.Time{}
+				if err := RecordLibraryIdentities(); err != nil {
+					logger.LogWarn(parent, fmt.Sprintf("refresh asset library identities after deletion failed: %v", err))
+				}
+				continue
+			}
+		}
 		rateID := config.RateLimitID()
 		if parent.Err() != nil {
 			break
@@ -387,7 +401,18 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		return
 	}
 	if deleting {
-		if err := client.deleteAsset(ctx, deleteID); err != nil && !isProviderNotFound(err) {
+		shared := false
+		if config.DeleteRequestedAt > 0 {
+			shared, err = upstreamAssetIsShared(config, deleteID)
+			if err != nil {
+				failReplica(runnerID, replica, err)
+				return
+			}
+		}
+		if !shared {
+			err = client.deleteAsset(ctx, deleteID)
+		}
+		if err != nil && !isProviderNotFound(err) {
 			failReplica(runnerID, replica, err)
 			return
 		}

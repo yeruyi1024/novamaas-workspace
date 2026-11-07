@@ -88,6 +88,7 @@ type AssetChannelConfig struct {
 	ChannelID            int    `json:"channel_id" gorm:"uniqueIndex"`
 	LibraryID            int    `json:"library_id" gorm:"index;default:0"`
 	RateLimitLibraryID   int    `json:"-" gorm:"-"`
+	DeleteRequestedAt    int64  `json:"-" gorm:"-"`
 	Enabled              bool   `json:"enabled"`
 	Protocol             string `json:"protocol" gorm:"type:varchar(32)"`
 	AuthType             string `json:"auth_type" gorm:"type:varchar(16)"`

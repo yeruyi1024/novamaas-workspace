@@ -33,15 +33,16 @@ type LibraryConfigInput struct {
 
 type LibraryConnectionView struct {
 	ChannelConfigView
-	ID               int                  `json:"id"`
-	Name             string               `json:"name"`
-	ProviderName     string               `json:"provider_name"`
-	LegacyChannelID  *int                 `json:"legacy_channel_id,omitempty"`
-	ReusedExisting   bool                 `json:"reused_existing,omitempty"`
-	Channels         []LibraryChannelView `json:"channels"`
-	Summary          SyncJobSummary       `json:"summary"`
-	Missing          int64                `json:"missing"`
-	CredentialStatus string               `json:"credential_status"`
+	ID                int                  `json:"id"`
+	Name              string               `json:"name"`
+	ProviderName      string               `json:"provider_name"`
+	LegacyChannelID   *int                 `json:"legacy_channel_id,omitempty"`
+	ReusedExisting    bool                 `json:"reused_existing,omitempty"`
+	Channels          []LibraryChannelView `json:"channels"`
+	Summary           SyncJobSummary       `json:"summary"`
+	Missing           int64                `json:"missing"`
+	CredentialStatus  string               `json:"credential_status"`
+	DeleteRequestedAt int64                `json:"delete_requested_at,omitempty"`
 }
 
 func libraryChannelViews(bindings []model.AssetChannelConfig, channels []model.Channel) map[int][]LibraryChannelView {
@@ -171,7 +172,7 @@ func buildLibraryViews(libraries []model.AssetLibraryConnection) ([]LibraryConne
 		result = append(result, LibraryConnectionView{
 			ChannelConfigView: view, ID: library.ID, Name: library.Name, ProviderName: library.ProviderName,
 			LegacyChannelID: library.LegacyChannelID, Channels: libraryChannels, Summary: summaries[library.ID],
-			Missing: missing, CredentialStatus: credentialStatus,
+			Missing: missing, CredentialStatus: credentialStatus, DeleteRequestedAt: library.DeleteRequestedAt,
 		})
 	}
 	return result, nil
@@ -264,6 +265,9 @@ func libraryIdentityGroups() (groups map[string][]int, order []string, unreadabl
 	}
 	groups = make(map[string][]int)
 	for _, library := range libraries {
+		if library.DeleteRequestedAt > 0 {
+			continue
+		}
 		key, keyErr := libraryResourceKey(library.ProviderConfig(0))
 		if keyErr != nil {
 			unreadable++
@@ -347,6 +351,9 @@ func reusedLibraryView(resourceKey string) (*LibraryConnectionView, error) {
 		return nil, result.Error
 	}
 	view, err := libraryConnectionView(duplicate.ID)
+	if view != nil && view.DeleteRequestedAt > 0 {
+		return nil, &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted; wait for cleanup to finish")}
+	}
 	if view != nil {
 		view.ReusedExisting = true
 	}
@@ -371,6 +378,9 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 		if err := model.DB.First(existing, libraryID).Error; err != nil {
 			return nil, err
 		}
+		if existing.DeleteRequestedAt > 0 {
+			return nil, &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted")}
+		}
 	}
 	config, err := prepareLibraryConfig(input.ChannelConfigInput, existing)
 	if err != nil {
@@ -379,8 +389,16 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 	// Name, QPM and the enabled flag never need the stored credential, so they
 	// remain editable even when it cannot be decrypted on this server.
 	if existing != nil && strings.TrimSpace(input.Credential) == "" && sameLibraryIdentityConfig(existing.ProviderConfig(0), config) {
-		err := model.DB.Model(&model.AssetLibraryConnection{}).Where("id = ?", existing.ID).
-			Updates(map[string]any{"name": name, "provider_name": providerName, "enabled": config.Enabled, "qpm": config.QPM, "updated_at": common.GetTimestamp()}).Error
+		err := model.DB.Transaction(func(tx *gorm.DB) error {
+			current, err := model.LockAssetLibraryConnection(tx, existing.ID)
+			if err != nil {
+				return err
+			}
+			if current.DeleteRequestedAt > 0 {
+				return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted")}
+			}
+			return tx.Model(current).Updates(map[string]any{"name": name, "provider_name": providerName, "enabled": config.Enabled, "qpm": config.QPM, "updated_at": common.GetTimestamp()}).Error
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -413,8 +431,12 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 		return libraryConnectionView(library.ID)
 	}
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
-		if _, err := model.LockAssetLibraryConnection(tx, existing.ID); err != nil {
+		current, err := model.LockAssetLibraryConnection(tx, existing.ID)
+		if err != nil {
 			return err
+		}
+		if current.DeleteRequestedAt > 0 {
+			return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted")}
 		}
 		// A different identity is a different upstream namespace. Existing
 		// upstream copies cannot be carried across, so the account must be new.
@@ -460,6 +482,7 @@ func sameLibraryIdentityConfig(first, second model.AssetChannelConfig) bool {
 		config.ChannelID = 0
 		config.LibraryID = 0
 		config.RateLimitLibraryID = 0
+		config.DeleteRequestedAt = 0
 		config.Enabled = false
 		config.QPM = 0
 		config.AccessKeyHint = ""
@@ -509,6 +532,9 @@ func BindChannelLibrary(channelID, libraryID int, enabled bool) (*ChannelConfigV
 			var err error
 			if library, err = model.LockAssetLibraryConnection(tx, libraryID); err != nil {
 				return err
+			}
+			if library.DeleteRequestedAt > 0 {
+				return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted")}
 			}
 			config = library.ProviderConfig(channelID)
 			config.Enabled = enabled
@@ -653,7 +679,7 @@ func backfillMissingAssets(libraryID int, resume bool) {
 // scheduling fields only and never touches stored credentials.
 func assetSyncConfigs() ([]model.AssetChannelConfig, error) {
 	var libraries []model.AssetLibraryConnection
-	if err := model.DB.Select("id", "enabled", "qpm", "rate_limit_library_id").Find(&libraries).Error; err != nil {
+	if err := model.DB.Select("id", "enabled", "qpm", "rate_limit_library_id", "delete_requested_at").Find(&libraries).Error; err != nil {
 		return nil, err
 	}
 	var linkedIDs []int
@@ -674,7 +700,7 @@ func assetSyncConfigs() ([]model.AssetChannelConfig, error) {
 		if budget, ok := budgets[library.RateLimitLibraryID]; ok {
 			qpm = budget
 		}
-		configs = append(configs, model.AssetChannelConfig{LibraryID: library.ID, RateLimitLibraryID: library.RateLimitLibraryID, QPM: qpm, Enabled: library.Enabled && linked[library.ID]})
+		configs = append(configs, model.AssetChannelConfig{LibraryID: library.ID, RateLimitLibraryID: library.RateLimitLibraryID, DeleteRequestedAt: library.DeleteRequestedAt, QPM: qpm, Enabled: library.Enabled && linked[library.ID]})
 	}
 	// Configurations that predate shared libraries stay usable until migrated.
 	var legacy []model.AssetChannelConfig
@@ -686,4 +712,52 @@ func assetSyncConfigs() ([]model.AssetChannelConfig, error) {
 
 func linkedAssetLibraryBindings(db *gorm.DB) *gorm.DB {
 	return db.Model(&model.AssetChannelConfig{}).Where("library_id > ? AND channel_id IN (?)", 0, db.Model(&model.Channel{}).Select("id"))
+}
+
+func DeleteLibraryConnection(libraryID int) error {
+	if libraryID <= 0 {
+		return &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")}
+	}
+	err := model.RequestAssetLibraryDeletion(libraryID)
+	if errors.Is(err, model.ErrAssetLibraryLinked) || errors.Is(err, model.ErrAssetLibraryBudgetInUse) {
+		return &RequestError{StatusCode: http.StatusConflict, Err: err}
+	}
+	return err
+}
+
+// A duplicate upstream ID can still serve another account. Removing the local
+// reference is sufficient in that case; deleting upstream would break its user.
+func upstreamAssetIsShared(config model.AssetChannelConfig, upstreamID string) (bool, error) {
+	var references []model.AssetReplica
+	if err := model.DB.Select("library_id", "channel_id").Where("upstream_asset_id = ? AND (library_id <> ? OR library_id IS NULL) AND status <> ? AND (operation <> ? OR operation IS NULL)",
+		upstreamID, config.LibraryID, model.AssetReplicaStatusDeleted, model.AssetReplicaOperationDelete).Find(&references).Error; err != nil {
+		return false, err
+	}
+	if len(references) == 0 {
+		return false, nil
+	}
+	key, err := libraryResourceKey(config)
+	if err != nil {
+		return false, err
+	}
+	for _, reference := range references {
+		var other model.AssetChannelConfig
+		if reference.LibraryID != nil {
+			var library model.AssetLibraryConnection
+			if err := model.DB.First(&library, *reference.LibraryID).Error; err != nil {
+				return false, err
+			}
+			other = library.ProviderConfig(0)
+		} else if err := model.DB.Where("channel_id = ?", reference.ChannelID).First(&other).Error; err != nil {
+			return false, err
+		}
+		otherKey, err := libraryResourceKey(other)
+		if err != nil {
+			return false, err
+		}
+		if key == otherKey {
+			return true, nil
+		}
+	}
+	return false, nil
 }

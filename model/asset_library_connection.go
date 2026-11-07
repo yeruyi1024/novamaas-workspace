@@ -31,6 +31,7 @@ type AssetLibraryConnection struct {
 	LegacyChannelID      *int    `json:"legacy_channel_id,omitempty" gorm:"uniqueIndex"`
 	ResourceKey          *string `json:"-" gorm:"type:char(64);uniqueIndex"`
 	RateLimitLibraryID   int     `json:"-"`
+	DeleteRequestedAt    int64   `json:"delete_requested_at,omitempty" gorm:"bigint"`
 	CreatedAt            int64   `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt            int64   `json:"updated_at" gorm:"bigint;index"`
 }
@@ -58,7 +59,7 @@ func LockAssetLibraryChannels(tx *gorm.DB, channelIDs []int) ([]Channel, error) 
 
 func (value AssetLibraryConnection) ProviderConfig(channelID int) AssetChannelConfig {
 	return AssetChannelConfig{
-		ChannelID: channelID, LibraryID: value.ID, RateLimitLibraryID: value.RateLimitLibraryID, Enabled: value.Enabled,
+		ChannelID: channelID, LibraryID: value.ID, RateLimitLibraryID: value.RateLimitLibraryID, DeleteRequestedAt: value.DeleteRequestedAt, Enabled: value.Enabled,
 		Protocol: value.Protocol, AuthType: value.AuthType, BaseURL: value.BaseURL,
 		Region: value.Region, Service: value.Service, APIVersion: value.APIVersion,
 		ProjectName: value.ProjectName, QPM: value.QPM, AccessKeyID: value.AccessKeyID,
@@ -152,6 +153,11 @@ func MergeAssetLibraryGroup(ids []int, resourceKey string) (int, error) {
 		var libraries []AssetLibraryConnection
 		if err := lockForUpdate(tx).Where("id IN ?", ids).Order("id asc").Find(&libraries).Error; err != nil {
 			return err
+		}
+		for _, library := range libraries {
+			if library.DeleteRequestedAt > 0 {
+				return nil
+			}
 		}
 		now := common.GetTimestamp()
 		var inFlight int64
@@ -293,4 +299,102 @@ func MergeAssetLibraryGroup(ids []int, resourceKey string) (int, error) {
 			Updates(map[string]any{"resource_key": resourceKey, "enabled": enabled, "qpm": qpm, "name": libraries[0].Name, "provider_name": libraries[0].ProviderName, "updated_at": now}).Error
 	})
 	return keptID, err
+}
+
+var ErrAssetLibraryLinked = errors.New("unlink all channels before deleting this resource account")
+var ErrAssetLibraryBudgetInUse = errors.New("delete historical accounts sharing this account's request budget first")
+
+// RequestAssetLibraryDeletion queues this account's copies only. Platform
+// assets stay live, and in-flight submissions retain their leases and late IDs.
+func RequestAssetLibraryDeletion(libraryID int) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		library, err := LockAssetLibraryConnection(tx, libraryID)
+		if err != nil {
+			return err
+		}
+		var count int64
+		if err := tx.Model(&AssetChannelConfig{}).Where("library_id = ? AND channel_id IN (?)", libraryID, tx.Model(&Channel{}).Select("id")).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrAssetLibraryLinked
+		}
+		if err := tx.Model(&AssetLibraryConnection{}).Where("rate_limit_library_id = ? AND id <> ?", libraryID, libraryID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrAssetLibraryBudgetInUse
+		}
+		now := common.GetTimestamp()
+		requestedAt := library.DeleteRequestedAt
+		if requestedAt == 0 {
+			requestedAt = now
+		}
+		if err := tx.Model(library).Updates(map[string]any{"enabled": false, "delete_requested_at": requestedAt, "updated_at": now}).Error; err != nil {
+			return err
+		}
+		var ids []int64
+		if err := tx.Model(&AssetReplica{}).Where("library_id = ?", libraryID).Order("asset_id asc").Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+		for _, id := range ids {
+			_, replica, err := lockAssetReplica(tx, id)
+			if err != nil {
+				return err
+			}
+			updates := assetReplicaDeletionUpdates(now)
+			if replica.LockedBy != "" && replica.LeaseUntil > now && ownsAssetReplica(replica, replica.LockedBy) {
+				delete(updates, "status")
+				delete(updates, "locked_by")
+				delete(updates, "lease_until")
+			} else if replica.Status == AssetReplicaStatusDeleted || replica.UpstreamAssetID == "" {
+				updates["status"], updates["next_sync_at"], updates["progress"] = AssetReplicaStatusDeleted, 0, 100
+			}
+			updates["last_error"] = ""
+			if err := tx.Model(replica).Updates(updates).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// FinalizeAssetLibraryDeletion keeps credentials until every upstream deletion
+// is acknowledged. Upstream groups are retained: a group can contain copies
+// moved to another account during merging, and group deletion is cascading.
+func FinalizeAssetLibraryDeletion(libraryID int) (finished bool, err error) {
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		library, err := LockAssetLibraryConnection(tx, libraryID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			finished = true
+			return nil
+		}
+		if err != nil || library.DeleteRequestedAt == 0 {
+			return err
+		}
+		var count int64
+		if err := tx.Model(&AssetChannelConfig{}).Where("library_id = ? AND channel_id IN (?)", libraryID, tx.Model(&Channel{}).Select("id")).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrAssetLibraryLinked
+		}
+		if err := tx.Model(&AssetReplica{}).Where("library_id = ? AND (status <> ? OR status IS NULL OR (locked_by <> ? AND lease_until > ?))", libraryID, AssetReplicaStatusDeleted, "", common.GetTimestamp()).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return nil
+		}
+		for _, value := range []any{&AssetReplica{}, &AssetGroupReplica{}, &AssetChannelConfig{}} {
+			if err := tx.Where("library_id = ?", libraryID).Delete(value).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Delete(library).Error; err != nil {
+			return err
+		}
+		finished = true
+		return nil
+	})
+	return finished, err
 }

@@ -40,6 +40,7 @@ export function AssetLibraryAccountCard(props: {
   onManageChannels: (library: AssetLibraryConnection) => void
   onViewLogs: (libraryId: number) => void
   onSyncMissing: (library: AssetLibraryConnection) => void
+  onDelete: (library: AssetLibraryConnection) => void
 }) {
   const { t } = useTranslation()
   const providerName = props.library.provider_name || props.library.name
@@ -52,6 +53,9 @@ export function AssetLibraryAccountCard(props: {
       ? t('AK/SK signature')
       : t('Bearer API key')
   const connectionLabel = `${protocolLabel} · ${authLabel} · ${props.library.qpm} QPM`
+  const deleting = Boolean(props.library.delete_requested_at)
+  let statusLabel = props.library.enabled ? t('Enabled') : t('Disabled')
+  if (deleting) statusLabel = t('Deleting...')
 
   return (
     <Card
@@ -66,7 +70,7 @@ export function AssetLibraryAccountCard(props: {
             <h3 title={props.library.name}>{props.library.name}</h3>
           </CardTitle>
           <Badge variant={props.library.enabled ? 'default' : 'secondary'}>
-            {props.library.enabled ? t('Enabled') : t('Disabled')}
+            {statusLabel}
           </Badge>
         </div>
         <div className='flex min-w-0 flex-wrap items-center gap-1.5'>
@@ -151,7 +155,9 @@ export function AssetLibraryAccountCard(props: {
               {t('Failed')} · {props.library.summary.failed}
             </Badge>
           )}
-          {props.library.credential_status === 'unavailable' && <Badge variant='destructive'>{t('Credentials unavailable')}</Badge>}
+          {props.library.credential_status === 'unavailable' && (
+            <Badge variant='destructive'>{t('Credentials unavailable')}</Badge>
+          )}
           {props.library.missing > 0 && (
             <Badge variant='outline'>
               {t('Missing assets')} · {props.library.missing}
@@ -160,7 +166,14 @@ export function AssetLibraryAccountCard(props: {
         </div>
       </CardContent>
       <CardFooter className='shrink-0 flex-wrap justify-end gap-1.5'>
-        <Button size='xs' variant='outline' onClick={() => props.onManageChannels(props.library)}>{t('Manage channels')}</Button>
+        <Button
+          size='xs'
+          variant='outline'
+          disabled={deleting}
+          onClick={() => props.onManageChannels(props.library)}
+        >
+          {t('Manage channels')}
+        </Button>
         <Button
           size='xs'
           variant='outline'
@@ -181,9 +194,23 @@ export function AssetLibraryAccountCard(props: {
         >
           {t('Sync missing assets')}
         </Button>
-        <Button size='xs' onClick={() => props.onConfigure(props.library)}>
+        <Button
+          size='xs'
+          disabled={deleting}
+          onClick={() => props.onConfigure(props.library)}
+        >
           {t('Configure')}
         </Button>
+        {props.library.channels.length === 0 && (
+          <Button
+            size='xs'
+            variant='destructive'
+            disabled={deleting && props.library.summary.failed === 0}
+            onClick={() => props.onDelete(props.library)}
+          >
+            {t('Delete account and copies')}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )

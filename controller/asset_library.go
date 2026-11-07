@@ -211,6 +211,20 @@ func ListAssetLibraryConnections(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": libraries})
 }
 
+func DeleteAssetLibraryConnection(c *gin.Context) {
+	libraryID, err := strconv.Atoi(c.Param("library_id"))
+	if err != nil || libraryID <= 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+		return
+	}
+	if err := assetService.DeleteLibraryConnection(libraryID); err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	recordManageAudit(c, "asset_library.connection_delete_requested", map[string]interface{}{"library_id": libraryID})
+	c.JSON(http.StatusAccepted, gin.H{"success": true})
+}
+
 func SaveAssetLibraryConnection(c *gin.Context) {
 	libraryID := 0
 	if c.Param("library_id") != "" {

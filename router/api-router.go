@@ -375,6 +375,7 @@ func SetApiRouter(router *gin.Engine) {
 			assetLibraryAdminRoute.POST("/libraries", controller.SaveAssetLibraryConnection)
 			assetLibraryAdminRoute.POST("/libraries/merge", controller.MergeAssetLibraries)
 			assetLibraryAdminRoute.PUT("/libraries/:library_id", controller.SaveAssetLibraryConnection)
+			assetLibraryAdminRoute.DELETE("/libraries/:library_id", middleware.CriticalRateLimit(), controller.DeleteAssetLibraryConnection)
 			assetLibraryAdminRoute.POST("/libraries/test", controller.TestAssetLibraryConnection)
 			assetLibraryAdminRoute.POST("/libraries/:library_id/test", controller.TestAssetLibraryConnection)
 			assetLibraryAdminRoute.POST("/libraries/:library_id/sync", controller.SyncAssetLibraryConnection)

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -32,6 +33,87 @@ func TestSharedLibraryQueuesOneReplicaForMultipleChannels(t *testing.T) {
 	require.NotNil(t, replicas[0].LibraryID)
 	assert.Equal(t, library.ID, *replicas[0].LibraryID)
 	assert.Zero(t, replicas[0].ChannelID)
+}
+
+func TestDeletingLibraryRetriesUpstreamFailuresAndPreservesSharedCopies(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "delete-account-fixture")
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "DeleteAsset", r.URL.Query().Get("Action"), "never delete a group containing retained copies")
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.Equal(t, "old-copy", gjson.GetBytes(body, "Id").String(), "do not delete an ID still used by another account")
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = io.WriteString(w, `{"ResponseMetadata":{"Error":{"Code":"Unavailable","Message":"retry"}}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"Result":{}}`)
+	}))
+	t.Cleanup(upstream.Close)
+	credential, err := encryptChannelCredential("same-account-fixture")
+	require.NoError(t, err)
+	library := model.AssetLibraryConnection{Name: "retired", Enabled: true, Protocol: model.AssetChannelProtocolVolcAction,
+		AuthType: model.AssetChannelAuthBearer, BaseURL: upstream.URL, QPM: 1000000, EncryptedCredential: credential}
+	require.NoError(t, db.Create(&library).Error)
+	other := library
+	other.ID, other.Name = 0, "current"
+	require.NoError(t, db.Create(&other).Error)
+	require.NoError(t, db.Create(&model.Channel{Id: 1, Type: 61}).Error)
+	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 1, LibraryID: other.ID, Enabled: true}).Error)
+	var blocked *RequestError
+	require.ErrorAs(t, DeleteLibraryConnection(other.ID), &blocked)
+	assert.Equal(t, http.StatusConflict, blocked.HTTPStatusCode())
+	var replicas []model.AssetReplica
+	for index, id := range []string{"old-copy", "shared-copy"} {
+		asset := model.MediaAsset{PublicID: id, StorageObjectID: int64(index + 1), Status: model.AssetStatusReady}
+		require.NoError(t, db.Create(&asset).Error)
+		replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusActive, UpstreamAssetID: id}
+		require.NoError(t, db.Create(&replica).Error)
+		replicas = append(replicas, replica)
+		if id == "shared-copy" {
+			replica.ID, replica.LibraryID = 0, &other.ID
+			require.NoError(t, db.Create(&replica).Error)
+		}
+	}
+	require.NoError(t, db.Create(&model.AssetGroupReplica{GroupID: 1, LibraryID: &library.ID, Status: model.AssetReplicaStatusActive, UpstreamGroupID: "shared-group"}).Error)
+	require.NoError(t, DeleteLibraryConnection(library.ID))
+	_, err = BindChannelLibrary(1, library.ID, true)
+	require.ErrorAs(t, err, &blocked, "a deleting account cannot acquire new channels")
+	for index := range replicas {
+		replica := &replicas[index]
+		require.NoError(t, db.First(replica, replica.ID).Error)
+		now := common.GetTimestamp()
+		claimed, err := model.ClaimAssetReplica(replica, now, now+120, "delete-copy")
+		require.NoError(t, err)
+		require.True(t, claimed)
+		syncReplica(context.Background(), "delete-copy", replica)
+	}
+	finished, err := model.FinalizeAssetLibraryDeletion(library.ID)
+	require.NoError(t, err)
+	assert.False(t, finished, "failed upstream deletion retains the account for retry")
+	require.NoError(t, DeleteLibraryConnection(library.ID))
+	replica := &replicas[0]
+	require.NoError(t, db.First(replica, replica.ID).Error)
+	now := common.GetTimestamp()
+	claimed, err := model.ClaimAssetReplica(replica, now, now+120, "retry-copy")
+	require.NoError(t, err)
+	require.True(t, claimed)
+	syncReplica(context.Background(), "retry-copy", replica)
+	// Exercise the same finalizer used by the background dispatcher.
+	scheduler := newAssetSyncScheduler("finish-library-deletion")
+	scheduler.configs = []model.AssetChannelConfig{{LibraryID: library.ID, DeleteRequestedAt: now}}
+	scheduler.configsUntil = time.Now().Add(time.Minute)
+	scheduler.dispatch(context.Background())
+	var count int64
+	require.NoError(t, db.Model(&model.AssetLibraryConnection{}).Where("id = ?", library.ID).Count(&count).Error)
+	assert.Zero(t, count)
+	require.NoError(t, db.Model(&model.AssetReplica{}).Where("library_id = ? AND status = ?", other.ID, model.AssetReplicaStatusActive).Count(&count).Error)
+	assert.EqualValues(t, 1, count)
+	require.NoError(t, db.Model(&model.MediaAsset{}).Where("status = ?", model.AssetStatusReady).Count(&count).Error)
+	assert.EqualValues(t, 2, count)
+	assert.EqualValues(t, 2, calls.Load())
 }
 
 func TestSharedLibraryChannelOwnershipRequiresExplicitUnlink(t *testing.T) {

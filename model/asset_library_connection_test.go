@@ -3,6 +3,8 @@ package model
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,6 +16,60 @@ type legacyAssetReplicaSchema struct {
 	ChannelID       int    `gorm:"uniqueIndex:idx_asset_channel,priority:2;index"`
 	UpstreamAssetID string `gorm:"type:varchar(255)"`
 	Status          string `gorm:"type:varchar(32)"`
+}
+
+func TestAssetLibraryDeletionKeepsPlatformAssetsAndInFlightSubmission(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql"} {
+		t.Run(dialect, func(t *testing.T) {
+			db := setupAssetSchedulerDB(t, dialect)
+			require.NoError(t, db.AutoMigrate(&AssetLibraryConnection{}, &AssetGroupReplica{}, &Channel{}))
+			t.Cleanup(func() {
+				assert.NoError(t, db.Migrator().DropTable(&AssetLibraryConnection{}, &AssetGroupReplica{}, &Channel{}))
+			})
+			library := AssetLibraryConnection{Name: "retired", Enabled: true}
+			other := AssetLibraryConnection{Name: "current", Enabled: true}
+			require.NoError(t, db.Create(&library).Error)
+			require.NoError(t, db.Create(&other).Error)
+			require.NoError(t, db.Create(&AssetChannelConfig{ChannelID: 999, LibraryID: library.ID}).Error)
+			object := StorageObject{ObjectID: "preserved-source", Status: StorageObjectStatusUploaded}
+			require.NoError(t, db.Create(&object).Error)
+			asset := MediaAsset{PublicID: "kept-platform-asset", StorageObjectID: object.ID, Status: AssetStatusReady}
+			require.NoError(t, db.Create(&asset).Error)
+			now := common.GetTimestamp()
+			pending := AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, Operation: AssetReplicaOperationSync,
+				Status: AssetReplicaStatusSyncing, LockedBy: "upload-owner", LeaseUntil: now + 120}
+			kept := AssetReplica{AssetID: asset.ID, LibraryID: &other.ID, Operation: AssetReplicaOperationSync, Status: AssetReplicaStatusActive, UpstreamAssetID: "kept-upstream"}
+			require.NoError(t, db.Create(&pending).Error)
+			require.NoError(t, db.Create(&kept).Error)
+			require.NoError(t, RequestAssetLibraryDeletion(library.ID))
+			finished, err := FinalizeAssetLibraryDeletion(library.ID)
+			require.NoError(t, err)
+			assert.False(t, finished, "keep credentials while an upload may still return an upstream ID")
+			require.NoError(t, db.First(&pending, pending.ID).Error)
+			assert.Equal(t, "upload-owner", pending.LockedBy)
+			assert.Equal(t, AssetReplicaOperationDelete, pending.Operation)
+			require.NoError(t, FinishAssetReplicaSubmission(pending.ID, "upload-owner", "late-upstream", now))
+			require.NoError(t, db.First(&pending, pending.ID).Error)
+			assert.Equal(t, "late-upstream", pending.UpstreamAssetID)
+			now = common.GetTimestamp()
+			claimed, err := ClaimAssetReplica(&pending, now, now+120, "delete-owner")
+			require.NoError(t, err)
+			require.True(t, claimed)
+			require.NoError(t, AcknowledgeAssetReplicaDeletion(pending.ID, "delete-owner", "late-upstream"))
+			finished, err = FinalizeAssetLibraryDeletion(library.ID)
+			require.NoError(t, err)
+			assert.True(t, finished)
+			var bindings int64
+			require.NoError(t, db.Model(&AssetChannelConfig{}).Where("library_id = ?", library.ID).Count(&bindings).Error)
+			assert.Zero(t, bindings, "bindings to channels that were already deleted do not block cleanup")
+			require.NoError(t, db.First(&asset, asset.ID).Error)
+			require.NoError(t, db.First(&object, object.ID).Error)
+			require.NoError(t, db.First(&kept, kept.ID).Error)
+			assert.Equal(t, AssetStatusReady, asset.Status)
+			assert.Equal(t, StorageObjectStatusUploaded, object.Status)
+			assert.Equal(t, AssetReplicaStatusActive, kept.Status)
+		})
+	}
 }
 
 func TestSharedLibrarySchemaUpgradePreservesLegacyRowsAndAllowsMultipleNullChannelCopies(t *testing.T) {
