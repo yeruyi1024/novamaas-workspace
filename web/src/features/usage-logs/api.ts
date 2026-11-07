@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { api } from '@/lib/api'
+import { api, getFreshAuthHeaders } from '@/lib/api'
 
 import { buildQueryParams } from './lib/query-params'
 import type {
@@ -83,6 +83,41 @@ export const getLogStats = (params: GetLogStatsParams = {}) =>
 export const getUserLogStats = (
   params: Omit<GetLogStatsParams, 'username' | 'channel'> = {}
 ) => fetchLogStats('/api/log', params, false)
+
+/**
+ * Download the logs matching params as a spreadsheet, newest first. The server
+ * builds the whole file before sending it, so a failed export answers with an
+ * API error instead of a partial file. Resolves with the file and its name.
+ */
+export async function exportLogs(
+  params: GetLogsParams,
+  isAdmin: boolean
+): Promise<{ blob: Blob; filename: string; count: number }> {
+  const queryParams = buildQueryParams(
+    params as unknown as Record<string, unknown>
+  )
+  const response = await fetch(
+    `${buildApiPath('/api/log', isAdmin)}/export?${queryParams}`,
+    {
+      credentials: 'include',
+      headers: await getFreshAuthHeaders(),
+    }
+  )
+  if (!response.ok || response.headers.get('Content-Type')?.includes('json')) {
+    const body = (await response.json().catch(() => null)) as {
+      message?: string
+    } | null
+    throw new Error(body?.message || `HTTP ${response.status}`)
+  }
+  const filename = /filename="([^"]+)"/.exec(
+    response.headers.get('Content-Disposition') ?? ''
+  )?.[1]
+  return {
+    blob: await response.blob(),
+    filename: filename ?? 'usage-logs.xlsx',
+    count: Number(response.headers.get('X-Log-Export-Count') ?? 0),
+  }
+}
 
 export async function getUserInfo(
   userId: number

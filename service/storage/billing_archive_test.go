@@ -44,6 +44,9 @@ func TestBillingArchiveUploadsUnderAccountMonthAndStatement(t *testing.T) {
 	var keys []string
 	config := oss.LoadDefaultConfig().WithRegion("cn-hangzhou").WithEndpoint("https://oss-cn-hangzhou.aliyuncs.com").WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test-id", "test-secret")).WithHttpClient(&http.Client{Transport: billingArchiveTransport{data: payload, putKeys: &keys}})
 	store := &BillingArchiveStore{driver: &aliyunOSSDriver{client: oss.NewClient(config), bucket: profile.Bucket}, profileID: profile.ID, profile: profile}
+	missing, err := store.Existing(context.Background(), statement.ID, "xlsx", 0)
+	require.NoError(t, err)
+	assert.Nil(t, missing)
 	for _, kind := range []string{"details", "snapshot", "pdf", "xlsx", "manifest", "receipt"} {
 		t.Run(kind, func(t *testing.T) {
 			artifact, err := store.Put(context.Background(), statement.ID, kind, 0, 42, "application/octet-stream", payload, 0)
@@ -60,6 +63,10 @@ func TestBillingArchiveUploadsUnderAccountMonthAndStatement(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, artifact.ObjectKey, retry.ObjectKey)
 			assert.Len(t, keys, uploads, "immutable retries reuse the archived artifact")
+			existing, err := store.Existing(context.Background(), statement.ID, kind, 0)
+			require.NoError(t, err)
+			assert.Equal(t, artifact.SHA256, existing.SHA256)
+			assert.Len(t, keys, uploads, "existing artifacts are verified without uploading")
 		})
 	}
 	common.CryptoSecret = "rotated-permanent-storage-test-key"

@@ -45,6 +45,8 @@ const review: BillingHistoryReview = {
   source_sha256: 'reviewed-digest',
   source_count: 3,
   record_limit: 10000,
+  partial: false,
+  boundary_at: 0,
   existing_statement: '',
   old_start_at: 100,
   new_start_at: 100,
@@ -160,6 +162,39 @@ describe('Historical import consent', () => {
     ).toBeVisible()
     expect(
       screen.queryByText(/Import will update the accounting start/)
+    ).not.toBeInTheDocument()
+  })
+
+  test('a month formal accounting entered part-way says where the import stops', async () => {
+    vi.mocked(reviewBillingHistory).mockResolvedValue({
+      ...review,
+      month: '2026-10',
+      partial: true,
+      boundary_at: 1791440924,
+      checks: [{ code: 'history_empty_ledger', passed: true }],
+    })
+    renderHistory()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review historical import' })
+    )
+    expect(
+      await screen.findByText(/Only records before 2026-10-08 14:28:44/)
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        'No existing formal entries or summaries in the part to import'
+      )
+    ).toBeVisible()
+  })
+
+  test('a whole-month review does not mention a boundary', async () => {
+    renderHistory()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review historical import' })
+    )
+    await screen.findByText(/Accounting start:/)
+    expect(
+      screen.queryByText(/Formal accounting began part-way/)
     ).not.toBeInTheDocument()
   })
 

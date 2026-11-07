@@ -44,6 +44,7 @@ import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
 import { CommonLogsStats } from './common-logs-stats'
 import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
+import { ExportLogsButton } from './export-logs-button'
 import {
   LogsFilterField,
   LogsFilterInput,
@@ -412,7 +413,12 @@ export function CommonLogsFilterBar<TData>(
     <LogsFilterToolbar
       table={props.table}
       stats={statsBar}
-      actionStart={sensitiveToggle}
+      actionStart={
+        <>
+          {sensitiveToggle}
+          <ExportLogsButton />
+        </>
+      }
       primaryFilters={
         <>
           {dateRangeFilter}

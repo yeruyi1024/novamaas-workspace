@@ -87,6 +87,9 @@ type BillingSnapshot struct {
 	RefundQuota         int64             `json:"refund_quota"`
 	RoundingDifference  string            `json:"rounding_difference"`
 	RateReferenceAt     int64             `json:"rate_reference_at,omitempty"`
+	// DetailSheet adds the per-record 详细日志 sheet to the Excel workbook.
+	// Snapshots frozen before it existed keep rendering byte-identical files.
+	DetailSheet bool `json:"detail_sheet,omitempty"`
 }
 
 func attachBillingModelRows(snapshot *BillingSnapshot, totals []model.BillingModelTotal) error {
@@ -464,6 +467,7 @@ func PrepareBillingStatementContext(ctx context.Context, userID, actorID, storag
 			return "", "", ErrBillingHistoricalDataUnreconciled
 		}
 		snapshot.PDFTemplateVersion = 18
+		snapshot.DetailSheet = true
 		snapshot.AccountingBasis = model.BillingSourcePeriodCorrections
 		snapshot.Issuer, snapshot.PDFLogoPNG, snapshot.PDFFooter = branding.Issuer, branding.LogoPNG, branding.Footer
 		snapshot.OperatingName, snapshot.PDFOperatingLogoPNG = branding.OperatingName, branding.OperatingLogoPNG

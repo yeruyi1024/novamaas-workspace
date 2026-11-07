@@ -1,9 +1,11 @@
 package model
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
 
 	"gorm.io/gorm"
 )
@@ -503,10 +506,63 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 }
 
 func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, includeAccounting bool) (logs []*Log, total int64, err error) {
+	return getAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, startIdx, num, channel, group, requestId, upstreamRequestId, includeAccounting, &logPageOptions{})
+}
+
+// logPageOptions tunes one page of the log search for a paged export. The zero
+// value is the ordinary list page.
+type logPageOptions struct {
+	// SkipTotal omits the count, which is expensive on every page of a large result.
+	SkipTotal bool
+	// SkipDisplay leaves out what only the log page shows: channel names and the
+	// task price details, which cost a query and a JSON parse per page.
+	SkipDisplay bool
+	// After continues behind the last log of the previous page. Unlike an
+	// offset, it costs the same on every page.
+	After *Log
+	// adjustments are the billing corrections of a group-filtered search. The
+	// first page loads them and later pages reuse them, since they depend on the
+	// search and not on the page.
+	adjustments       []billingEffectiveLog
+	adjustmentsLoaded bool
+	last              *Log
+}
+
+// rememberLast keeps the last log as the database returned it. The user view
+// later replaces ids with display numbers, which cannot continue a cursor.
+func (o *logPageOptions) rememberLast(logs []*Log) {
+	if len(logs) == 0 {
+		return
+	}
+	last := *logs[len(logs)-1]
+	o.last = &last
+}
+
+func (o *logPageOptions) applyCursor(tx *gorm.DB) *gorm.DB {
+	if o.After == nil {
+		return tx
+	}
+	return tx.Where("(logs.created_at < ? OR (logs.created_at = ? AND logs.id < ?))", o.After.CreatedAt, o.After.CreatedAt, o.After.Id)
+}
+
+// effectiveLogs loads the billing corrections of a group-filtered search once:
+// they depend on the search and not on the page, so later pages reuse them.
+func (o *logPageOptions) effectiveLogs(filter CostAccountingFilter) ([]billingEffectiveLog, error) {
+	if !o.adjustmentsLoaded {
+		adjustments, err := billingEffectiveLogs(context.Background(), filter)
+		if err != nil {
+			return nil, err
+		}
+		o.adjustments, o.adjustmentsLoaded = adjustments, true
+	}
+	return o.adjustments, nil
+}
+
+// getAllLogs is the administrator log search.
+func getAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, includeAccounting bool, opts *logPageOptions) (logs []*Log, total int64, err error) {
 	var adjustments []billingEffectiveLog
 	if group != "" {
-		adjustments, err = billingEffectiveLogs(context.Background(), CostAccountingFilter{LogType: logType, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp, ModelName: modelName, Username: username, TokenName: tokenName, ChannelID: channel, RequestID: requestId, UpstreamRequestID: upstreamRequestId})
-		if err != nil {
+		if adjustments, err = opts.effectiveLogs(CostAccountingFilter{LogType: logType, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp, ModelName: modelName, Username: username, TokenName: tokenName, ChannelID: channel, RequestID: requestId, UpstreamRequestID: upstreamRequestId}); err != nil {
 			return nil, 0, err
 		}
 	}
@@ -542,9 +598,12 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		tx = tx.Where("logs.channel_id = ?", channel)
 	}
 	tx = applyBillingEffectiveGroup(tx, group, adjustments)
-	err = tx.Model(&Log{}).Count(&total).Error
-	if err != nil {
-		return nil, 0, err
+	tx = opts.applyCursor(tx)
+	if !opts.SkipTotal {
+		err = tx.Model(&Log{}).Count(&total).Error
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 	order := "logs.created_at desc, logs.id desc"
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
@@ -554,6 +613,7 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	if err != nil {
 		return nil, 0, err
 	}
+	opts.rememberLast(logs)
 	if group == "" {
 		adjustments, err = billingEffectiveLogsForPage(context.Background(), logs)
 		if err != nil {
@@ -565,14 +625,20 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 			return nil, 0, err
 		}
 	}
-	if err := attachHistoricalTaskLogPricing(logs); err != nil {
-		return nil, 0, err
+	if !opts.SkipDisplay {
+		if err := attachHistoricalTaskLogPricing(logs); err != nil {
+			return nil, 0, err
+		}
 	}
 	if err := projectBillingEffectiveLogs(logs, adjustments); err != nil {
 		return nil, 0, err
 	}
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
 		assignDisplayLogIds(logs, startIdx)
+	}
+
+	if opts.SkipDisplay {
+		return logs, total, nil
 	}
 
 	channelIds := types.NewSet[int]()
@@ -621,10 +687,14 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 const logSearchCountLimit = 10000
 
 func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string, includeAccounting bool) (logs []*Log, total int64, err error) {
+	return getUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, startIdx, num, group, requestId, upstreamRequestId, includeAccounting, &logPageOptions{})
+}
+
+// getUserLogs is the user log search; see logPageOptions.
+func getUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string, includeAccounting bool, opts *logPageOptions) (logs []*Log, total int64, err error) {
 	var adjustments []billingEffectiveLog
 	if group != "" {
-		adjustments, err = billingEffectiveLogs(context.Background(), CostAccountingFilter{UserID: userId, LogType: logType, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp, ModelName: modelName, TokenName: tokenName, RequestID: requestId, UpstreamRequestID: upstreamRequestId})
-		if err != nil {
+		if adjustments, err = opts.effectiveLogs(CostAccountingFilter{UserID: userId, LogType: logType, StartTimestamp: startTimestamp, EndTimestamp: endTimestamp, ModelName: modelName, TokenName: tokenName, RequestID: requestId, UpstreamRequestID: upstreamRequestId}); err != nil {
 			return nil, 0, err
 		}
 	}
@@ -657,14 +727,17 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 		tx = tx.Where("logs.created_at <= ?", endTimestamp)
 	}
 	tx = applyBillingEffectiveGroup(tx, group, adjustments)
-	limitedCountQuery := tx.Session(&gorm.Session{}).
-		Model(&Log{}).
-		Select("logs.id").
-		Limit(logSearchCountLimit)
-	err = LOG_DB.Table("(?) AS limited_logs", limitedCountQuery).Count(&total).Error
-	if err != nil {
-		common.SysError("failed to count user logs: " + err.Error())
-		return nil, 0, errors.New("查询日志失败")
+	tx = opts.applyCursor(tx)
+	if !opts.SkipTotal {
+		limitedCountQuery := tx.Session(&gorm.Session{}).
+			Model(&Log{}).
+			Select("logs.id").
+			Limit(logSearchCountLimit)
+		err = LOG_DB.Table("(?) AS limited_logs", limitedCountQuery).Count(&total).Error
+		if err != nil {
+			common.SysError("failed to count user logs: " + err.Error())
+			return nil, 0, errors.New("查询日志失败")
+		}
 	}
 	order := "logs.created_at desc, logs.id desc"
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
@@ -675,6 +748,7 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 		common.SysError("failed to search user logs: " + err.Error())
 		return nil, 0, errors.New("查询日志失败")
 	}
+	opts.rememberLast(logs)
 	if group == "" {
 		adjustments, err = billingEffectiveLogsForPage(context.Background(), logs)
 		if err != nil {
@@ -686,8 +760,10 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 			return nil, 0, err
 		}
 	}
-	if err := attachHistoricalTaskLogPricing(logs); err != nil {
-		return nil, 0, err
+	if !opts.SkipDisplay {
+		if err := attachHistoricalTaskLogPricing(logs); err != nil {
+			return nil, 0, err
+		}
 	}
 	if err := projectBillingEffectiveLogs(logs, adjustments); err != nil {
 		return nil, 0, err
@@ -843,3 +919,170 @@ func DeleteOldLogBatch(ctx context.Context, targetTimestamp int64, limit int) (i
 // Usage logs are accounting evidence. Archiving payloads never authorizes
 // deleting the original usage records, including through legacy cleanup jobs.
 var ErrUsageLogsRetained = errors.New("usage logs are retained permanently; deletion is disabled")
+
+// logExportPageSize is the number of logs an export reads per query.
+const logExportPageSize = 1000
+
+// logExportPagePause lets other queries through between the pages of an export.
+const logExportPagePause = 20 * time.Millisecond
+
+// exportLogPages calls fn with each log fetch returns, newest first, one page
+// at a time so a large export never holds the whole result in memory. Pages
+// follow a cursor on (created_at, id); ClickHouse ids are display values, so
+// it pages by offset there.
+func exportLogPages(ctx context.Context, fetch func(offset int, opts *logPageOptions) ([]*Log, error), fn func(*Log) error) error {
+	opts := &logPageOptions{SkipTotal: true, SkipDisplay: true}
+	byOffset := common.UsingLogDatabase(common.DatabaseTypeClickHouse)
+	offset := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		logs, err := fetch(offset, opts)
+		if err != nil {
+			return err
+		}
+		for _, log := range logs {
+			if err := fn(log); err != nil {
+				return err
+			}
+		}
+		if len(logs) < logExportPageSize {
+			return nil
+		}
+		if byOffset {
+			offset += logExportPageSize
+		} else {
+			opts.After = opts.last
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(logExportPagePause):
+		}
+	}
+}
+
+// ExportAllLogs calls fn with each administrator-visible log matching the
+// search, newest first, under the same visibility rules as the log list. It
+// never attaches the platform's cost and profit figures: a file leaves the
+// platform, so an export cannot ask for them.
+func ExportAllLogs(ctx context.Context, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string, fn func(*Log) error) error {
+	return exportLogPages(ctx, func(offset int, opts *logPageOptions) ([]*Log, error) {
+		logs, _, err := getAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, offset, logExportPageSize, channel, group, requestId, upstreamRequestId, false, opts)
+		return logs, err
+	}, fn)
+}
+
+// ExportUserLogs is ExportAllLogs for one user's own logs.
+func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, group string, requestId string, upstreamRequestId string, fn func(*Log) error) error {
+	return exportLogPages(ctx, func(offset int, opts *logPageOptions) ([]*Log, error) {
+		logs, _, err := getUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, offset, logExportPageSize, group, requestId, upstreamRequestId, false, opts)
+		return logs, err
+	}, fn)
+}
+
+// LogLink is what a usage log says about the request behind a ledger entry.
+type LogLink struct {
+	Found                   bool
+	Group                   string
+	TaskID                  string
+	IsStream                bool
+	PromptTokens            int
+	CompletionTokens        int
+	CacheTokens, CacheWrite int
+	UseTime                 int
+	Ip                      string
+	// GroupRatio is the price multiplier the request was billed with.
+	GroupRatio string
+	// IsTask marks the log of a video or other asynchronous task.
+	IsTask bool
+	// CreatedAt is when the log was written, which for a task is when it was
+	// submitted.
+	CreatedAt   int64
+	consumption bool
+}
+
+// LogLinkOf reads what a usage log says about the request behind it.
+func LogLinkOf(log *Log) LogLink {
+	var other struct {
+		TaskID                string   `json:"task_id"`
+		CacheTokens           int      `json:"cache_tokens"`
+		CacheCreationTokens   int      `json:"cache_creation_tokens"`
+		CacheCreationTokens5m int      `json:"cache_creation_tokens_5m"`
+		CacheCreationTokens1h int      `json:"cache_creation_tokens_1h"`
+		IsTask                bool     `json:"is_task"`
+		GroupRatio            *float64 `json:"group_ratio"`
+		UserGroupRatio        *float64 `json:"user_group_ratio"`
+	}
+	if log.Other != "" {
+		// Logs without readable metadata simply carry no task or cache figures.
+		_ = common.UnmarshalJsonStr(log.Other, &other)
+	}
+	cacheWrite := other.CacheCreationTokens5m + other.CacheCreationTokens1h
+	if cacheWrite == 0 {
+		cacheWrite = other.CacheCreationTokens
+	}
+	ratio := other.GroupRatio
+	if other.UserGroupRatio != nil && *other.UserGroupRatio > 0 {
+		ratio = other.UserGroupRatio
+	}
+	groupRatio := ""
+	if ratio != nil && *ratio >= 0 {
+		groupRatio = strconv.FormatFloat(*ratio, 'f', -1, 64)
+	}
+	return LogLink{
+		Found: true, Group: log.Group, GroupRatio: groupRatio, TaskID: other.TaskID, IsTask: other.IsTask, CreatedAt: log.CreatedAt, IsStream: log.IsStream,
+		PromptTokens: log.PromptTokens, CompletionTokens: log.CompletionTokens,
+		CacheTokens: other.CacheTokens, CacheWrite: cacheWrite, UseTime: log.UseTime, Ip: log.Ip,
+		consumption: log.Type == LogTypeConsume,
+	}
+}
+
+// logLinkColumns are the log columns a link reads; the usage figures and the
+// task ID live in the metadata.
+var logLinkColumns = []string{"id", "request_id", "type", "group", "other", "is_stream", "prompt_tokens", "completion_tokens", "use_time", "ip", "created_at"}
+
+const logLinkBatchSize = 500
+
+// GetLogLinksByIDs returns the usage logs of the user by their id.
+func GetLogLinksByIDs(userID int, ids []int) (map[int]LogLink, error) {
+	links := make(map[int]LogLink, len(ids))
+	for _, batch := range lo.Chunk(ids, logLinkBatchSize) {
+		var logs []Log
+		if err := LOG_DB.Select(logLinkColumns).Where("user_id = ? AND id IN ?", userID, batch).Find(&logs).Error; err != nil {
+			return nil, err
+		}
+		for i := range logs {
+			links[logs[i].Id] = LogLinkOf(&logs[i])
+		}
+	}
+	return links, nil
+}
+
+// GetLogLinksByRequestIDs returns the usage logs of the user by request ID.
+// A request can leave several logs: its consumption log supplies the usage
+// figures, and any of them may supply the group or task.
+func GetLogLinksByRequestIDs(userID int, requestIDs []string) (map[string]LogLink, error) {
+	links := make(map[string]LogLink, len(requestIDs))
+	for _, batch := range lo.Chunk(requestIDs, logLinkBatchSize) {
+		var logs []Log
+		if err := LOG_DB.Select(logLinkColumns).Where("user_id = ? AND request_id IN ?", userID, batch).Find(&logs).Error; err != nil {
+			return nil, err
+		}
+		for i := range logs {
+			best := LogLinkOf(&logs[i])
+			if existing, found := links[logs[i].RequestId]; found {
+				other := best
+				best = existing
+				if !existing.consumption && other.consumption {
+					best, other = other, existing
+				}
+				best.Group = cmp.Or(best.Group, other.Group)
+				best.TaskID = cmp.Or(best.TaskID, other.TaskID)
+			}
+			links[logs[i].RequestId] = best
+		}
+	}
+	return links, nil
+}
