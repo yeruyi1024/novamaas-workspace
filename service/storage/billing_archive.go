@@ -68,6 +68,23 @@ func (store *BillingArchiveStore) Read(ctx context.Context, key string, size int
 	return body, nil
 }
 
+// Existing verifies a previously published artifact before a retry reuses it.
+// A missing artifact returns nil; corrupt or unavailable evidence is an error.
+func (store *BillingArchiveStore) Existing(ctx context.Context, statementID, kind string, ordinal int) (*model.BillingArtifact, error) {
+	var artifact model.BillingArtifact
+	err := model.DB.WithContext(ctx).Where("statement_id = ? AND kind = ? AND ordinal = ?", statementID, kind, ordinal).First(&artifact).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := store.Read(ctx, artifact.ObjectKey, artifact.Size, artifact.SHA256); err != nil {
+		return nil, err
+	}
+	return &artifact, nil
+}
+
 // Put verifies a read-back before publishing metadata. A retry can reuse the
 // exact existing bytes, but can never overwrite an earlier immutable object.
 func (store *BillingArchiveStore) Put(ctx context.Context, statementID, kind string, ordinal, userID int, contentType string, body []byte, rows int64) (*model.BillingArtifact, error) {

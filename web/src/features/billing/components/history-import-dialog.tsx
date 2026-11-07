@@ -189,7 +189,7 @@ function HistoryReviewContent(props: {
       'Historical records exist and fit the online import limit'
     ),
     history_empty_ledger: t(
-      'No existing formal entries or summaries in this month'
+      'No existing formal entries or summaries in the part to import'
     ),
     operations_settled: t('All reservations settled'),
     no_active_statement: t('No active statement for this month'),
@@ -236,6 +236,14 @@ function HistoryReviewContent(props: {
           'Only consumption and refunds on or after the accounting start are imported. The accounting start and wallet balance remain unchanged.'
         )}
       </p>
+      {review.partial && (
+        <p className='text-sm'>
+          {t(
+            'Formal accounting began part-way through this month. Only records before {{time}} are imported; the formal entries from then on are kept as they are.',
+            { time: billingTimestamp(review.boundary_at) }
+          )}
+        </p>
+      )}
       <p className='text-sm'>
         {t('Records')}:{' '}
         {review.source_count > review.record_limit
@@ -256,7 +264,7 @@ function HistoryReviewContent(props: {
       {!review.ready && (
         <p role='alert' className='text-sm'>
           {t(
-            'Import is blocked. Void active drafts explicitly before retrying. Mixed-ledger or oversized months require a separately reviewed migration; no records will be truncated or overwritten.'
+            'Import is blocked. Void active drafts explicitly before retrying. Oversized months, or months with formal entries inside the part to import, require a separately reviewed migration; no records will be truncated or overwritten.'
           )}
         </p>
       )}

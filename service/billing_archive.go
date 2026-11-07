@@ -20,6 +20,11 @@ import (
 type BillingArchiveWriter interface {
 	Put(context.Context, string, string, int, int, string, []byte, int64) (*model.BillingArtifact, error)
 }
+
+type BillingArchiveStore interface {
+	BillingArchiveWriter
+	Existing(context.Context, string, string, int) (*model.BillingArtifact, error)
+}
 type BillingManifest struct {
 	AccountingBasis   string                  `json:"accounting_basis,omitempty"`
 	ExcelSHA256       string                  `json:"excel_sha256,omitempty"`
@@ -113,7 +118,7 @@ func runBillingArchivePass() error {
 
 // BuildBillingArchive reads bounded, immutable per-account sequence pages.
 // It verifies the detail totals against the independently maintained snapshot.
-func BuildBillingArchive(ctx context.Context, statement *model.BillingStatement, store BillingArchiveWriter) error {
+func BuildBillingArchive(ctx context.Context, statement *model.BillingStatement, store BillingArchiveStore) error {
 	var snapshot BillingSnapshot
 	if err := common.UnmarshalJsonStr(statement.Snapshot, &snapshot); err != nil {
 		return err
@@ -137,6 +142,7 @@ func BuildBillingArchive(ctx context.Context, statement *model.BillingStatement,
 	if err != nil || !unit.IsPositive() {
 		return errors.New("invalid snapshot quota unit")
 	}
+	var excelDetails []BillingExcelDetail
 	cursor := int64(0)
 	for ordinal := 0; ; ordinal++ {
 		if err := ctx.Err(); err != nil {
@@ -219,6 +225,9 @@ func BuildBillingArchive(ctx context.Context, statement *model.BillingStatement,
 			if entry.StatementQuota != nil {
 				originalQuota := entry.Quota
 				record.OriginalQuota = &originalQuota
+			}
+			if snapshot.DetailSheet {
+				excelDetails = append(excelDetails, BillingExcelDetail{PostedAt: entry.PostedAt, Kind: entry.Kind, SourceLogID: entry.SourceLogID, EventKey: entry.EventKey, Amount: decimal.NewFromInt(quota).Mul(rate).Div(unit).String(), RequestID: entry.RequestID, ModelName: entry.ModelName, TokenID: entry.TokenID, BillingGroup: entry.BillingGroup, BillingRate: entry.BillingRate, Refund: entry.Quota < 0})
 			}
 			body, err := common.Marshal(record)
 			if err != nil {
@@ -307,13 +316,24 @@ func BuildBillingArchive(ctx context.Context, statement *model.BillingStatement,
 		return err
 	}
 	if snapshot.PDFTemplateVersion >= 9 {
-		workbook, err := RenderBillingStatementExcel(statement, &snapshot)
+		artifact, err := store.Existing(ctx, statement.ID, "xlsx", 0)
 		if err != nil {
 			return err
 		}
-		artifact, err := store.Put(ctx, statement.ID, "xlsx", 0, statement.UserID, billingExcelContentType, workbook, 0)
-		if err != nil {
-			return err
+		if artifact == nil {
+			if snapshot.DetailSheet {
+				if err := enrichBillingExcelDetails(statement.UserID, excelDetails, rate, unit); err != nil {
+					return err
+				}
+			}
+			workbook, err := RenderBillingStatementExcelWithDetails(statement, &snapshot, excelDetails)
+			if err != nil {
+				return err
+			}
+			artifact, err = store.Put(ctx, statement.ID, "xlsx", 0, statement.UserID, billingExcelContentType, workbook, 0)
+			if err != nil {
+				return err
+			}
 		}
 		manifest.SchemaVersion = 2
 		if snapshot.AccountingBasis != "" {

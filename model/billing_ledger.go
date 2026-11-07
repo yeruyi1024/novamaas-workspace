@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -290,7 +291,7 @@ func FinishBillingOperation(id string, userID int, actual int64, refund bool) er
 			return err
 		}
 		if !refund {
-			entry := BillingEntry{EventKey: "settle:" + op.ID, Kind: "usage", Quota: actual, WalletDelta: -actual, RequestID: op.RequestID, ModelName: op.ModelName, TokenID: op.TokenID}
+			entry := BillingEntry{EventKey: billingSettleKeyPrefix + op.ID, Kind: "usage", Quota: actual, WalletDelta: -actual, RequestID: op.RequestID, ModelName: op.ModelName, TokenID: op.TokenID}
 			if err := appendBillingEntry(tx, &user, &entry); err != nil {
 				return err
 			}
@@ -444,4 +445,30 @@ func RefundBillingMidjourney(task *Midjourney, modelName string) (bool, error) {
 		_ = invalidateUserCache(task.UserId)
 	}
 	return applied, err
+}
+
+const billingOperationBatchSize = 500
+
+// billingSettleKeyPrefix starts the event key of the ledger entry that settles
+// a reservation; the rest of the key is the operation's ID.
+const billingSettleKeyPrefix = "settle:"
+
+// GetBillingOperationsByEventKeys returns the reservation behind each
+// "settle:<operation ID>" ledger entry of the user, keyed by event key. Entries
+// that did not come from a reservation are left out.
+func GetBillingOperationsByEventKeys(userID int, eventKeys []string) (map[string]BillingOperation, error) {
+	operations := make(map[string]BillingOperation, len(eventKeys))
+	ids := lo.FilterMap(eventKeys, func(key string, _ int) (string, bool) {
+		return strings.CutPrefix(key, billingSettleKeyPrefix)
+	})
+	for _, batch := range lo.Chunk(ids, billingOperationBatchSize) {
+		var rows []BillingOperation
+		if err := DB.Where("user_id = ? AND id IN ?", userID, batch).Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			operations[billingSettleKeyPrefix+row.ID] = row
+		}
+	}
+	return operations, nil
 }

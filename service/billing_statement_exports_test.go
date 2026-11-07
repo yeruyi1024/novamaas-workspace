@@ -258,3 +258,166 @@ func TestBillingConfirmationPreservesFrozenOriginalAndCorporateIdentity(t *testi
 		}
 	}
 }
+
+func TestBillingExcelDetailSheetListsFrozenRecordsOnlyWhenEnabled(t *testing.T) {
+	statement, snapshot := frozenBillingExportFixture(t)
+	details := []BillingExcelDetail{
+		{PostedAt: statement.StartAt + 3600, Amount: "0.800000", RequestID: "req-1", ModelName: "model-a", TokenID: 9, TokenName: "prod-key", BillingGroup: "standard", BillingRate: "0.8", Usage: model.LogLink{Found: true, IsStream: true, PromptTokens: 1200, CompletionTokens: 30, CacheTokens: 800, CacheWrite: 75, UseTime: 4, Ip: "10.0.0.1"}},
+		{PostedAt: statement.StartAt + 7200, Amount: "-0.250000", RequestID: "req-2", ModelName: "model-a", TokenID: 0, Refund: true},
+		{PostedAt: statement.StartAt + 7300, Amount: "0.000000", RequestID: "req-3", ModelName: "model-a", Refund: true},
+	}
+
+	legacy, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	legacyBook, err := excelize.OpenReader(bytes.NewReader(legacy))
+	require.NoError(t, err)
+	defer legacyBook.Close()
+	assert.Equal(t, []string{"总览", "每日汇总", "模型汇总"}, legacyBook.GetSheetList(), "frozen snapshots without the flag keep their workbook")
+
+	snapshot.DetailSheet = true
+	body, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	retry, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	assert.Equal(t, body, retry, "immutable archives require byte-identical retries")
+	book, err := excelize.OpenReader(bytes.NewReader(body))
+	require.NoError(t, err)
+	defer book.Close()
+	assert.Equal(t, []string{"总览", "每日汇总", "模型汇总", "详细日志"}, book.GetSheetList())
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+	require.Len(t, rows, 4)
+	assert.Equal(t, []string{"时间", "用户", "令牌", "所选分组", "模型", "流", "输入 Token", "输出 Token", "缓存读取", "缓存写入", "计费费率", "首次扣费", "补扣金额", "退款金额", "实际扣费金额", "耗时(秒)", "IP", "请求ID", "扣费说明"}, rows[0])
+	assert.Equal(t, []string{"demo_customer", "prod-key", "standard", "model-a", "是", "1,200", "30", "800", "75"}, rows[1][1:10], "the columns of the log export")
+	assert.Equal(t, []string{"0.800000", "0.000000", "0.000000", "0.800000"}, rows[1][11:15], "a request with one charge: charged, no extra charge, no refund, what it cost")
+	assert.Equal(t, []string{"4", "10.0.0.1", "req-1"}, rows[1][15:18])
+	assert.Equal(t, []string{"0.000000", "0.000000", "0.250000", "(0.250000)"}, rows[2][11:15], "a refund whose charge is outside the statement is a refund, and the net is negative")
+	assert.Equal(t, "未记录", rows[2][2])
+	assert.Equal(t, "未记录", rows[2][3])
+	assert.Equal(t, "0", rows[2][6], "an entry without a usage log has no token figures; the sheet shows the zero as a dash")
+	assert.Equal(t, []string{"0.000000", "0.000000", "0.000000", "0.000000"}, rows[3][11:15], "a refund that rounds to zero lists no amount")
+}
+
+func TestBillingExcelDetailSheetLeavesOutColumnsWithNothingToShow(t *testing.T) {
+	statement, snapshot := frozenBillingExportFixture(t)
+	snapshot.DetailSheet = true
+	details := []BillingExcelDetail{{PostedAt: statement.StartAt + 3600, Amount: "0.800000", RequestID: "req-1", ModelName: "model-a", TokenID: 9, TokenName: "prod-key", BillingGroup: "standard"}}
+
+	body, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	book, err := excelize.OpenReader(bytes.NewReader(body))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 2)
+	assert.Equal(t, []string{"时间", "用户", "令牌", "所选分组", "模型", "首次扣费", "补扣金额", "退款金额", "实际扣费金额", "请求ID", "扣费说明"}, rows[0], "no tokens, run time, IP or rate was recorded, so those columns are not filled with zeros")
+	assert.Equal(t, []string{"0.800000", "0.000000", "0.000000", "0.800000"}, rows[1][5:9])
+	assert.Equal(t, "req-1", rows[1][9])
+}
+
+func TestBillingExcelDetailSheetFillsAVideoRequestFromItsTaskAndRate(t *testing.T) {
+	statement, snapshot := frozenBillingExportFixture(t)
+	snapshot.DetailSheet = true
+	details := []BillingExcelDetail{{
+		PostedAt: statement.StartAt + 3600, Amount: "9.889992", RequestID: "req-video", ModelName: "video-model", TokenID: 9, TokenName: "prod-key", BillingGroup: "standard",
+		TaskID: "task_1", Task: model.TaskUsage{TotalTokens: 2500000, Seconds: 480}, TaskFound: true,
+		Usage: model.LogLink{Found: true, GroupRatio: "0.86", IsTask: true},
+	}}
+
+	body, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	book, err := excelize.OpenReader(bytes.NewReader(body))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 2)
+	assert.Equal(t, []string{"时间", "用户", "令牌", "所选分组", "模型", "输出 Token", "计费费率", "首次扣费", "补扣金额", "退款金额", "实际扣费金额", "耗时(秒)", "请求ID", "扣费说明"}, rows[0], "a video request has no stream flag, input tokens or IP to list")
+	assert.Equal(t, []string{"2,500,000", "86.00%"}, rows[1][5:7], "the task's tokens and the rate the request was billed with")
+	assert.Equal(t, "9.889992", rows[1][7])
+	assert.Equal(t, "480", rows[1][11])
+}
+
+func TestBillingExcelDetailSheetMergesHoldAndRefundOfOneRequest(t *testing.T) {
+	statement, snapshot := frozenBillingExportFixture(t)
+	snapshot.DetailSheet = true
+	at := statement.StartAt + 3600
+	details := []BillingExcelDetail{
+		{PostedAt: at, Amount: "1.000000", RequestID: "req-a", ModelName: "model-a", TokenID: 9, TokenName: "prod-key"},
+		{PostedAt: at + 10, Amount: "2.000000", RequestID: "req-b", ModelName: "model-a", TokenID: 9, TokenName: "prod-key"},
+		{PostedAt: at + 600, Amount: "-0.400000", RequestID: "req-a", ModelName: "model-a", TokenID: 9, TokenName: "prod-key", BillingGroup: "standard", Refund: true},
+	}
+
+	body, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	book, err := excelize.OpenReader(bytes.NewReader(body))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 3, "one row per request")
+	assert.Equal(t, "req-a", rows[1][9])
+	assert.Equal(t, "首次扣费 1.000000 CNY，完成后退回 0.400000 CNY，实际扣费 0.600000 CNY", rows[1][10])
+	assert.Equal(t, "按 2.000000 CNY 一次计费", rows[2][10])
+	assert.Equal(t, []string{"1.000000", "0.000000", "0.400000", "0.600000"}, rows[1][5:9], "首次扣费 + 补扣金额 - 退款金额 = 实际扣费金额")
+	assert.Equal(t, "standard", rows[1][3], "a later entry supplies the group the first one lacks")
+	assert.Equal(t, "req-b", rows[2][9])
+	assert.Equal(t, []string{"2.000000", "0.000000", "0.000000", "2.000000"}, rows[2][5:9])
+}
+
+func TestBillingExcelDetailSheetShowsAReservationApartFromTheTotals(t *testing.T) {
+	statement, snapshot := frozenBillingExportFixture(t)
+	snapshot.DetailSheet = true
+	at := statement.StartAt + 3600
+	details := []BillingExcelDetail{
+		{PostedAt: at, Amount: "0.300000", RequestID: "cost-more", ModelName: "model-a", ReservedAmount: "0.100000"},
+		{PostedAt: at + 10, Amount: "0.300000", RequestID: "cost-less", ModelName: "model-a", ReservedAmount: "0.500000"},
+		{PostedAt: at + 20, Amount: "0.300000", RequestID: "reserved-nothing", ModelName: "model-a", ReservedAmount: "0.000000"},
+	}
+
+	body, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	book, err := excelize.OpenReader(bytes.NewReader(body))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 4)
+	assert.Equal(t, []string{"预冻结金额", "首次扣费", "补扣金额", "退款金额", "实际扣费金额"}, rows[0][5:10])
+	// The ledger holds one charge for a text request; what was frozen before is
+	// not consumption, so it is in no total and the charge is the same either way.
+	assert.Equal(t, []string{"0.100000", "0.300000", "0.000000", "0.000000", "0.300000"}, rows[1][5:10], "frozen less than it cost")
+	assert.Equal(t, []string{"0.500000", "0.300000", "0.000000", "0.000000", "0.300000"}, rows[2][5:10], "frozen more than it cost: the rest was released, not refunded")
+	assert.Equal(t, []string{"0.000000", "0.300000", "0.000000", "0.000000", "0.300000"}, rows[3][5:10], "nothing frozen")
+	assert.Equal(t, "预冻结 0.100000 CNY（临时冻结，不计入消费），按实际用量扣费 0.300000 CNY", rows[1][11])
+	assert.Equal(t, "未预扣，按实际用量扣费 0.300000 CNY", rows[3][11], "a request that froze nothing says so")
+}
+
+func TestBillingExcelDetailSheetTreatsALaterChargeOfATaskAsAnExtraCharge(t *testing.T) {
+	statement, snapshot := frozenBillingExportFixture(t)
+	snapshot.DetailSheet = true
+	at := statement.StartAt + 3600
+	details := []BillingExcelDetail{
+		// A live extra charge precedes the imported historical charge in the ledger.
+		{PostedAt: at + 300, Kind: "task_adjustment", Amount: "0.200000", RequestID: "extra", ModelName: "video-model", TaskID: "task_1"},
+		{PostedAt: at, Kind: "history_usage", Amount: "1.000000", RequestID: "submit", ModelName: "video-model", TaskID: "task_1"},
+	}
+
+	body, err := RenderBillingStatementExcelWithDetails(statement, snapshot, details)
+	require.NoError(t, err)
+	book, err := excelize.OpenReader(bytes.NewReader(body))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 2)
+	assert.Equal(t, []string{"1.000000", "0.200000", "0.000000", "1.200000"}, rows[1][5:9], "the second charge of a task is an extra charge, not part of the hold")
+	assert.Equal(t, "submit", rows[1][9])
+	assert.Equal(t, "提交时预扣 1.000000 CNY，完成后补扣 0.200000 CNY，实际扣费 1.200000 CNY", rows[1][10], "the charge in words")
+}

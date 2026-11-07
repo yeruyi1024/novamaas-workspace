@@ -9,8 +9,13 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 )
+
+// nonLiveBillingKinds are the entry kinds that are not a month's own live
+// traffic: funding, corrections of other periods and earlier imports.
+var nonLiveBillingKinds = []string{"funding", "rate_correction", "history_usage", "history_refund"}
 
 // Online bootstrap imports are intentionally bounded. Large or mixed-ledger
 // months require a separately reviewed migration, not an unbounded wallet lock.
@@ -61,6 +66,11 @@ type BillingHistoryState struct {
 	Pending         int64
 	ActiveStatement string
 	PeriodCovered   bool
+	// Boundary is where the month's formal ledger begins: the time of its first
+	// formal entry. A month in which formal accounting was switched on part-way
+	// is imported only up to it, so the entries already booked are not booked a
+	// second time. Without formal entries it is the end of the month.
+	Boundary int64
 }
 
 func GetBillingHistoryState(ctx context.Context, userID int, month string) (*BillingHistoryState, error) {
@@ -88,13 +98,25 @@ func readBillingHistoryState(tx *gorm.DB, state *BillingHistoryState, start, end
 	if state.Account.AccountingStartAt > start {
 		start = state.Account.AccountingStartAt
 	}
+	state.Boundary = end
+	var first BillingEntry
+	result := tx.Select("posted_at").Where("user_id = ? AND posted_at >= ? AND posted_at < ? AND sequence >= ? AND kind NOT IN ?", userID, start, end, state.Account.StartSequence, nonLiveBillingKinds).Order("posted_at asc").Limit(1).Find(&first)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		state.Boundary = first.PostedAt
+	}
+	// Only the part of the month before the boundary is imported, so only it has
+	// to be free of formal entries and summaries. The boundary hour already holds
+	// a summary of its own, which the import adds to.
 	var entry BillingEntry
-	result := tx.Select("id").Where("user_id = ? AND posted_at >= ? AND posted_at < ? AND sequence >= ? AND kind <> ?", userID, start, end, state.Account.StartSequence, "funding").Limit(1).Find(&entry)
+	result = tx.Select("id").Where("user_id = ? AND posted_at >= ? AND posted_at < ? AND sequence >= ? AND kind <> ?", userID, start, state.Boundary, state.Account.StartSequence, "funding").Limit(1).Find(&entry)
 	if result.Error != nil {
 		return result.Error
 	}
 	state.Entries = result.RowsAffected
-	if err := tx.Model(&BillingHour{}).Where("user_id = ? AND hour >= ? AND hour < ?", userID, start/3600*3600, end).Count(&state.Hours).Error; err != nil {
+	if err := tx.Model(&BillingHour{}).Where("user_id = ? AND hour >= ? AND hour < ?", userID, start/3600*3600, state.Boundary/3600*3600).Count(&state.Hours).Error; err != nil {
 		return err
 	}
 	if err := tx.Model(&BillingOperation{}).Where("user_id = ? AND state = ? AND created_at < ?", userID, "reserved", end).Count(&state.Pending).Error; err != nil {
@@ -108,7 +130,10 @@ func readBillingHistoryState(tx *gorm.DB, state *BillingHistoryState, start, end
 	return nil
 }
 
-func GetBillingHistoryRecords(ctx context.Context, userID int, month string, accountingStartAt int64) ([]BillingHistoryRecord, error) {
+// GetBillingHistoryRecords lists the usage logs of a month from the accounting
+// start up to the boundary, where the formal ledger takes over. A log whose
+// request the formal ledger booked just after the boundary is left out.
+func GetBillingHistoryRecords(ctx context.Context, userID int, month string, accountingStartAt, boundary int64) ([]BillingHistoryRecord, error) {
 	start, end, err := BillingMonthBounds(month)
 	if err != nil || userID <= 0 || start < 0 || accountingStartAt < 0 {
 		return nil, errors.New("invalid historical billing period")
@@ -120,16 +145,49 @@ func GetBillingHistoryRecords(ctx context.Context, userID int, month string, acc
 	if accountingStartAt > start {
 		start = accountingStartAt
 	}
+	monthEnd := end
+	if boundary > 0 && boundary < end {
+		end = boundary
+	}
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
 		return nil, errors.New("online historical import requires a relational log database with stable IDs")
 	}
 	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	err = LOG_DB.WithContext(queryCtx).Model(&Log{}).
+	query := LOG_DB.WithContext(queryCtx).Model(&Log{}).
 		Select("id", "user_id", "created_at", "type", "quota", "request_id", "model_name", "token_id").
 		Where("user_id = ? AND created_at >= ? AND created_at < ? AND type IN ?", userID, start, end, []int{LogTypeConsume, LogTypeRefund}).
-		Order("created_at asc").Order("id asc").Limit(MaxBillingHistoryRecords + 1).Find(&records).Error
-	return records, err
+		Order("created_at asc").Order("id asc")
+	var booked []string
+	if end != monthEnd {
+		if err := DB.WithContext(queryCtx).Model(&BillingEntry{}).Where("user_id = ? AND posted_at >= ? AND posted_at < ? AND kind NOT IN ?", userID, end, end+3600, nonLiveBillingKinds).Pluck("request_id", &booked).Error; err != nil {
+			return nil, err
+		}
+	}
+	// A log without a request ID cannot be matched, so it is never left out.
+	bookedRequests := lo.Keyify(lo.Without(booked, ""))
+	var after BillingHistoryRecord
+	for len(records) <= MaxBillingHistoryRecords {
+		limit := MaxBillingHistoryRecords + 1 - len(records)
+		pageQuery := query.Session(&gorm.Session{})
+		if after.ID > 0 {
+			pageQuery = pageQuery.Where("created_at > ? OR (created_at = ? AND id > ?)", after.CreatedAt, after.CreatedAt, after.ID)
+		}
+		var page []BillingHistoryRecord
+		if err := pageQuery.Limit(limit).Find(&page).Error; err != nil {
+			return nil, err
+		}
+		for _, record := range page {
+			if _, isBooked := bookedRequests[record.RequestID]; !isBooked {
+				records = append(records, record)
+			}
+		}
+		if len(page) < limit {
+			break
+		}
+		after = page[len(page)-1]
+	}
+	return records, nil
 }
 
 func GetBillingHistoryImport(userID int, id string) (*BillingHistoryImport, error) {
@@ -184,6 +242,7 @@ func ApplyBillingHistoryImport(ctx context.Context, batch *BillingHistoryImport,
 		if state.Entries != 0 || state.Hours != 0 || state.Pending != 0 || state.ActiveStatement != "" || !state.PeriodCovered || account.CompanyTitle == "" || account.TaxID == "" {
 			return ErrBillingHistoryBlocked
 		}
+		end = state.Boundary
 		batch.OldStartAt = account.AccountingStartAt
 		if account.AccountingStartAt > start {
 			start = account.AccountingStartAt
@@ -241,7 +300,40 @@ func ApplyBillingHistoryImport(ctx context.Context, batch *BillingHistoryImport,
 		if err := tx.CreateInBatches(&entries, 100).Error; err != nil {
 			return err
 		}
-		if err := tx.CreateInBatches(&hours, 100).Error; err != nil {
+		// The month's first formal hour already has a summary: the import adds to it
+		// instead of opening a second one for the same hour.
+		hourStarts := make([]int64, 0, len(hours))
+		for _, hour := range hours {
+			hourStarts = append(hourStarts, hour.Hour)
+		}
+		var existingHours []BillingHour
+		if err := tx.Where("user_id = ? AND hour IN ?", batch.UserID, hourStarts).Find(&existingHours).Error; err != nil {
+			return err
+		}
+		existingByHour := make(map[int64]BillingHour, len(existingHours))
+		for _, hour := range existingHours {
+			existingByHour[hour.Hour] = hour
+		}
+		newHours := make([]BillingHour, 0, len(hours))
+		for _, hour := range hours {
+			existing, found := existingByHour[hour.Hour]
+			if !found {
+				newHours = append(newHours, hour)
+				continue
+			}
+			if hour.Charge > int64(common.MaxWalletQuota)-existing.Charge || hour.Refund > int64(common.MaxWalletQuota)-existing.Refund {
+				return ErrWalletQuotaLimitExceeded
+			}
+			existing.Charge += hour.Charge
+			existing.Refund += hour.Refund
+			existing.Count += hour.Count
+			existing.FirstSequence = min(existing.FirstSequence, hour.FirstSequence)
+			existing.LastSequence = max(existing.LastSequence, hour.LastSequence)
+			if err := tx.Save(&existing).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.CreateInBatches(&newHours, 100).Error; err != nil {
 			return err
 		}
 		account.ProfileVersion++

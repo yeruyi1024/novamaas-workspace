@@ -513,3 +513,19 @@ func invalidateTokensCache(tokens []Token) error {
 	}
 	return firstErr
 }
+
+// GetTokenNamesByIDs returns the names of the tokens, deleted ones included.
+func GetTokenNamesByIDs(ids []int) (map[int]string, error) {
+	names := make(map[int]string, len(ids))
+	if len(ids) == 0 {
+		return names, nil
+	}
+	var tokens []Token
+	if err := DB.Unscoped().Select("id", "name").Where("id IN ?", ids).Find(&tokens).Error; err != nil {
+		return nil, err
+	}
+	for _, token := range tokens {
+		names[token.Id] = token.Name
+	}
+	return names, nil
+}
