@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xuri/excelize/v2"
@@ -59,10 +61,10 @@ func TestLogExportWorkbookFoldsTheLaterLogsOfATaskIntoItsFirstCharge(t *testing.
 	defer workbook.Close()
 	// Newest first, as the export reads them. Task 1 cost less than was held;
 	// task 2 cost more, so a second consumption log charged the difference.
-	workbook.Add(&model.Log{CreatedAt: createdAt + 400, Type: model.LogTypeConsume, Quota: 100000, RequestId: "extra-2", Other: `{"task_id":"task_2","actual_quota":600000}`})
-	workbook.Add(&model.Log{CreatedAt: createdAt + 180, Type: model.LogTypeRefund, Quota: 200000, RequestId: "refund-1", Other: `{"task_id":"task_1"}`})
-	workbook.Add(&model.Log{CreatedAt: createdAt + 10, Type: model.LogTypeConsume, Quota: 500000, ModelName: "video-model", RequestId: "submit-2", Other: `{"task_id":"task_2","is_task":true}`})
-	workbook.Add(&model.Log{CreatedAt: createdAt, Type: model.LogTypeConsume, Quota: 500000, ModelName: "video-model", RequestId: "submit-1", Other: `{"task_id":"task_1","is_task":true}`})
+	workbook.Add(&model.Log{CreatedAt: createdAt + 400, Type: model.LogTypeConsume, Quota: 100000, ModelName: "model-b", RequestId: "extra-2", Other: `{"task_id":"task_2","actual_quota":600000}`})
+	workbook.Add(&model.Log{CreatedAt: createdAt + 180, Type: model.LogTypeRefund, Quota: 200000, ModelName: "model-a", RequestId: "refund-1", Other: `{"task_id":"task_1"}`})
+	workbook.Add(&model.Log{CreatedAt: createdAt + 10, Type: model.LogTypeConsume, Quota: 500000, ModelName: "model-b", RequestId: "submit-2", Other: `{"task_id":"task_2","is_task":true}`})
+	workbook.Add(&model.Log{CreatedAt: createdAt, Type: model.LogTypeConsume, Quota: 500000, ModelName: "model-a", RequestId: "submit-1", Other: `{"task_id":"task_1","is_task":true}`})
 	workbook.Add(&model.Log{CreatedAt: createdAt - 60, Type: model.LogTypeRefund, Quota: 100000, RequestId: "orphan-refund", Other: `{"task_id":"task_other"}`})
 	out, err := workbook.Write(createdAt-60, createdAt+400)
 	require.NoError(t, err)
@@ -95,6 +97,44 @@ func TestLogExportWorkbookFoldsTheLaterLogsOfATaskIntoItsFirstCharge(t *testing.
 	assert.Equal(t, time.Unix(createdAt-60, 0).In(billingLocation).Format(time.DateTime), summary[2][1])
 	assert.Equal(t, time.Unix(createdAt+400, 0).In(billingLocation).Format(time.DateTime), summary[3][1])
 	assert.Equal(t, []string{"币种", "USD"}, summary[4])
+	modelRows, err := book.GetRows("汇总", excelize.Options{RawCellValue: true})
+	require.NoError(t, err)
+	assert.Equal(t, [][]string{
+		{"模型", "消费金额", "退款金额", "净消费金额"},
+		{"model-b", "1.2", "0", "1.2"},
+		{"model-a", "1", "0.4", "0.6"},
+		{"未标注模型", "0", "0.2", "-0.2"},
+		{"合计", "2.2", "0.6", "1.6"},
+	}, modelRows[16:])
+}
+
+func TestLogExportModelTotalsDiscloseRoundingAndKeepCaseDistinctModels(t *testing.T) {
+	settings := operation_setting.GetGeneralSetting()
+	savedSettings, savedRate, savedUnit := *settings, operation_setting.USDExchangeRate, common.QuotaPerUnit
+	t.Cleanup(func() {
+		*settings, operation_setting.USDExchangeRate, common.QuotaPerUnit = savedSettings, savedRate, savedUnit
+	})
+	settings.QuotaDisplayType, operation_setting.USDExchangeRate, common.QuotaPerUnit = "CNY", 7.1, 500000
+	workbook, err := NewLogExportWorkbook(false)
+	require.NoError(t, err)
+	defer workbook.Close()
+	for _, name := range []string{"Model", "model", "other"} {
+		workbook.Add(&model.Log{CreatedAt: 1790000000, Type: model.LogTypeConsume, Quota: 1, ModelName: name})
+	}
+	out, err := workbook.Write(1790000000, 1790000100)
+	require.NoError(t, err)
+	book, err := excelize.OpenReader(bytes.NewReader(out.Bytes()))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("汇总", excelize.Options{RawCellValue: true})
+	require.NoError(t, err)
+	assert.Equal(t, [][]string{
+		{"Model", "0.000014", "0", "0.000014"},
+		{"model", "0.000014", "0", "0.000014"},
+		{"other", "0.000014", "0", "0.000014"},
+		{"舍入差额", "0.000001", "0", "0.000001"},
+		{"合计", "0.000043", "0", "0.000043"},
+	}, rows[17:])
 }
 
 func TestLogExportWorkbookFoldsAnOlderTaskLogThatRecordedNoTaskID(t *testing.T) {

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -159,14 +160,22 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 	// amount shows as an adjustment, so the adjustment columns serve it too.
 	logCount := len(w.rows)
 	var charge, refunds decimal.Decimal
+	type modelTotal struct{ charge, refund decimal.Decimal }
+	byModel := make(map[string]modelTotal)
 	for _, row := range w.rows {
 		withAdjustments = withAdjustments || row.logType == model.LogTypeRefund
+		total := byModel[row.modelName]
 		switch row.logType {
 		case model.LogTypeConsume:
 			charge = charge.Add(decimal.NewFromInt(int64(row.quota)))
+			total.charge = total.charge.Add(decimal.NewFromInt(int64(row.quota)))
 		case model.LogTypeRefund:
 			refunds = refunds.Add(decimal.NewFromInt(int64(row.quota)))
+			total.refund = total.refund.Add(decimal.NewFromInt(int64(row.quota)))
+		default:
+			continue
 		}
+		byModel[row.modelName] = total
 	}
 	if err := w.book.SetSheetName("Sheet1", "汇总"); err != nil {
 		return nil, err
@@ -298,9 +307,12 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 	}
 	// Count each source log once, including logs folded into a task's row.
 	// Convert only after summing quota so the total is not a sum of rounded fees.
-	amount := func(quota decimal.Decimal) any {
-		return billingExcelAmount(quota.Mul(w.rate).Div(w.unit).StringFixed(6))
+	amount := func(value decimal.Decimal) any {
+		return billingExcelAmount(value.StringFixed(6))
 	}
+	chargeAmount := charge.Mul(w.rate).Div(w.unit).Round(6)
+	refundAmount := refunds.Mul(w.rate).Div(w.unit).Round(6)
+	netAmount := charge.Sub(refunds).Mul(w.rate).Div(w.unit).Round(6)
 	wallTimes := make([]time.Time, 2)
 	for i, timestamp := range []int64{startTimestamp, endTimestamp} {
 		local := time.Unix(timestamp, 0).In(billingLocation)
@@ -313,14 +325,14 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 		{fmt.Sprintf("结束时间(UTC%+d)", offset/3600), wallTimes[1]},
 		{"币种", w.currencyCode},
 		{},
-		{"消费金额", amount(charge)},
-		{"退款金额", amount(refunds)},
-		{"净消费金额", amount(charge.Sub(refunds))},
+		{"消费金额", amount(chargeAmount)},
+		{"退款金额", amount(refundAmount)},
+		{"净消费金额", amount(netAmount)},
 		{},
 		{"原始日志条数", logCount},
 		{"导出明细行数", next - 2},
 		{},
-		{"统计范围", "仅统计本次筛选导出的消费和退款。"},
+		{"统计范围", "按本次筛选结果统计"},
 	}
 	for i, row := range summary {
 		if err := w.book.SetSheetRow("汇总", fmt.Sprintf("A%d", i+1), &row); err != nil {
@@ -330,10 +342,13 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 			return nil, err
 		}
 	}
-	if err := w.book.SetColWidth("汇总", "A", "A", 24); err != nil {
+	if err := w.book.SetColWidth("汇总", "A", "A", 46); err != nil {
 		return nil, err
 	}
-	if err := w.book.SetColWidth("汇总", "B", "B", 62); err != nil {
+	if err := w.book.SetColWidth("汇总", "B", "B", 26); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetColWidth("汇总", "C", "D", 20); err != nil {
 		return nil, err
 	}
 	title, err := w.book.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true, Size: 14, Color: "19335E"}})
@@ -347,6 +362,54 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 		if err := w.book.SetCellStyle("汇总", style.from, style.to, style.id); err != nil {
 			return nil, err
 		}
+	}
+	modelNames := make([]string, 0, len(byModel))
+	for name := range byModel {
+		modelNames = append(modelNames, name)
+	}
+	sort.Slice(modelNames, func(i, j int) bool {
+		a, b := byModel[modelNames[i]], byModel[modelNames[j]]
+		if compared := a.charge.Sub(a.refund).Cmp(b.charge.Sub(b.refund)); compared != 0 {
+			return compared > 0
+		}
+		return modelNames[i] < modelNames[j]
+	})
+	modelRows := [][]any{{"模型汇总"}, {"模型", "消费金额", "退款金额", "净消费金额"}}
+	var modelCharge, modelRefund, modelNet decimal.Decimal
+	for _, name := range modelNames {
+		total := byModel[name]
+		charged := total.charge.Mul(w.rate).Div(w.unit).Round(6)
+		refunded := total.refund.Mul(w.rate).Div(w.unit).Round(6)
+		net := charged.Sub(refunded)
+		modelCharge, modelRefund, modelNet = modelCharge.Add(charged), modelRefund.Add(refunded), modelNet.Add(net)
+		if name == "" {
+			name = "未标注模型"
+		}
+		modelRows = append(modelRows, []any{name, amount(charged), amount(refunded), amount(net)})
+	}
+	// Per-model rounding can differ from rounding the complete selection once.
+	// Keep that difference explicit so all three columns reconcile to the totals.
+	chargeDifference, refundDifference, netDifference := chargeAmount.Sub(modelCharge), refundAmount.Sub(modelRefund), netAmount.Sub(modelNet)
+	if !chargeDifference.IsZero() || !refundDifference.IsZero() || !netDifference.IsZero() {
+		modelRows = append(modelRows, []any{"舍入差额", amount(chargeDifference), amount(refundDifference), amount(netDifference)})
+	}
+	modelRows = append(modelRows, []any{"合计", amount(chargeAmount), amount(refundAmount), amount(netAmount)})
+	for i, row := range modelRows {
+		if err := w.book.SetSheetRow("汇总", fmt.Sprintf("A%d", i+16), &row); err != nil {
+			return nil, err
+		}
+	}
+	if err := w.book.SetCellStyle("汇总", "A16", "D16", title); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetCellStyle("汇总", "A17", "D17", header); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetRowHeight("汇总", 17, 28); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetCellStyle("汇总", "B18", fmt.Sprintf("D%d", len(modelRows)+15), signedMoney); err != nil {
+		return nil, err
 	}
 	showGridLines := false
 	if err := w.book.SetSheetView("汇总", 0, &excelize.ViewOptions{ShowGridLines: &showGridLines}); err != nil {
