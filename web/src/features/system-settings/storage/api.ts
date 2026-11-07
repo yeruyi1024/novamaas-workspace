@@ -22,6 +22,9 @@ import type {
   StorageAPIResponse,
   AssetChannelConfig,
   AssetChannelConfigInput,
+  AssetLibraryConnection,
+  AssetLibraryConnectionInput,
+  AssetLibraryMergeReport,
   StoragePolicy,
   StoragePolicyInput,
   StorageProfile,
@@ -165,6 +168,84 @@ export async function updateAssetLibraryStoragePolicy(
 export async function listAssetChannelConfigs() {
   const response = await api.get<StorageAPIResponse<AssetChannelConfig[]>>(
     '/api/asset-library/admin/channels'
+  )
+  return response.data
+}
+
+export async function listAssetLibraryConnections() {
+  const response = await api.get<StorageAPIResponse<AssetLibraryConnection[]>>(
+    '/api/asset-library/admin/libraries'
+  )
+  return response.data
+}
+
+export async function saveAssetLibraryConnection(
+  id: number,
+  input: AssetLibraryConnectionInput
+) {
+  const url =
+    id > 0
+      ? `/api/asset-library/admin/libraries/${id}`
+      : '/api/asset-library/admin/libraries'
+  const config = { skipBusinessError: true, skipErrorHandler: true }
+  const response =
+    id > 0
+      ? await api.put<StorageAPIResponse<AssetLibraryConnection>>(
+          url,
+          input,
+          config
+        )
+      : await api.post<StorageAPIResponse<AssetLibraryConnection>>(
+          url,
+          input,
+          config
+        )
+  return response.data
+}
+
+export async function testAssetLibraryConnection(
+  id: number,
+  input?: AssetLibraryConnectionInput
+) {
+  const url =
+    id > 0
+      ? `/api/asset-library/admin/libraries/${id}/test`
+      : '/api/asset-library/admin/libraries/test'
+  const response = await api.post<StorageAPIResponse>(url, input, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
+  return response.data
+}
+
+export async function syncAssetLibraryMissing(id: number) {
+  const response = await api.post<StorageAPIResponse>(
+    `/api/asset-library/admin/libraries/${id}/sync`,
+    undefined,
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
+export async function mergeAssetLibraries() {
+  const response = await api.post<
+    StorageAPIResponse<AssetLibraryMergeReport>
+  >('/api/asset-library/admin/libraries/merge', undefined, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
+  return response.data
+}
+
+export async function bindAssetChannelLibrary(
+  channelId: number,
+  libraryId: number,
+  enabled = true
+) {
+  const response = await api.put<StorageAPIResponse<AssetChannelConfig>>(
+    `/api/asset-library/admin/channels/${channelId}`,
+    { library_id: libraryId, enabled },
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }

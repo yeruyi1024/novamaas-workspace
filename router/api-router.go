@@ -371,6 +371,13 @@ func SetApiRouter(router *gin.Engine) {
 		assetLibraryAdminRoute := apiRouter.Group("/asset-library/admin")
 		assetLibraryAdminRoute.Use(middleware.RootAuth(), middleware.DisableCache())
 		{
+			assetLibraryAdminRoute.GET("/libraries", controller.ListAssetLibraryConnections)
+			assetLibraryAdminRoute.POST("/libraries", controller.SaveAssetLibraryConnection)
+			assetLibraryAdminRoute.POST("/libraries/merge", controller.MergeAssetLibraries)
+			assetLibraryAdminRoute.PUT("/libraries/:library_id", controller.SaveAssetLibraryConnection)
+			assetLibraryAdminRoute.POST("/libraries/test", controller.TestAssetLibraryConnection)
+			assetLibraryAdminRoute.POST("/libraries/:library_id/test", controller.TestAssetLibraryConnection)
+			assetLibraryAdminRoute.POST("/libraries/:library_id/sync", controller.SyncAssetLibraryConnection)
 			assetLibraryAdminRoute.GET("/channels", controller.ListAssetChannelConfigs)
 			assetLibraryAdminRoute.PUT("/channels/:channel_id", controller.UpdateAssetChannelConfig)
 			assetLibraryAdminRoute.POST("/channels/:channel_id/test", controller.TestAssetChannelConfig)

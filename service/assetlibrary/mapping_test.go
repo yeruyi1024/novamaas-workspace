@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -19,6 +20,15 @@ import (
 
 func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	channelRateState.Lock()
+	previousNext, previousSent, previousReview := channelRateState.next, channelRateState.sentNext, channelRateState.reviewNext
+	channelRateState.next, channelRateState.sentNext, channelRateState.reviewNext = make(map[int]time.Time), make(map[int]time.Time), make(map[int]time.Time)
+	channelRateState.Unlock()
+	t.Cleanup(func() {
+		channelRateState.Lock()
+		channelRateState.next, channelRateState.sentNext, channelRateState.reviewNext = previousNext, previousSent, previousReview
+		channelRateState.Unlock()
+	})
 	previous := model.DB
 	previousDatabaseType := common.MainDatabaseType()
 	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
@@ -34,6 +44,7 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 		&model.User{},
 		&model.Channel{},
 		&model.AssetChannelConfig{},
+		&model.AssetLibraryConnection{},
 		&model.AssetAccessKey{},
 		&model.AssetWebhookEndpoint{},
 		&model.AssetWebhookDelivery{},
@@ -42,6 +53,7 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 		&model.AssetGroupReplica{},
 		&model.AssetReplica{},
 		&model.SystemTaskLock{},
+		&model.SystemTask{},
 		&model.StorageObject{},
 	))
 	model.DB = db

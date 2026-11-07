@@ -170,6 +170,7 @@ export async function listAssetSyncJobs(params: {
   page: number
   pageSize: number
   channelId?: number
+  libraryId?: number
   status?: string
 }) {
   const response = await api.get<AssetLibraryResponse<AssetSyncJobList>>(
@@ -179,6 +180,7 @@ export async function listAssetSyncJobs(params: {
         p: params.page,
         page_size: params.pageSize,
         channel_id: params.channelId || undefined,
+        library_id: params.libraryId || undefined,
         status: params.status || undefined,
       },
     }
@@ -197,6 +199,7 @@ export async function retryAssetSyncJob(id: number) {
 
 export async function listAssetRequestLogs(params: {
   channelId?: number
+  libraryId?: number
   replicaId?: number
   source?: string
   result?: string
@@ -211,6 +214,7 @@ export async function listAssetRequestLogs(params: {
     {
       params: {
         channel_id: params.channelId || undefined,
+        library_id: params.libraryId || undefined,
         replica_id: params.replicaId || undefined,
         source: params.source || undefined,
         result: params.result || undefined,

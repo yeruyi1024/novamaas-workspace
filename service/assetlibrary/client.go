@@ -76,6 +76,13 @@ func newProviderClient(config *model.AssetChannelConfig) (assetProvider, error) 
 	if config == nil {
 		return nil, errors.New("asset channel configuration is required")
 	}
+	if config.RateLimitLibraryID > 0 && config.RateLimitLibraryID != config.LibraryID {
+		var budget model.AssetLibraryConnection
+		if err := model.DB.Select("id", "qpm").First(&budget, config.RateLimitLibraryID).Error; err != nil {
+			return nil, err
+		}
+		config.QPM = budget.QPM
+	}
 	secret, err := decryptChannelCredential(config.EncryptedCredential)
 	if err != nil {
 		return nil, err
@@ -181,9 +188,9 @@ func (client *volcActionClient) call(ctx context.Context, action string, payload
 		if err != nil && errorKind == "" {
 			errorKind = "unknown"
 		}
-		recordRequestAttempt(ctx, client.config.ChannelID, normalizeProtocol(client.config.Protocol), action, http.MethodPost, "/", status, time.Since(started), requestBytes, responseBytes, errorKind, requestURL, requestBody, loggedResponseBody)
+		recordRequestAttempt(ctx, client.config.ChannelID, normalizeProtocol(client.config.Protocol), action, http.MethodPost, "/", status, time.Since(started), requestBytes, responseBytes, errorKind, requestURL, requestBody, loggedResponseBody, client.config.LibraryID)
 	}()
-	if err := waitForChannelRate(ctx, client.config.ChannelID, client.config.QPM); err != nil {
+	if err := waitForChannelRate(ctx, client.config.RateLimitID(), client.config.QPM); err != nil {
 		errorKind = "rate_limit"
 		return providerResult{}, err
 	}
