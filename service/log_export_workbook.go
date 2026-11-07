@@ -333,6 +333,7 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 		{"导出明细行数", next - 2},
 		{},
 		{"统计范围", "按本次筛选结果统计"},
+		{"金额口径", "按消费、退款日志统计，不证明钱包已结算；正式对账金额以已归档对账单为准。"},
 	}
 	for i, row := range summary {
 		if err := w.book.SetSheetRow("汇总", fmt.Sprintf("A%d", i+1), &row); err != nil {
@@ -362,6 +363,19 @@ func (w *LogExportWorkbook) Write(startTimestamp, endTimestamp int64) (*bytes.Bu
 		if err := w.book.SetCellStyle("汇总", style.from, style.to, style.id); err != nil {
 			return nil, err
 		}
+	}
+	note, err := w.book.NewStyle(&excelize.Style{Font: &excelize.Font{Color: "475569"}, Alignment: &excelize.Alignment{Vertical: "center", WrapText: true}})
+	if err != nil {
+		return nil, err
+	}
+	if err := w.book.MergeCell("汇总", "B15", "D15"); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetCellStyle("汇总", "A15", "D15", note); err != nil {
+		return nil, err
+	}
+	if err := w.book.SetRowHeight("汇总", 15, 42); err != nil {
+		return nil, err
 	}
 	modelNames := make([]string, 0, len(byModel))
 	for name := range byModel {
