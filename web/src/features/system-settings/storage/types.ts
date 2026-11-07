@@ -117,6 +117,9 @@ export type RequestSnapshotStatus = {
 }
 
 export type AssetChannelConfig = {
+  library_id?: number
+  library_name?: string
+  library_enabled?: boolean
   channel_id: number
   channel_name: string
   channel_type: number
@@ -135,6 +138,7 @@ export type AssetChannelConfig = {
 }
 
 export type AssetChannelConfigInput = {
+  library_id?: number
   enabled: boolean
   protocol: 'volc_action' | 'youfang_rest'
   auth_type: 'ak_sk' | 'bearer'
@@ -146,4 +150,39 @@ export type AssetChannelConfigInput = {
   qpm: number
   access_key_id: string
   credential: string
+}
+
+export type AssetLibraryChannel = {
+  id: number
+  name: string
+  enabled: boolean
+}
+
+export type AssetLibraryConnection = AssetChannelConfig & {
+  id: number
+  name: string
+  provider_name: string
+  legacy_channel_id?: number | null
+  reused_existing?: boolean
+  credential_status?: 'available' | 'unavailable'
+  channels: AssetLibraryChannel[]
+  summary: {
+    total: number
+    pending: number
+    processing: number
+    active: number
+    failed: number
+  }
+  missing: number
+}
+
+export type AssetLibraryConnectionInput = AssetChannelConfigInput & {
+  name: string
+  provider_name: string
+}
+
+export type AssetLibraryMergeReport = {
+  merged_groups: number
+  deferred_groups: number
+  unreadable_accounts: number
 }

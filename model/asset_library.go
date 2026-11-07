@@ -81,12 +81,12 @@ type MediaAsset struct {
 	UpdatedAt         int64  `json:"updated_at" gorm:"bigint"`
 }
 
-// AssetChannelConfig is a channel-scoped integration configuration. Secrets
-// are encrypted and never serialized. It intentionally lives outside Channel
-// OtherSettings so normal channel list APIs cannot expose credentials.
+// AssetChannelConfig binds a video channel to a shared upstream asset library.
+// Provider fields are retained for reading and migrating legacy configurations.
 type AssetChannelConfig struct {
 	ID                   int64  `json:"id" gorm:"primaryKey"`
 	ChannelID            int    `json:"channel_id" gorm:"uniqueIndex"`
+	LibraryID            int    `json:"library_id" gorm:"index;default:0"`
 	Enabled              bool   `json:"enabled"`
 	Protocol             string `json:"protocol" gorm:"type:varchar(32)"`
 	AuthType             string `json:"auth_type" gorm:"type:varchar(16)"`
@@ -123,8 +123,9 @@ type AssetAccessKey struct {
 
 type AssetGroupReplica struct {
 	ID              int64  `json:"id" gorm:"primaryKey"`
-	GroupID         int64  `json:"-" gorm:"uniqueIndex:idx_asset_group_channel,priority:1"`
-	ChannelID       int    `json:"channel_id" gorm:"uniqueIndex:idx_asset_group_channel,priority:2;index"`
+	GroupID         int64  `json:"-" gorm:"uniqueIndex:idx_asset_group_channel,priority:1;uniqueIndex:idx_asset_group_library,priority:1"`
+	ChannelID       int    `json:"channel_id,omitempty" gorm:"default:null;uniqueIndex:idx_asset_group_channel,priority:2;index"`
+	LibraryID       *int   `json:"library_id,omitempty" gorm:"uniqueIndex:idx_asset_group_library,priority:2;index"`
 	UpstreamGroupID string `json:"upstream_group_id,omitempty" gorm:"type:varchar(255)"`
 	Status          string `json:"status" gorm:"type:varchar(32);index"`
 	Progress        int    `json:"progress"`
@@ -136,8 +137,9 @@ type AssetGroupReplica struct {
 
 type AssetReplica struct {
 	ID                int64  `json:"id" gorm:"primaryKey"`
-	AssetID           int64  `json:"-" gorm:"uniqueIndex:idx_asset_channel,priority:1"`
-	ChannelID         int    `json:"channel_id" gorm:"uniqueIndex:idx_asset_channel,priority:2;index"`
+	AssetID           int64  `json:"-" gorm:"uniqueIndex:idx_asset_channel,priority:1;uniqueIndex:idx_asset_library,priority:1"`
+	ChannelID         int    `json:"channel_id,omitempty" gorm:"default:null;uniqueIndex:idx_asset_channel,priority:2;index"`
+	LibraryID         *int   `json:"library_id,omitempty" gorm:"uniqueIndex:idx_asset_library,priority:2;index"`
 	UpstreamAssetID   string `json:"upstream_asset_id,omitempty" gorm:"type:varchar(255)"`
 	Operation         string `json:"-" gorm:"type:varchar(16);index"`
 	Status            string `json:"status" gorm:"type:varchar(32);index:idx_asset_replicas_work,priority:1"`
@@ -224,14 +226,35 @@ func FindMediaAsset(publicID string, ownerUserID int, includeAllOwners bool) (*M
 }
 
 func QueueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int) error {
+	return queueAssetReplicas(tx, assetID, channelIDs, true)
+}
+
+// QueueMissingAssetReplicas does not retry existing failures when a channel
+// merely joins a shared library. Retry remains an explicit administrator action.
+func QueueMissingAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int) error {
+	return queueAssetReplicas(tx, assetID, channelIDs, false)
+}
+
+func queueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int, retryFailed bool) error {
 	now := common.GetTimestamp()
 	var asset MediaAsset
+	var bindings []AssetChannelConfig
+	if len(channelIDs) > 0 {
+		if err := lockForUpdate(tx).Select("channel_id", "library_id").Where("channel_id IN ?", channelIDs).Order("channel_id asc").Find(&bindings).Error; err != nil {
+			return err
+		}
+	}
 	if err := lockForUpdate(tx).Select("id", "status").First(&asset, assetID).Error; err != nil {
 		return err
 	}
 	if asset.Status != AssetStatusProcessing && asset.Status != AssetStatusReady {
 		return nil
 	}
+	libraries := make(map[int]int, len(bindings))
+	for _, binding := range bindings {
+		libraries[binding.ChannelID] = binding.LibraryID
+	}
+	queued := make(map[string]bool)
 	for _, channelID := range channelIDs {
 		replica := AssetReplica{
 			AssetID:    assetID,
@@ -241,14 +264,33 @@ func QueueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int) error {
 			Progress:   0,
 			NextSyncAt: now,
 		}
+		scope := fmt.Sprintf("channel:%d", channelID)
+		if libraryID := libraries[channelID]; libraryID > 0 {
+			replica.ChannelID = 0
+			replica.LibraryID = new(int)
+			*replica.LibraryID = libraryID
+			scope = fmt.Sprintf("library:%d", libraryID)
+		}
+		if queued[scope] {
+			continue
+		}
+		queued[scope] = true
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&replica).Error; err != nil {
 			return err
+		}
+		if !retryFailed {
+			continue
 		}
 		// Configuration saves and bulk sync may run during an upload. Keep
 		// successful copies, deletion intent, and live owners intact; only
 		// failed copies receive a new attempt and timeout budget.
-		if err := tx.Model(&AssetReplica{}).
-			Where("asset_id = ? AND channel_id = ? AND operation = ? AND status = ?", assetID, channelID, AssetReplicaOperationSync, AssetReplicaStatusFailed).
+		query := tx.Model(&AssetReplica{}).Where("asset_id = ? AND operation = ? AND status = ?", assetID, AssetReplicaOperationSync, AssetReplicaStatusFailed)
+		if replica.LibraryID != nil {
+			query = query.Where("library_id = ?", *replica.LibraryID)
+		} else {
+			query = query.Where("channel_id = ? AND library_id IS NULL", channelID)
+		}
+		if err := query.
 			Where("locked_by = ? OR locked_by IS NULL OR lease_until <= ?", "", now).
 			Updates(map[string]any{
 				"status":     gorm.Expr("CASE WHEN upstream_asset_id <> ? THEN ? ELSE ? END", "", AssetReplicaStatusProcessing, AssetReplicaStatusPending),
@@ -287,7 +329,15 @@ func dueAssetReplicas(query *gorm.DB, now int64) *gorm.DB {
 // the replica they are about to send, so waiting work stays visible and keeps
 // its place in the queue.
 func ListDueAssetReplicas(now int64, channelID int, workload AssetReplicaWorkload, limit int) ([]*AssetReplica, error) {
-	query := dueAssetReplicas(DB.Where("channel_id = ?", channelID), now)
+	return listDueAssetReplicaWork(DB.Where("channel_id = ? AND library_id IS NULL", channelID), now, workload, limit)
+}
+
+func ListDueAssetLibraryReplicas(now int64, libraryID int, workload AssetReplicaWorkload, limit int) ([]*AssetReplica, error) {
+	return listDueAssetReplicaWork(DB.Where("library_id = ?", libraryID), now, workload, limit)
+}
+
+func listDueAssetReplicaWork(query *gorm.DB, now int64, workload AssetReplicaWorkload, limit int) ([]*AssetReplica, error) {
+	query = dueAssetReplicas(query, now)
 	switch workload {
 	case AssetReplicaWorkloadSubmit:
 		query = query.Where("operation <> ? AND status <> ? AND progress < 100 AND upstream_asset_id = ?", AssetReplicaOperationDelete, AssetReplicaStatusActive, "")

@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { PencilEdit01Icon, ShieldKeyIcon } from '@hugeicons/core-free-icons'
+import { ShieldKeyIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
@@ -28,7 +28,6 @@ import { toast } from 'sonner'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -62,26 +61,32 @@ import { Switch } from '@/components/ui/switch'
 import {
   getAssetLibraryStoragePolicy,
   listAssetChannelConfigs,
+  listAssetLibraryConnections,
   listStorageProfiles,
-  testAssetChannelConfig,
-  updateAssetChannelConfig,
+  testAssetLibraryConnection,
+  saveAssetLibraryConnection,
+  syncAssetLibraryMissing,
+  bindAssetChannelLibrary,
+  mergeAssetLibraries,
   updateAssetLibraryStoragePolicy,
 } from './api'
+import { AssetLibraryAccountCard } from './asset-library-account-card'
+import { AssetLibraryChannelsDialog } from './asset-library-channels-dialog'
 import { AssetRequestLogDialog } from './asset-request-log-dialog'
 import {
-  assetChannelConfigToForm,
   assetChannelConfigToInput,
+  assetLibraryConnectionToForm,
   assetLibraryPolicyToForm,
   assetLibraryPolicyToInput,
-  createAssetChannelConfigSchema,
+  createAssetLibraryConnectionSchema,
   createAssetLibraryPolicySchema,
-  type AssetChannelConfigFormValues,
+  type AssetLibraryConnectionFormValues,
   type AssetLibraryPolicyFormValues,
 } from './storage-schemas'
 import {
   ASSET_PROTOCOL_VOLC_ACTION,
   ASSET_PROTOCOL_YOUFANG_REST,
-  type AssetChannelConfig,
+  type AssetLibraryConnection,
   type StorageAPIResponse,
   type StoragePolicy,
   type StorageProfile,
@@ -275,7 +280,7 @@ function AssetPolicyForm({
   )
 }
 
-function ChannelConfigDialog({
+function LibraryConfigDialog({
   config,
   open,
   onOpenChange,
@@ -284,23 +289,23 @@ function ChannelConfigDialog({
   saving,
   testing,
 }: {
-  config: AssetChannelConfig | null
+  config: AssetLibraryConnection | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (values: AssetChannelConfigFormValues) => void
-  onTest: (values: AssetChannelConfigFormValues) => void
+  onSave: (values: AssetLibraryConnectionFormValues) => void
+  onTest: (values: AssetLibraryConnectionFormValues) => void
   saving: boolean
   testing: boolean
 }) {
   const { t } = useTranslation()
-  const form = useForm<AssetChannelConfigFormValues>({
+  const form = useForm<AssetLibraryConnectionFormValues>({
     resolver: config
-      ? zodResolver(createAssetChannelConfigSchema(t, config))
+      ? zodResolver(createAssetLibraryConnectionSchema(t, config))
       : undefined,
-    defaultValues: config ? assetChannelConfigToForm(config) : undefined,
+    defaultValues: config ? assetLibraryConnectionToForm(config) : undefined,
   })
   useEffect(() => {
-    if (config) form.reset(assetChannelConfigToForm(config))
+    if (config) form.reset(assetLibraryConnectionToForm(config))
   }, [config, form])
   const protocol = form.watch('protocol')
   const authType = form.watch('auth_type')
@@ -313,10 +318,14 @@ function ChannelConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-2xl'>
+      <DialogContent className='max-h-[90dvh] overflow-y-auto sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>{t('Configure asset channel')}</DialogTitle>
-          <DialogDescription>{config?.channel_name}</DialogDescription>
+          <DialogTitle>{t('Configure upstream asset library')}</DialogTitle>
+          <DialogDescription>
+            {t(
+              'One resource account can be shared by multiple channels. Use a separate library for another account or project.'
+            )}
+          </DialogDescription>
         </DialogHeader>
         {config && (
           <Form {...form}>
@@ -326,6 +335,34 @@ function ChannelConfigDialog({
             >
               <FormField
                 control={form.control}
+                name='provider_name'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Provider name')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='name'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('Resource account / library name')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name='enabled'
                 render={({ field }) => (
                   <FormItem className='bg-muted/40 flex items-center justify-between rounded-lg p-3 sm:col-span-2'>
@@ -333,7 +370,7 @@ function ChannelConfigDialog({
                       <FormLabel>{t('Enable asset synchronization')}</FormLabel>
                       <FormDescription>
                         {t(
-                          'Existing assets are queued automatically after saving.'
+                          'When off, no new assets are written to this account and synchronization pauses, but assets already synchronized stay usable. Turning it on again syncs the assets missed meanwhile.'
                         )}
                       </FormDescription>
                     </div>
@@ -601,11 +638,42 @@ function ChannelConfigDialog({
   )
 }
 
+const EMPTY_LIBRARY: AssetLibraryConnection = {
+  id: 0,
+  name: '',
+  provider_name: '',
+  channels: [],
+  missing: 0,
+  summary: { total: 0, pending: 0, processing: 0, active: 0, failed: 0 },
+  channel_id: 0,
+  channel_name: '',
+  channel_type: 0,
+  enabled: true,
+  protocol: 'volc_action',
+  auth_type: 'ak_sk',
+  base_url: 'https://ark.cn-beijing.volcengineapi.com',
+  region: 'cn-beijing',
+  service: 'ark',
+  api_version: '2024-01-01',
+  project_name: 'default',
+  qpm: 60,
+  access_key_hint: '',
+  credential_configured: false,
+  updated_at: 0,
+}
+
+const LIBRARIES_QUERY_KEY = ['storage', 'asset-library-connections'] as const
+
 export function AssetLibrarySettings() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [editing, setEditing] = useState<AssetChannelConfig | null>(null)
-  const [logChannelId, setLogChannelId] = useState<number | null>(null)
+  const [editing, setEditing] = useState<AssetLibraryConnection | null>(null)
+  const [managingChannels, setManagingChannels] = useState<AssetLibraryConnection | null>(null)
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const [logLibraryId, setLogLibraryId] = useState<number | null>(null)
+  const [syncTarget, setSyncTarget] = useState<AssetLibraryConnection | null>(
+    null
+  )
   const settingsQuery = useQuery({
     queryKey: SETTINGS_QUERY_KEY,
     queryFn: async () => {
@@ -621,8 +689,25 @@ export function AssetLibrarySettings() {
       }
     },
   })
+  const librariesQuery = useQuery({
+    queryKey: LIBRARIES_QUERY_KEY,
+    queryFn: async () => assertSuccess(await listAssetLibraryConnections()),
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (library) =>
+          library.channels.length > 0 &&
+          library.enabled &&
+          library.summary.pending + library.summary.processing > 0
+      )
+        ? 5000
+        : false,
+  })
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: SETTINGS_QUERY_KEY })
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: SETTINGS_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: LIBRARIES_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ['asset-library', 'admin'] }),
+    ])
   const policyMutation = useMutation({
     mutationFn: async (values: AssetLibraryPolicyFormValues) =>
       assertSuccess(
@@ -634,36 +719,100 @@ export function AssetLibrarySettings() {
     },
     onError: (error) => toast.error(errorMessage(error)),
   })
-  const saveChannelMutation = useMutation({
-    mutationFn: async (values: AssetChannelConfigFormValues) => {
-      if (!editing) throw new Error('No channel selected')
+  const saveLibraryMutation = useMutation({
+    mutationFn: async (values: AssetLibraryConnectionFormValues) => {
+      if (!editing) throw new Error('No library selected')
       return assertSuccess(
-        await updateAssetChannelConfig(
-          editing.channel_id,
-          assetChannelConfigToInput(values)
-        )
+        await saveAssetLibraryConnection(editing.id, {
+          ...assetChannelConfigToInput(values),
+          name: values.name,
+          provider_name: values.provider_name,
+        })
       )
     },
-    onSuccess: async () => {
+    onSuccess: async (library) => {
       await invalidate()
       setEditing(null)
-      toast.success(t('Asset channel saved'))
+      toast.success(
+        library.reused_existing
+          ? t('Existing resource account reused')
+          : t('Upstream asset library saved')
+      )
     },
     onError: (error) => toast.error(errorMessage(error)),
   })
   const testMutation = useMutation({
-    mutationFn: async (values: AssetChannelConfigFormValues) => {
-      if (!editing) throw new Error('No channel selected')
+    mutationFn: async (values: AssetLibraryConnectionFormValues) => {
+      if (!editing) throw new Error('No library selected')
       return assertSuccess(
-        await testAssetChannelConfig(
-          editing.channel_id,
-          assetChannelConfigToInput(values)
-        )
+        await testAssetLibraryConnection(editing.id, {
+          ...assetChannelConfigToInput(values),
+          name: values.name,
+          provider_name: values.provider_name,
+        })
       )
     },
     onSuccess: () => toast.success(t('Asset channel connection succeeded')),
     onError: (error) => toast.error(errorMessage(error)),
   })
+  const syncMutation = useMutation({
+    mutationFn: async (id: number) =>
+      assertSuccess(await syncAssetLibraryMissing(id)),
+    onSuccess: async () => {
+      await invalidate()
+      setSyncTarget(null)
+      toast.success(t('Missing asset synchronization queued'))
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
+  const mergeMutation = useMutation({
+    mutationFn: async () => assertSuccess(await mergeAssetLibraries()),
+    onSuccess: async (report) => {
+      await invalidate()
+      setMergeOpen(false)
+      toast.success(
+        t(
+          'Merged {{merged}} account groups; {{deferred}} deferred while uploads are running; {{unreadable}} accounts skipped because their credentials cannot be read.',
+          {
+            merged: report.merged_groups,
+            deferred: report.deferred_groups,
+            unreadable: report.unreadable_accounts,
+          }
+        )
+      )
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
+  const channelsMutation = useMutation({
+    mutationFn: async (channelIDs: number[]) => {
+      if (!managingChannels) throw new Error('No library selected')
+      const linked = new Set(managingChannels.channels.map((channel) => channel.id))
+      const requested = new Set(channelIDs)
+      // Unlink first so a channel moving between accounts is released before
+      // it is claimed. Each call is one atomic ownership change.
+      for (const id of linked) {
+        if (!requested.has(id)) assertSuccess(await bindAssetChannelLibrary(id, 0, false))
+      }
+      for (const id of requested) {
+        if (!linked.has(id)) assertSuccess(await bindAssetChannelLibrary(id, managingChannels.id))
+      }
+    },
+    onSuccess: async () => {await invalidate(); setManagingChannels(null); toast.success(t('Channel associations saved'))},
+    onError: (error) => {toast.error(errorMessage(error)); void invalidate()},
+  })
+  const manageLibraryChannels = (library: AssetLibraryConnection) => {
+    channelsMutation.reset()
+    setManagingChannels(library)
+  }
+  // An account without channels that still owns copies was retired by a merge.
+  const libraries = librariesQuery.data ?? []
+  const retired = libraries.filter(
+    (library) =>
+      library.channels.length === 0 &&
+      (library.legacy_channel_id != null || library.summary.total > 0)
+  )
+  const current = libraries.filter((library) => !retired.includes(library))
+  const queryError = settingsQuery.error || librariesQuery.error
   return (
     <>
       <SectionPageLayout>
@@ -671,141 +820,186 @@ export function AssetLibrarySettings() {
         <SectionPageLayout.Content>
           <div className='flex flex-col gap-4 pb-4'>
             <Alert>
-              <AlertTitle>{t('Two-layer asset ownership')}</AlertTitle>
+              <AlertTitle>{t('Shared upstream asset libraries')}</AlertTitle>
               <AlertDescription>
                 {t(
-                  'The platform keeps the permanent source of truth in object storage. Each enabled channel receives its own upstream asset ID, which is mapped only after routing selects that channel.'
+                  'Configure each provider resource account once and link its channels. Uploads create one upstream copy per linked resource account.'
                 )}
               </AlertDescription>
             </Alert>
-            {settingsQuery.isLoading && (
+            {(settingsQuery.isPending || librariesQuery.isPending) && (
               <div className='text-muted-foreground flex min-h-48 items-center justify-center text-sm'>
                 {t('Loading asset library settings...')}
               </div>
             )}
-            {settingsQuery.isError && (
+            {queryError && (
               <Alert variant='destructive'>
                 <AlertTitle>
                   {t('Unable to load asset library settings')}
                 </AlertTitle>
-                <AlertDescription>
-                  {errorMessage(settingsQuery.error)}
-                </AlertDescription>
+                <AlertDescription>{errorMessage(queryError)}</AlertDescription>
               </Alert>
             )}
-            {settingsQuery.data && (
+            {settingsQuery.data && librariesQuery.data && (
               <>
-                <AssetPolicyForm
-                  policy={settingsQuery.data.policy}
-                  profiles={settingsQuery.data.profiles}
-                  pending={policyMutation.isPending}
-                  onSubmit={(values) => policyMutation.mutate(values)}
-                />
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t('Asset channels')}</CardTitle>
-                    <CardDescription>
+                <details className='rounded-lg border p-4'>
+                  <summary className='cursor-pointer text-sm font-medium'>
+                    {t('Permanent asset storage')}
+                  </summary>
+                  <div className='mt-4'>
+                    <AssetPolicyForm
+                      policy={settingsQuery.data.policy}
+                      profiles={settingsQuery.data.profiles}
+                      pending={policyMutation.isPending}
+                      onSubmit={(values) => policyMutation.mutate(values)}
+                    />
+                  </div>
+                </details>
+                <div className='flex flex-wrap items-center justify-between gap-3'>
+                  <h2 className='font-semibold'>
+                    {t('Provider asset libraries')}
+                  </h2>
+                  <div className='flex flex-wrap gap-2'>
+                    <Button variant='outline' onClick={() => setMergeOpen(true)}>
+                      {t('Merge identical accounts')}
+                    </Button>
+                    <Button onClick={() => setEditing({ ...EMPTY_LIBRARY })}>
+                      {t('Add resource account')}
+                    </Button>
+                  </div>
+                </div>
+                {current.length === 0 && (
+                  <Card>
+                    <CardContent className='text-muted-foreground py-6 text-sm'>
                       {t(
-                        'Choose a provider protocol independently for each DoubaoVideo or Volc Native channel.'
+                        'Add a provider resource account and link its video channels to start synchronizing.'
                       )}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className='grid gap-3 lg:grid-cols-2'>
-                    {settingsQuery.data.channels.length === 0 ? (
-                      <p className='text-muted-foreground text-sm'>
-                        {t(
-                          'Create a DoubaoVideo or Volc Native channel first.'
-                        )}
-                      </p>
-                    ) : (
-                      settingsQuery.data.channels.map((channel) => (
-                        <Card key={channel.channel_id} size='sm'>
-                          <CardHeader className='gap-3'>
-                            <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                              <CardTitle className='min-w-0 truncate'>
-                                {channel.channel_name}
-                              </CardTitle>
-                              <Badge
-                                variant='outline'
-                                className='shrink-0 font-mono font-normal'
-                              >
-                                ID {channel.channel_id}
-                              </Badge>
-                              <Badge
-                                className='shrink-0'
-                                variant={
-                                  channel.enabled ? 'default' : 'secondary'
-                                }
-                              >
-                                {channel.enabled ? t('Enabled') : t('Disabled')}
-                              </Badge>
-                            </div>
-                            <CardDescription className='flex min-w-0 flex-col gap-1'>
-                              <span className='truncate'>
-                                {channel.protocol ===
-                                ASSET_PROTOCOL_YOUFANG_REST
-                                  ? t('YooFang REST')
-                                  : t('Volcengine Action compatible')}{' '}
-                                ·{' '}
-                                {channel.auth_type === 'ak_sk'
-                                  ? t('AK/SK signature')
-                                  : t('Bearer API key')}
-                              </span>
-                              <span
-                                className='truncate font-mono text-xs'
-                                title={channel.base_url}
-                              >
-                                {channel.base_url}
-                              </span>
-                            </CardDescription>
-                          </CardHeader>
-                          <CardFooter className='justify-end gap-2'>
-                            <Button
-                              size='sm'
-                              variant='outline'
-                              onClick={() =>
-                                setLogChannelId(channel.channel_id)
-                              }
-                            >
-                              {t('View logs')}
-                            </Button>
-                            <Button
-                              size='sm'
-                              onClick={() => setEditing(channel)}
-                            >
-                              <HugeiconsIcon
-                                icon={PencilEdit01Icon}
-                                data-icon='inline-start'
-                              />
-                              {t('Configure')}
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
+                <div
+                  role='group'
+                  aria-label={t('Provider asset libraries')}
+                  className='grid grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))] gap-4'
+                >
+                  {current.map((library) => (
+                    <AssetLibraryAccountCard
+                      key={library.id}
+                      library={library}
+                      onConfigure={setEditing}
+                      onManageChannels={manageLibraryChannels}
+                      onViewLogs={setLogLibraryId}
+                      onSyncMissing={setSyncTarget}
+                    />
+                  ))}
+                </div>
+                {retired.length > 0 && (
+                  <details className='rounded-lg border p-4'>
+                    <summary className='cursor-pointer text-sm font-medium'>
+                      {t('Unlinked / historical library')} · {retired.length}
+                    </summary>
+                    <div className='mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))] gap-4'>
+                      {retired.map((library) => (
+                        <AssetLibraryAccountCard
+                          key={library.id}
+                          library={library}
+                          onConfigure={setEditing}
+                          onManageChannels={manageLibraryChannels}
+                          onViewLogs={setLogLibraryId}
+                          onSyncMissing={setSyncTarget}
+                        />
+                      ))}
+                    </div>
+                  </details>
+                )}
               </>
             )}
           </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>
-      <ChannelConfigDialog
+      <LibraryConfigDialog
         config={editing}
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
-        onSave={(values) => saveChannelMutation.mutate(values)}
+        onSave={(values) => saveLibraryMutation.mutate(values)}
         onTest={(values) => testMutation.mutate(values)}
-        saving={saveChannelMutation.isPending}
+        saving={saveLibraryMutation.isPending}
         testing={testMutation.isPending}
       />
-      {logChannelId !== null && (
+      <AssetLibraryChannelsDialog
+        library={managingChannels}
+        channels={settingsQuery.data?.channels ?? []}
+        saving={channelsMutation.isPending}
+        error={channelsMutation.error ? errorMessage(channelsMutation.error) : undefined}
+        onOpenChange={(open) => {if (!open) {setManagingChannels(null); channelsMutation.reset()}}}
+        onSave={(ids) => channelsMutation.mutate(ids)}
+        onReload={async () => {const result = await librariesQuery.refetch(); const latest = result.data?.find((library) => library.id === managingChannels?.id); if (latest) {setManagingChannels(latest); channelsMutation.reset()} }}
+      />
+      {logLibraryId !== null && (
         <AssetRequestLogDialog
           open
-          channelId={logChannelId}
-          onOpenChange={(open) => !open && setLogChannelId(null)}
+          libraryId={logLibraryId}
+          onOpenChange={(open) => !open && setLogLibraryId(null)}
         />
       )}
+      <Dialog
+        open={syncTarget !== null}
+        onOpenChange={(open) => !open && setSyncTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Sync missing assets')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.',
+                {
+                  count: syncTarget?.missing ?? 0,
+                  library: syncTarget?.name ?? '',
+                }
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <p className='text-muted-foreground text-sm'>
+            {t('This library is shared by {{count}} channels.', {
+              count: syncTarget?.channels.length ?? 0,
+            })}
+          </p>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setSyncTarget(null)}>
+              {t('Cancel')}
+            </Button>
+            <Button
+              disabled={syncMutation.isPending || !syncTarget}
+              onClick={() => syncTarget && syncMutation.mutate(syncTarget.id)}
+            >
+              {t('Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Merge identical accounts')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'Accounts that point at exactly the same upstream account are merged into one and their channels move to it. Existing upstream assets are kept and nothing is deleted.'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setMergeOpen(false)}>
+              {t('Cancel')}
+            </Button>
+            <Button
+              disabled={mergeMutation.isPending}
+              onClick={() => mergeMutation.mutate()}
+            >
+              {t('Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

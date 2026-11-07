@@ -17,10 +17,50 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
+import {
+  listAssetLibraryConnections,
+  listAssetChannelConfigs,
+  saveAssetLibraryConnection,
+  bindAssetChannelLibrary,
+  mergeAssetLibraries,
+  syncAssetLibraryMissing,
+} from '../api'
 import { AssetLibrarySettings } from '../asset-library-settings'
+
+const { libraryFixture } = vi.hoisted(() => ({
+  libraryFixture: {
+    id: 17,
+    name: 'Production account',
+    provider_name: 'Example provider',
+    channel_id: 0,
+    channel_name: '',
+    channel_type: 0,
+    enabled: true,
+    protocol: 'volc_action' as const,
+    auth_type: 'ak_sk' as const,
+    base_url: 'https://ark.cn-beijing.volcengineapi.com',
+    region: 'cn-beijing',
+    service: 'ark',
+    api_version: '2024-01-01',
+    project_name: 'default',
+    qpm: 60,
+    access_key_hint: '****test',
+    credential_configured: true,
+    updated_at: 1,
+    channels: [{ id: 7, name: 'Seedance upstream', enabled: true }],
+    summary: { total: 1, active: 1, pending: 0, processing: 0, failed: 0 },
+    missing: 0,
+  },
+}))
 
 vi.mock('@/features/assets/api', () => ({
   listAssetRequestLogs: vi.fn(async () => ({
@@ -29,6 +69,24 @@ vi.mock('@/features/assets/api', () => ({
   })),
 }))
 vi.mock('../api', () => ({
+  listAssetLibraryConnections: vi.fn(async () => ({
+    success: true,
+    data: [libraryFixture],
+  })),
+  saveAssetLibraryConnection: vi.fn(async () => ({
+    success: true,
+    data: libraryFixture,
+  })),
+  bindAssetChannelLibrary: vi.fn(async () => ({ success: true, data: {} })),
+  mergeAssetLibraries: vi.fn(async () => ({
+    success: true,
+    data: { merged_groups: 2, deferred_groups: 0, unreadable_accounts: 0 },
+  })),
+  syncAssetLibraryMissing: vi.fn(async () => ({
+    success: true,
+    data: undefined,
+  })),
+  testAssetLibraryConnection: vi.fn(),
   getAssetLibraryStoragePolicy: vi.fn(async () => ({
     success: true,
     data: {
@@ -55,7 +113,9 @@ vi.mock('../api', () => ({
       {
         channel_id: 7,
         channel_name: 'Seedance upstream',
-        channel_type: 47,
+        channel_type: 61,
+        library_id: 17,
+        library_name: 'Production account',
         enabled: false,
         protocol: 'volc_action',
         auth_type: 'ak_sk',
@@ -94,11 +154,14 @@ vi.mock('../api', () => ({
   updateAssetChannelConfig: vi.fn(),
   updateAssetLibraryStoragePolicy: vi.fn(),
 }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 let queryClient: QueryClient
 
-afterEach(() => queryClient?.clear())
+afterEach(() => {
+  queryClient?.clear()
+  vi.clearAllMocks()
+})
 
 function renderSettings() {
   queryClient = new QueryClient({
@@ -115,11 +178,159 @@ function renderSettings() {
 }
 
 describe('asset channel protocol configuration', () => {
+  test('removes an association independently of unreadable account credentials', async () => {
+    renderSettings()
+    fireEvent.click(await screen.findByRole('button', { name: 'Manage channels' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Manage channels' })
+    const channel = within(dialog).getByRole('checkbox', { name: 'Seedance upstream · ID 7' })
+    expect(channel).toBeChecked()
+    fireEvent.click(channel)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(bindAssetChannelLibrary).toHaveBeenCalledWith(7, 0, false))
+    expect(saveAssetLibraryConnection).not.toHaveBeenCalled()
+  })
+  test('disables channels owned by another account while keeping its own and unbound channels selectable', async () => {
+    const channelDefaults = {
+      channel_name: 'video channel',
+      channel_type: 61,
+      enabled: true,
+      protocol: 'volc_action' as const,
+      auth_type: 'ak_sk' as const,
+      base_url: 'https://provider.example',
+      region: 'cn-beijing',
+      service: 'ark',
+      api_version: '2024-01-01',
+      project_name: 'default',
+      qpm: 60,
+      access_key_hint: '',
+      credential_configured: false,
+      updated_at: 1,
+    }
+    vi.mocked(listAssetChannelConfigs).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...channelDefaults,
+          channel_id: 7,
+          channel_name: 'Own channel',
+          library_id: 17,
+          library_name: 'Production account',
+        },
+        {
+          ...channelDefaults,
+          channel_id: 8,
+          channel_name: 'Other account channel',
+          library_id: 18,
+          library_name: 'Other account',
+          enabled: false,
+          library_enabled: false,
+        },
+        {
+          ...channelDefaults,
+          channel_id: 9,
+          channel_name: 'Unbound channel',
+          library_id: 0,
+        },
+      ],
+    })
+    renderSettings()
+    fireEvent.click(await screen.findByRole('button', { name: 'Manage channels' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Manage channels',
+    })
+    expect(
+      within(dialog).getByRole('checkbox', { name: 'Own channel · ID 7' })
+    ).toBeEnabled()
+    const occupied = within(dialog).getByRole('checkbox', {
+      name: /Other account channel/,
+    })
+    expect(occupied).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(occupied)
+    expect(occupied).toHaveAttribute('aria-checked', 'false')
+    const unbound = within(dialog).getByRole('checkbox', {
+      name: 'Unbound channel · ID 9',
+    })
+    expect(unbound).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(unbound)
+    expect(unbound).toHaveAttribute('aria-checked', 'true')
+    expect(
+      within(dialog).getByText('Currently linked to Other account')
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(bindAssetChannelLibrary).toHaveBeenCalledWith(9, 17)
+    )
+    expect(bindAssetChannelLibrary).toHaveBeenCalledTimes(1)
+  })
+
+  test('lays out independent resource accounts as compact squares with scrollable channel lists', async () => {
+    const longChannelName =
+      'Production asset channel with a long account and pricing group name'
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...libraryFixture,
+          channels: [
+            { id: 7, name: longChannelName, enabled: true },
+            { id: 8, name: 'Second pricing channel', enabled: true },
+            { id: 9, name: 'Third pricing channel', enabled: true },
+            { id: 10, name: 'Fourth pricing channel', enabled: true },
+            { id: 11, name: 'Fifth pricing channel', enabled: true },
+            { id: 12, name: 'Sixth pricing channel', enabled: false },
+          ],
+        },
+        {
+          ...libraryFixture,
+          id: 18,
+          name: 'Second account',
+          provider_name: 'Second provider',
+        },
+      ],
+    })
+    renderSettings()
+    const provider = await screen.findByRole('region', {
+      name: 'Production account',
+    })
+    expect(provider).toHaveClass('aspect-square', 'max-w-md', 'min-h-0')
+    expect(
+      screen.getByRole('group', { name: 'Provider asset libraries' })
+    ).toHaveClass(
+      'grid',
+      'grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))]'
+    )
+    const content = within(provider).getByRole('group', {
+      name: 'Linked channels',
+    })
+    expect(content).toHaveClass('min-h-0', 'flex-1', 'overflow-hidden')
+    const channels = within(provider).getByRole('list', {
+      name: 'Linked channels',
+    })
+    expect(channels).toHaveClass(
+      'flex-1',
+      'min-h-0',
+      'overflow-y-auto',
+      'overscroll-contain'
+    )
+    expect(within(channels).getAllByRole('listitem')).toHaveLength(6)
+    expect(
+      within(channels).getByTitle(`${longChannelName} · ID 7`)
+    ).toHaveClass('truncate')
+    channels.focus()
+    expect(channels).toHaveFocus()
+    expect(
+      within(provider).queryByRole('button', { name: 'Add resource account' })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getAllByRole('button', { name: 'Add resource account' })
+    ).toHaveLength(1)
+  })
+
   test('shows the channel ID next to the channel name', async () => {
     renderSettings()
 
-    expect(await screen.findByText('Seedance upstream')).toBeVisible()
-    expect(screen.getByText('ID 7')).toBeVisible()
+    expect(await screen.findByText('Example provider')).toBeVisible()
+    expect(screen.getByText('Seedance upstream · ID 7')).toBeVisible()
   })
 
   test('opens request logs scoped to the selected asset channel', async () => {
@@ -129,7 +340,7 @@ describe('asset channel protocol configuration', () => {
     expect(
       await screen.findByRole('dialog', { name: 'Request logs' })
     ).toBeVisible()
-    expect(screen.getByText('Channel ID · 7')).toBeVisible()
+    expect(screen.getByText('Upstream asset library ID · 17')).toBeVisible()
   })
 
   test('switching to YooFang REST selects Bearer sk authentication and hides Action fields', async () => {
@@ -149,5 +360,147 @@ describe('asset channel protocol configuration', () => {
     expect(screen.queryByLabelText('Access Key ID')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Region')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('API version')).not.toBeInTheDocument()
+  })
+
+  test('shows separate cards for two accounts from the same provider', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        libraryFixture,
+        {
+          ...libraryFixture,
+          id: 18,
+          name: 'Second account',
+          channels: [],
+          summary: {
+            total: 0,
+            active: 0,
+            pending: 0,
+            processing: 0,
+            failed: 0,
+          },
+        },
+      ],
+    })
+    renderSettings()
+    const first = await screen.findByRole('region', {
+      name: 'Production account',
+    })
+    const second = screen.getByRole('region', { name: 'Second account' })
+    expect(within(first).getByText('Example provider')).toBeVisible()
+    expect(within(second).getByText('Example provider')).toBeVisible()
+    expect(
+      within(first).getByRole('heading', { name: 'Production account' })
+    ).toBeVisible()
+    expect(
+      within(second).getByRole('heading', { name: 'Second account' })
+    ).toBeVisible()
+  })
+
+  test('opens a blank independent resource account from the global add action', async () => {
+    renderSettings()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Add resource account' })
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Configure upstream asset library',
+    })
+    expect(within(dialog).getByLabelText('Provider name')).toHaveValue('')
+    expect(
+      within(dialog).getByLabelText('Resource account / library name')
+    ).toHaveValue('')
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  test('saving account parameters does not change associations or start synchronization', async () => {
+    renderSettings()
+    fireEvent.click(await screen.findByRole('button', { name: 'Configure' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(saveAssetLibraryConnection).toHaveBeenCalledWith(
+        17,
+        expect.objectContaining({
+          provider_name: 'Example provider',
+          name: 'Production account',
+        })
+      )
+    )
+    expect(vi.mocked(saveAssetLibraryConnection).mock.calls[0]?.[1]).not.toHaveProperty('channel_ids')
+    expect(syncAssetLibraryMissing).not.toHaveBeenCalled()
+  })
+
+  test('saving unchanged associations keeps a disabled channel linked', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...libraryFixture,
+          channels: [{ id: 7, name: 'Seedance upstream', enabled: false }],
+        },
+      ],
+    })
+    renderSettings()
+    fireEvent.click(await screen.findByRole('button', { name: 'Manage channels' }))
+    expect(await screen.findByRole('checkbox')).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Manage channels' })
+      ).not.toBeInTheDocument()
+    )
+    expect(bindAssetChannelLibrary).not.toHaveBeenCalled()
+  })
+
+  test('missing synchronization requires reviewing the count before submitting once', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [{ ...libraryFixture, missing: 2 }],
+    })
+    renderSettings()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Sync missing assets' })
+    )
+    expect(syncAssetLibraryMissing).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Sync missing assets',
+    })
+    expect(within(dialog).getByText(/Sync 2 missing assets/)).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() =>
+      expect(syncAssetLibraryMissing).toHaveBeenCalledWith(17)
+    )
+  })
+
+  test('merging identical accounts needs the administrator to confirm', async () => {
+    renderSettings()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Merge identical accounts' })
+    )
+    expect(mergeAssetLibraries).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Merge identical accounts',
+    })
+    expect(
+      within(dialog).getByText(/nothing is deleted/)
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(mergeAssetLibraries).toHaveBeenCalledTimes(1))
+  })
+
+  test('accounts retired by a merge are collapsed and stay reachable', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [{ ...libraryFixture, channels: [], legacy_channel_id: 7 }],
+    })
+    renderSettings()
+    const summary = await screen.findByText(
+      'Unlinked / historical library · 1'
+    )
+    fireEvent.click(summary)
+    expect(
+      screen.getByText(
+        'Historical assets and logs are retained. Link channels to use this library.'
+      )
+    ).toBeVisible()
   })
 })

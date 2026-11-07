@@ -47,6 +47,9 @@ var assetSyncOnce sync.Once
 // ASSET_SYNC_ENABLED=false excludes a node without changing NODE_TYPE.
 func StartSyncTask() {
 	assetSyncOnce.Do(func() {
+		if err := RecordLibraryIdentities(); err != nil {
+			logger.LogWarn(context.Background(), fmt.Sprintf("asset-library identity recording deferred; existing configurations are retained: %v", err))
+		}
 		if !common.GetEnvOrDefaultBool("ASSET_SYNC_ENABLED", true) {
 			return
 		}
@@ -163,21 +166,24 @@ func (scheduler *assetSyncScheduler) dispatch(parent context.Context) time.Durat
 	}
 	wait := assetSyncScanInterval
 	if !time.Now().Before(scheduler.configsUntil) {
-		if err := model.DB.Select("channel_id", "qpm").Find(&scheduler.configs).Error; err != nil {
+		configs, err := assetSyncConfigs()
+		if err != nil {
 			logger.LogWarn(context.Background(), fmt.Sprintf("load asset channels for synchronization failed: %v", err))
 			return 5 * time.Second
 		}
+		scheduler.configs = configs
 		scheduler.configsUntil = time.Now().Add(assetSyncScanInterval)
 	}
 	for _, config := range scheduler.configs {
+		rateID := config.RateLimitID()
 		if parent.Err() != nil {
 			break
 		}
-		if delay := channelRateDelay(config.ChannelID); delay > 0 {
+		if delay := channelRateDelay(rateID); delay > 0 {
 			wait = min(wait, delay)
 			continue
 		}
-		replica, err := scheduler.claimNext(config.ChannelID)
+		replica, err := scheduler.claimNextConfig(config)
 		if err != nil {
 			logger.LogWarn(context.Background(), fmt.Sprintf("claim asset replica failed: channel_id=%d error=%v", config.ChannelID, err))
 			continue
@@ -189,9 +195,9 @@ func (scheduler *assetSyncScheduler) dispatch(parent context.Context) time.Durat
 			_ = model.FinishAssetReplica(replica.ID, replica.LockedBy, replica.ClaimedFromStatus, replica.Progress, replica.UpstreamAssetID, replica.NextSyncAt, replica.LastError, replica.Operation)
 			break
 		}
-		allowedAt := reserveChannelRate(config.ChannelID, config.QPM)
-		ctx := withChannelRateReservation(parent, config.ChannelID, config.QPM, allowedAt, replicaWorkload(replica))
-		key := assetSyncQueue{config.ChannelID, replicaWorkload(replica)}
+		allowedAt := reserveChannelRate(rateID, config.QPM)
+		ctx := withChannelRateReservation(parent, rateID, config.QPM, allowedAt, replicaWorkload(replica))
+		key := assetSyncQueue{rateID, replicaWorkload(replica)}
 		scheduler.mu.Lock()
 		scheduler.inFlight[key]++
 		scheduler.mu.Unlock()
@@ -202,7 +208,7 @@ func (scheduler *assetSyncScheduler) dispatch(parent context.Context) time.Durat
 			syncReplica(ctx, replica.LockedBy, replica)
 		})
 		// More work may already be due on this channel once its next slot opens.
-		wait = min(wait, max(channelRateDelay(config.ChannelID), 10*time.Millisecond))
+		wait = min(wait, max(channelRateDelay(rateID), 10*time.Millisecond))
 	}
 	return wait
 }
@@ -222,12 +228,20 @@ func (scheduler *assetSyncScheduler) finish(key assetSyncQueue, ctx context.Cont
 // claimNext leases the oldest due replica of the next kind in the channel's
 // rotation, skipping kinds with nothing due.
 func (scheduler *assetSyncScheduler) claimNext(channelID int) (*model.AssetReplica, error) {
+	return scheduler.claimNextConfig(model.AssetChannelConfig{ChannelID: channelID, Enabled: true})
+}
+
+func (scheduler *assetSyncScheduler) claimNextConfig(config model.AssetChannelConfig) (*model.AssetReplica, error) {
+	channelID := config.RateLimitID()
 	now := common.GetTimestamp()
 	start := scheduler.turns[channelID]
 	loaded := make(map[model.AssetReplicaWorkload]bool, len(assetSyncTurns))
 	for offset := range assetSyncTurns {
 		turn := (start + offset) % len(assetSyncTurns)
 		workload := assetSyncTurns[turn]
+		if config.LibraryID > 0 && !config.Enabled && workload != model.AssetReplicaWorkloadMaintenance {
+			continue
+		}
 		if loaded[workload] {
 			continue // already found nothing claimable for this kind
 		}
@@ -243,7 +257,13 @@ func (scheduler *assetSyncScheduler) claimNext(channelID int) (*model.AssetRepli
 			if time.Now().Before(scheduler.scanAfter[key]) {
 				continue
 			}
-			candidates, err := model.ListDueAssetReplicas(now, channelID, workload, assetSyncCandidateLimit)
+			var candidates []*model.AssetReplica
+			var err error
+			if config.LibraryID > 0 {
+				candidates, err = model.ListDueAssetLibraryReplicas(now, config.LibraryID, workload, assetSyncCandidateLimit)
+			} else {
+				candidates, err = model.ListDueAssetReplicas(now, config.ChannelID, workload, assetSyncCandidateLimit)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -344,7 +364,14 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		}
 	}
 	var config model.AssetChannelConfig
-	if err := model.DB.Where("channel_id = ?", replica.ChannelID).First(&config).Error; err != nil {
+	if replica.LibraryID != nil {
+		var library model.AssetLibraryConnection
+		if err := model.DB.First(&library, *replica.LibraryID).Error; err != nil {
+			failReplica(runnerID, replica, err)
+			return
+		}
+		config = library.ProviderConfig(0)
+	} else if err := model.DB.Where("channel_id = ?", replica.ChannelID).First(&config).Error; err != nil {
 		failReplica(runnerID, replica, err)
 		return
 	}
@@ -375,7 +402,7 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 				failReplica(runnerID, replica, err)
 				return
 			}
-			groupReplica, groupErr := ensureGroupReplica(ctx, client, &group, replica.ChannelID)
+			groupReplica, groupErr := ensureGroupReplica(ctx, client, &group, replica.ChannelID, config.LibraryID)
 			if groupErr != nil {
 				failReplica(runnerID, replica, groupErr)
 				return
@@ -495,9 +522,15 @@ func jitteredAssetReviewDelay(id int64, interval time.Duration) time.Duration {
 	return interval * time.Duration(80+h.Sum32()%41) / 100
 }
 
-func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.AssetGroup, channelID int) (*model.AssetGroupReplica, error) {
+func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.AssetGroup, channelID int, libraryIDs ...int) (*model.AssetGroupReplica, error) {
 	var replica model.AssetGroupReplica
-	err := model.DB.Where("group_id = ? AND channel_id = ?", group.ID, channelID).First(&replica).Error
+	query := model.DB.Where("group_id = ?", group.ID)
+	if len(libraryIDs) > 0 && libraryIDs[0] > 0 {
+		query = query.Where("library_id = ?", libraryIDs[0])
+	} else {
+		query = query.Where("channel_id = ? AND library_id IS NULL", channelID)
+	}
+	err := query.First(&replica).Error
 	if err == nil && replica.UpstreamGroupID != "" && replica.Status == model.AssetReplicaStatusActive {
 		return &replica, nil
 	}
@@ -511,6 +544,11 @@ func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.
 	now := common.GetTimestamp()
 	replica.GroupID = group.ID
 	replica.ChannelID = channelID
+	if len(libraryIDs) > 0 && libraryIDs[0] > 0 {
+		replica.ChannelID = 0
+		replica.LibraryID = new(int)
+		*replica.LibraryID = libraryIDs[0]
+	}
 	replica.UpstreamGroupID = upstreamID
 	replica.Status = model.AssetReplicaStatusActive
 	replica.Progress = 100
@@ -520,7 +558,7 @@ func ensureGroupReplica(ctx context.Context, client assetProvider, group *model.
 	if replica.ID == 0 {
 		err = model.DB.Create(&replica).Error
 	} else {
-		err = model.DB.Save(&replica).Error
+		err = model.DB.Model(&replica).Select("upstream_group_id", "status", "progress", "last_error", "last_synced_at", "updated_at").Updates(&replica).Error
 	}
 	return &replica, err
 }

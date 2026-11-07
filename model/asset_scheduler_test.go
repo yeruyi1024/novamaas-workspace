@@ -89,12 +89,12 @@ func setupAssetSchedulerDB(t *testing.T, dialect string) *gorm.DB {
 	DB = db
 	common.SetMainDatabaseType(databaseType)
 	t.Cleanup(func() {
-		assert.NoError(t, db.Migrator().DropTable(&SystemTaskLock{}, &AssetReplica{}, &MediaAsset{}, &StorageObject{}))
+		assert.NoError(t, db.Migrator().DropTable(&SystemTaskLock{}, &AssetReplica{}, &MediaAsset{}, &StorageObject{}, &AssetChannelConfig{}))
 		DB = previous
 		common.SetMainDatabaseType(previousType)
 		assert.NoError(t, connection.Close())
 	})
-	require.NoError(t, db.AutoMigrate(&MediaAsset{}, &AssetReplica{}, &StorageObject{}, &SystemTaskLock{}))
+	require.NoError(t, db.AutoMigrate(&MediaAsset{}, &AssetReplica{}, &StorageObject{}, &SystemTaskLock{}, &AssetChannelConfig{}))
 	return db
 }
 

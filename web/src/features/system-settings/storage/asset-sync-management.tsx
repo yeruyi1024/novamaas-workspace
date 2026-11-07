@@ -61,8 +61,9 @@ import {
 } from '@/features/assets/asset-utils'
 import type { AssetSyncJob } from '@/features/assets/types'
 
-import { listAssetChannelConfigs } from './api'
+import { listAssetLibraryConnections } from './api'
 import { AssetRequestLogDialog } from './asset-request-log-dialog'
+import { AssetSyncLibraryOverview } from './asset-sync-library-overview'
 
 const PAGE_SIZE = 20
 const JOBS_QUERY_KEY = ['asset-library', 'admin', 'sync-jobs'] as const
@@ -134,7 +135,7 @@ function SyncStatusCell(props: {
   job: AssetSyncJob
   retrying: boolean
   onRetry: (id: number) => void
-  onViewLogs: (channelId: number, replicaId: number) => void
+  onViewLogs: (channelId: number, replicaId: number, libraryId?: number) => void
 }) {
   const { t } = useTranslation()
   const inProgress = ['pending', 'syncing', 'processing', 'deleting'].includes(
@@ -163,7 +164,13 @@ function SyncStatusCell(props: {
           size='xs'
           variant='outline'
           className='ml-auto'
-          onClick={() => props.onViewLogs(props.job.channel_id, props.job.id)}
+          onClick={() =>
+            props.onViewLogs(
+              props.job.channel_id,
+              props.job.id,
+              props.job.library_id
+            )
+          }
         >
           {t('View logs')}
         </Button>
@@ -226,29 +233,43 @@ function AssetIdentityCell(props: { job: AssetSyncJob }) {
   )
 }
 
-export function AssetSyncManagement() {
+export function AssetSyncManagement(props: { initialLibraryId?: number } = {}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [channelId, setChannelId] = useState(0)
+  const [libraryId, setLibraryId] = useState(props.initialLibraryId ?? 0)
+  const [showDetails, setShowDetails] = useState(
+    (props.initialLibraryId ?? 0) > 0
+  )
   const [status, setStatus] = useState('')
   const [logTarget, setLogTarget] = useState<{
     channelId: number
+    libraryId?: number
     replicaId: number
   } | null>(null)
-  const channelsQuery = useQuery({
-    queryKey: ['asset-library', 'admin', 'channels'],
-    queryFn: async () => assertAssetSuccess(await listAssetChannelConfigs()),
+  const librariesQuery = useQuery({
+    queryKey: ['asset-library', 'admin', 'libraries'],
+    queryFn: async () =>
+      assertAssetSuccess(await listAssetLibraryConnections()),
     staleTime: 60_000,
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (library) =>
+          library.channels.length > 0 &&
+          library.summary.pending + library.summary.processing > 0
+      )
+        ? 5000
+        : false,
   })
   const jobsQuery = useQuery({
-    queryKey: [...JOBS_QUERY_KEY, page, channelId, status],
+    queryKey: [...JOBS_QUERY_KEY, page, libraryId, status],
+    enabled: showDetails,
     queryFn: async () =>
       assertAssetSuccess(
         await listAssetSyncJobs({
           page,
           pageSize: PAGE_SIZE,
-          channelId: channelId || undefined,
+          libraryId: libraryId || undefined,
           status: status || undefined,
         })
       ),
@@ -267,7 +288,7 @@ export function AssetSyncManagement() {
     onError: (error) => toast.error(assetErrorMessage(error)),
   })
 
-  const channels = channelsQuery.data ?? []
+  const libraries = librariesQuery.data ?? []
   const jobs = jobsQuery.data?.items ?? []
   const summary = jobsQuery.data?.summary ?? {
     total: 0,
@@ -289,247 +310,314 @@ export function AssetSyncManagement() {
       <SectionPageLayout.Content>
         <div className='flex flex-col gap-4 pb-4'>
           <Alert>
-            <AlertTitle>{t('Automatic channel delivery')}</AlertTitle>
+            <AlertTitle>{t('Shared library synchronization')}</AlertTitle>
             <AlertDescription>
               {t(
-                'Assets are delivered automatically after upload. This page is for operational monitoring and retrying failed jobs.'
+                'Uploads synchronize once per linked resource account. Select an unlinked library to inspect its historical synchronization records.'
               )}
             </AlertDescription>
           </Alert>
 
-          <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-            <SyncSummaryCard
-              title={t('Pending synchronization')}
-              value={summary.pending}
-              icon={Clock01Icon}
-            />
-            <SyncSummaryCard
-              title={t('Synchronizing')}
-              value={summary.processing}
-              icon={Refresh01Icon}
-            />
-            <SyncSummaryCard
-              title={t('Synchronized')}
-              value={summary.active}
-              icon={CheckmarkCircle02Icon}
-            />
-            <SyncSummaryCard
-              title={t('Synchronization failed')}
-              value={summary.failed}
-              icon={AlertCircleIcon}
-            />
-          </div>
-
-          <Card>
-            <CardContent className='flex flex-col gap-3 py-4 md:flex-row md:items-center'>
-              <NativeSelect
-                value={String(channelId)}
-                aria-label={t('Channel')}
-                className='md:w-60'
-                onChange={(event) => {
-                  setPage(1)
-                  setChannelId(Number(event.target.value))
-                }}
-              >
-                <NativeSelectOption value='0'>
-                  {t('All channels')}
-                </NativeSelectOption>
-                {channels.map((channel) => (
-                  <NativeSelectOption
-                    key={channel.channel_id}
-                    value={String(channel.channel_id)}
-                  >
-                    {channel.channel_name} · ID {channel.channel_id}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              <NativeSelect
-                value={status}
-                aria-label={t('Status')}
-                className='md:w-52'
-                onChange={(event) => {
-                  setPage(1)
-                  setStatus(event.target.value)
-                }}
-              >
-                <NativeSelectOption value=''>
-                  {t('All statuses')}
-                </NativeSelectOption>
-                {[
-                  'pending',
-                  'syncing',
-                  'processing',
-                  'active',
-                  'failed',
-                  'rejected',
-                  'deleting',
-                ].map((value) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {syncStatusLabel(t, value)}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-              {(summary.pending > 0 || summary.processing > 0) && (
-                <span className='text-muted-foreground flex items-center gap-2 text-xs md:ml-auto'>
-                  <Spinner />
-                  {t('Updates automatically')}
-                </span>
-              )}
-            </CardContent>
-          </Card>
-
-          {jobsQuery.isLoading && <Skeleton className='h-80 w-full' />}
-          {jobsQuery.isError && (
+          {!showDetails && librariesQuery.isPending && (
+            <Skeleton className='h-48 w-full' />
+          )}
+          {!showDetails && librariesQuery.isError && (
             <Alert variant='destructive'>
               <AlertTitle>
-                {t('Unable to load synchronization jobs')}
+                {t('Unable to load asset library settings')}
               </AlertTitle>
               <AlertDescription>
-                {assetErrorMessage(jobsQuery.error)}
+                {assetErrorMessage(librariesQuery.error)}
               </AlertDescription>
             </Alert>
           )}
-          {!jobsQuery.isLoading && !jobsQuery.isError && jobs.length === 0 && (
-            <Empty className='min-h-56 border'>
-              <EmptyHeader>
-                <EmptyTitle>{t('No synchronization jobs')}</EmptyTitle>
-                <EmptyDescription>
-                  {t(
-                    'Jobs appear here automatically when assets are uploaded to an enabled channel.'
-                  )}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+          {!showDetails && librariesQuery.data && (
+            <AssetSyncLibraryOverview
+              libraries={libraries}
+              onSelect={(id) => {
+                setLibraryId(id)
+                setPage(1)
+                setShowDetails(true)
+              }}
+            />
           )}
-          {jobs.length > 0 && (
-            <Card className='overflow-hidden'>
-              <Table className='min-w-[1080px] table-fixed'>
-                <colgroup>
-                  <col className='w-[300px]' />
-                  <col className='w-[170px]' />
-                  <col className='w-[230px]' />
-                  <col className='w-[240px]' />
-                  <col className='w-[170px]' />
-                </colgroup>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('Asset')}</TableHead>
-                    <TableHead>{t('Owner')}</TableHead>
-                    <TableHead>{t('Channel')}</TableHead>
-                    <TableHead>{t('Status')}</TableHead>
-                    <TableHead>{t('Last updated')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jobs.map((job) => (
-                    <TableRow
-                      key={job.id}
-                      className='[contain-intrinsic-size:76px] [content-visibility:auto]'
-                    >
-                      <TableCell className='py-3 align-middle'>
-                        <AssetIdentityCell job={job} />
-                      </TableCell>
-                      <TableCell className='py-3 align-middle whitespace-normal'>
-                        <div className='min-w-0'>
-                          <p
-                            className='truncate font-medium'
-                            title={job.owner_name || `#${job.owner_user_id}`}
-                          >
-                            {job.owner_name || `#${job.owner_user_id}`}
-                          </p>
-                          <p className='text-muted-foreground text-xs'>
-                            {t('User ID')} · {job.owner_user_id}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className='py-3 align-middle whitespace-normal'>
-                        <div className='min-w-0'>
-                          <p
-                            className='truncate font-medium'
-                            title={job.channel_name || `#${job.channel_id}`}
-                          >
-                            {job.channel_name || `#${job.channel_id}`}
-                          </p>
-                          <p className='text-muted-foreground text-xs'>
-                            {t('Channel ID')} · {job.channel_id}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className='py-3 align-middle'>
-                        <SyncStatusCell
-                          job={job}
-                          retrying={retryMutation.isPending}
-                          onRetry={(id) => retryMutation.mutate(id)}
-                          onViewLogs={(selectedChannelId, replicaId) =>
-                            setLogTarget({
-                              channelId: selectedChannelId,
-                              replicaId,
-                            })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className='py-3 align-middle whitespace-normal'>
-                        <div className='min-w-0'>
-                          <p className='font-medium'>
-                            {formatTime(job.updated_at)}
-                          </p>
-                          <div className='text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs'>
-                            <span>
-                              {t('Task ID')} · {job.id}
-                            </span>
-                            <span>
-                              {t('Attempts')} · {job.attempts}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-
-          {jobsQuery.data && jobsQuery.data.total > PAGE_SIZE && (
-            <div className='flex items-center justify-between gap-3'>
-              <span className='text-muted-foreground text-xs'>
-                {t('Page {{page}} of {{pages}}', { page, pages: pageCount })}
-              </span>
-              <div className='flex gap-2'>
+          {showDetails && (
+            <>
+              <div>
                 <Button
-                  size='sm'
                   variant='outline'
-                  disabled={page <= 1}
-                  onClick={() => setPage((value) => Math.max(1, value - 1))}
-                >
-                  <HugeiconsIcon
-                    icon={ArrowLeft01Icon}
-                    data-icon='inline-start'
-                  />
-                  {t('Previous')}
-                </Button>
-                <Button
                   size='sm'
-                  variant='outline'
-                  disabled={page >= pageCount}
-                  onClick={() => setPage((value) => value + 1)}
+                  onClick={() => setShowDetails(false)}
                 >
-                  {t('Next')}
-                  <HugeiconsIcon
-                    icon={ArrowRight01Icon}
-                    data-icon='inline-end'
-                  />
+                  {t('Library overview')}
                 </Button>
               </div>
-            </div>
-          )}
-          {logTarget !== null && (
-            <AssetRequestLogDialog
-              open
-              channelId={logTarget.channelId}
-              replicaId={logTarget.replicaId}
-              onOpenChange={(open) => !open && setLogTarget(null)}
-            />
+              <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+                <SyncSummaryCard
+                  title={t('Pending synchronization')}
+                  value={summary.pending}
+                  icon={Clock01Icon}
+                />
+                <SyncSummaryCard
+                  title={t('Synchronizing')}
+                  value={summary.processing}
+                  icon={Refresh01Icon}
+                />
+                <SyncSummaryCard
+                  title={t('Synchronized')}
+                  value={summary.active}
+                  icon={CheckmarkCircle02Icon}
+                />
+                <SyncSummaryCard
+                  title={t('Synchronization failed')}
+                  value={summary.failed}
+                  icon={AlertCircleIcon}
+                />
+              </div>
+
+              <Card>
+                <CardContent className='flex flex-col gap-3 py-4 md:flex-row md:items-center'>
+                  <NativeSelect
+                    value={String(libraryId)}
+                    aria-label={t('Channel')}
+                    className='md:w-60'
+                    onChange={(event) => {
+                      setPage(1)
+                      setLibraryId(Number(event.target.value))
+                    }}
+                  >
+                    <NativeSelectOption value='0'>
+                      {t('Linked asset libraries')}
+                    </NativeSelectOption>
+                    {libraries.map((library) => (
+                      <NativeSelectOption
+                        key={library.id}
+                        value={String(library.id)}
+                      >
+                        {library.provider_name} · {library.name} · #{library.id}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  <NativeSelect
+                    value={status}
+                    aria-label={t('Status')}
+                    className='md:w-52'
+                    onChange={(event) => {
+                      setPage(1)
+                      setStatus(event.target.value)
+                    }}
+                  >
+                    <NativeSelectOption value=''>
+                      {t('All statuses')}
+                    </NativeSelectOption>
+                    {[
+                      'pending',
+                      'syncing',
+                      'processing',
+                      'active',
+                      'failed',
+                      'rejected',
+                      'deleting',
+                    ].map((value) => (
+                      <NativeSelectOption key={value} value={value}>
+                        {syncStatusLabel(t, value)}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  {(summary.pending > 0 || summary.processing > 0) && (
+                    <span className='text-muted-foreground flex items-center gap-2 text-xs md:ml-auto'>
+                      <Spinner />
+                      {t('Updates automatically')}
+                    </span>
+                  )}
+                </CardContent>
+              </Card>
+
+              {jobsQuery.isLoading && <Skeleton className='h-80 w-full' />}
+              {jobsQuery.isError && (
+                <Alert variant='destructive'>
+                  <AlertTitle>
+                    {t('Unable to load synchronization jobs')}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {assetErrorMessage(jobsQuery.error)}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!jobsQuery.isLoading &&
+                !jobsQuery.isError &&
+                jobs.length === 0 && (
+                  <Empty className='min-h-56 border'>
+                    <EmptyHeader>
+                      <EmptyTitle>{t('No synchronization jobs')}</EmptyTitle>
+                      <EmptyDescription>
+                        {t(
+                          'Jobs appear here automatically when assets are uploaded to an enabled channel.'
+                        )}
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                )}
+              {jobs.length > 0 && (
+                <Card className='overflow-hidden'>
+                  <Table className='min-w-[1080px] table-fixed'>
+                    <colgroup>
+                      <col className='w-[300px]' />
+                      <col className='w-[170px]' />
+                      <col className='w-[230px]' />
+                      <col className='w-[240px]' />
+                      <col className='w-[170px]' />
+                    </colgroup>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('Asset')}</TableHead>
+                        <TableHead>{t('Owner')}</TableHead>
+                        <TableHead>{t('Upstream asset library')}</TableHead>
+                        <TableHead>{t('Status')}</TableHead>
+                        <TableHead>{t('Last updated')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {jobs.map((job) => (
+                        <TableRow
+                          key={job.id}
+                          className='[contain-intrinsic-size:76px] [content-visibility:auto]'
+                        >
+                          <TableCell className='py-3 align-middle'>
+                            <AssetIdentityCell job={job} />
+                          </TableCell>
+                          <TableCell className='py-3 align-middle whitespace-normal'>
+                            <div className='min-w-0'>
+                              <p
+                                className='truncate font-medium'
+                                title={
+                                  job.owner_name || `#${job.owner_user_id}`
+                                }
+                              >
+                                {job.owner_name || `#${job.owner_user_id}`}
+                              </p>
+                              <p className='text-muted-foreground text-xs'>
+                                {t('User ID')} · {job.owner_user_id}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className='py-3 align-middle whitespace-normal'>
+                            <div className='min-w-0'>
+                              <p
+                                className='truncate font-medium'
+                                title={
+                                  job.library_name ||
+                                  job.channel_name ||
+                                  `#${job.channel_id}`
+                                }
+                              >
+                                {job.library_name ||
+                                  job.channel_name ||
+                                  `#${job.channel_id}`}
+                              </p>
+                              <p className='text-muted-foreground text-xs'>
+                                {job.library_id
+                                  ? t('Upstream asset library ID')
+                                  : t('Channel ID')}{' '}
+                                · {job.library_id || job.channel_id}
+                                {job.channels && job.channels.length > 0 && (
+                                  <span className='mt-1 block'>
+                                    {job.channels
+                                      .map((channel) => channel.name)
+                                      .join(', ')}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className='py-3 align-middle'>
+                            <SyncStatusCell
+                              job={job}
+                              retrying={retryMutation.isPending}
+                              onRetry={(id) => retryMutation.mutate(id)}
+                              onViewLogs={(
+                                selectedChannelId,
+                                replicaId,
+                                selectedLibraryId
+                              ) =>
+                                setLogTarget({
+                                  channelId: selectedChannelId,
+                                  libraryId: selectedLibraryId,
+                                  replicaId,
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className='py-3 align-middle whitespace-normal'>
+                            <div className='min-w-0'>
+                              <p className='font-medium'>
+                                {formatTime(job.updated_at)}
+                              </p>
+                              <div className='text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs'>
+                                <span>
+                                  {t('Task ID')} · {job.id}
+                                </span>
+                                <span>
+                                  {t('Attempts')} · {job.attempts}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
+
+              {jobsQuery.data && jobsQuery.data.total > PAGE_SIZE && (
+                <div className='flex items-center justify-between gap-3'>
+                  <span className='text-muted-foreground text-xs'>
+                    {t('Page {{page}} of {{pages}}', {
+                      page,
+                      pages: pageCount,
+                    })}
+                  </span>
+                  <div className='flex gap-2'>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      disabled={page <= 1}
+                      onClick={() => setPage((value) => Math.max(1, value - 1))}
+                    >
+                      <HugeiconsIcon
+                        icon={ArrowLeft01Icon}
+                        data-icon='inline-start'
+                      />
+                      {t('Previous')}
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      disabled={page >= pageCount}
+                      onClick={() => setPage((value) => value + 1)}
+                    >
+                      {t('Next')}
+                      <HugeiconsIcon
+                        icon={ArrowRight01Icon}
+                        data-icon='inline-end'
+                      />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {logTarget !== null && (
+                <AssetRequestLogDialog
+                  open
+                  channelId={
+                    logTarget.libraryId ? undefined : logTarget.channelId
+                  }
+                  libraryId={logTarget.libraryId}
+                  replicaId={logTarget.replicaId}
+                  onOpenChange={(open) => !open && setLogTarget(null)}
+                />
+              )}
+            </>
           )}
         </div>
       </SectionPageLayout.Content>

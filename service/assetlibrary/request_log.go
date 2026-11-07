@@ -48,7 +48,7 @@ func withRequestLogContext(ctx context.Context, source string, replicaID int64, 
 	})
 }
 
-func recordRequestAttempt(ctx context.Context, channelID int, protocol string, operation string, method string, pathTemplate string, status int, elapsed time.Duration, requestBytes int64, responseBytes int64, errorKind string, requestURL string, requestBody []byte, responseBody []byte) {
+func recordRequestAttempt(ctx context.Context, channelID int, protocol string, operation string, method string, pathTemplate string, status int, elapsed time.Duration, requestBytes int64, responseBytes int64, errorKind string, requestURL string, requestBody []byte, responseBody []byte, libraryIDs ...int) {
 	metadata, ok := ctx.Value(requestLogContextKey{}).(requestLogContext)
 	if !ok {
 		return
@@ -63,6 +63,9 @@ func recordRequestAttempt(ctx context.Context, channelID int, protocol string, o
 		Protocol: protocol, Operation: operation, Method: method, PathTemplate: pathTemplate,
 		HTTPStatus: status, DurationMS: elapsed.Milliseconds(), RequestBytes: requestBytes,
 		ResponseBytes: responseBytes, Result: result, ErrorKind: errorKind,
+	}
+	if len(libraryIDs) > 0 {
+		log.LibraryID = libraryIDs[0]
 	}
 	writer := activeRequestLogWriter.Load()
 	if writer == nil {

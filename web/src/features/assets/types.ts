@@ -73,6 +73,10 @@ export type CreatedAssetAccessKey = AssetAccessKey & {
 }
 
 export type AssetSyncJob = {
+  library_id?: number
+  library_name?: string
+  channels?: { id: number; name: string; enabled: boolean }[]
+  upstream_asset_id?: string
   id: number
   asset_id: string
   asset_name: string
@@ -109,6 +113,7 @@ export type AssetSyncJobList = {
 }
 
 export type AssetRequestLog = {
+  library_id?: number
   id: number
   created_at: number
   channel_id: number

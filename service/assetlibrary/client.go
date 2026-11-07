@@ -181,9 +181,9 @@ func (client *volcActionClient) call(ctx context.Context, action string, payload
 		if err != nil && errorKind == "" {
 			errorKind = "unknown"
 		}
-		recordRequestAttempt(ctx, client.config.ChannelID, normalizeProtocol(client.config.Protocol), action, http.MethodPost, "/", status, time.Since(started), requestBytes, responseBytes, errorKind, requestURL, requestBody, loggedResponseBody)
+		recordRequestAttempt(ctx, client.config.ChannelID, normalizeProtocol(client.config.Protocol), action, http.MethodPost, "/", status, time.Since(started), requestBytes, responseBytes, errorKind, requestURL, requestBody, loggedResponseBody, client.config.LibraryID)
 	}()
-	if err := waitForChannelRate(ctx, client.config.ChannelID, client.config.QPM); err != nil {
+	if err := waitForChannelRate(ctx, client.config.RateLimitID(), client.config.QPM); err != nil {
 		errorKind = "rate_limit"
 		return providerResult{}, err
 	}

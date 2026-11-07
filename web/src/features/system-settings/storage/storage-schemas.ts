@@ -27,6 +27,7 @@ import {
   type StoragePolicy,
   type StoragePolicyInput,
   type AssetChannelConfig,
+  type AssetLibraryConnection,
   type AssetChannelConfigInput,
 } from './types'
 
@@ -300,6 +301,33 @@ export type AssetChannelConfigFormValues = z.infer<
   ReturnType<typeof createAssetChannelConfigSchema>
 >
 
+export const createAssetLibraryConnectionSchema = (
+  t: Translate,
+  savedConfig?: AssetChannelConfig
+) =>
+  createAssetChannelConfigSchema(t, savedConfig).safeExtend({
+    provider_name: z
+      .string()
+      .trim()
+      .min(1, t('Enter a provider name'))
+      .max(128),
+    name: z.string().trim().min(1, t('Enter an asset library name')).max(128),
+  })
+
+export type AssetLibraryConnectionFormValues = z.infer<
+  ReturnType<typeof createAssetLibraryConnectionSchema>
+>
+
+export function assetLibraryConnectionToForm(
+  config: AssetLibraryConnection
+): AssetLibraryConnectionFormValues {
+  return {
+    ...assetChannelConfigToForm(config),
+    provider_name: config.provider_name || config.name,
+    name: config.name,
+  }
+}
+
 export function assetChannelConfigToForm(
   config: AssetChannelConfig
 ): AssetChannelConfigFormValues {
@@ -322,7 +350,10 @@ export function assetChannelConfigToInput(
   values: AssetChannelConfigFormValues
 ): AssetChannelConfigInput {
   return {
-    ...values,
+    enabled: values.enabled,
+    protocol: values.protocol,
+    auth_type: values.auth_type,
+    qpm: values.qpm,
     base_url: values.base_url.trim(),
     region: values.region.trim(),
     service: values.service.trim(),
