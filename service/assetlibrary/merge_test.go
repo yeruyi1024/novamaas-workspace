@@ -356,12 +356,46 @@ func TestDisabledAccountStopsWritingButKeepsServingSynchronizedAssets(t *testing
 	require.ErrorAs(t, err, &conflict)
 	assert.Contains(t, conflict.Error(), "has not been synchronized", "what was missed while paused is not available until it is synchronized")
 
-	backfillMissingAssets(library.ID)
+	backfillMissingAssets(library.ID, true)
 	var queued int64
 	require.NoError(t, db.Model(&model.AssetReplica{}).Where("library_id = ? AND asset_id = ?", library.ID, missed.ID).Count(&queued).Error)
 	assert.Zero(t, queued, "a paused account is not backfilled")
 	require.NoError(t, db.Model(&model.AssetLibraryConnection{}).Where("id = ?", library.ID).Update("enabled", true).Error)
-	backfillMissingAssets(library.ID)
+	backfillMissingAssets(library.ID, true)
 	require.NoError(t, db.Model(&model.AssetReplica{}).Where("library_id = ? AND asset_id = ?", library.ID, missed.ID).Count(&queued).Error)
 	assert.EqualValues(t, 1, queued, "turning it on queues what was missed meanwhile")
+}
+
+func TestMergePreservesUsableCopyWhenKeptAccountHasFailedCopy(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "pr89-review-fixture")
+	seedLegacyChannel(t, db, 1, "https://provider.example", "fixture-ak", "fixture-secret", true)
+	seedLegacyChannel(t, db, 2, "https://provider.example", "fixture-ak", "fixture-secret", true)
+	var target model.MediaAsset
+	for i, name := range []string{"asset-target", "asset-other-one", "asset-other-two"} {
+		asset := model.MediaAsset{PublicID: name, OwnerUserID: 7, StorageObjectID: int64(100 + i), Status: model.AssetStatusReady}
+		require.NoError(t, db.Create(&asset).Error)
+		if i == 0 {
+			target = asset
+			seedLegacyCopy(t, db, asset.ID, 1, "", model.AssetReplicaStatusFailed)
+			seedLegacyCopy(t, db, asset.ID, 2, "working-target", model.AssetReplicaStatusActive)
+		} else {
+			seedLegacyCopy(t, db, asset.ID, 1, "working-"+name, model.AssetReplicaStatusActive)
+		}
+	}
+	require.NoError(t, model.MigrateAssetLibraryConnections(db))
+	body := []byte(`{"content":[{"image_url":{"url":"asset://` + target.PublicID + `"}}]}`)
+	_, _, err := ResolveRequestAssetIDs(body, 7, 2)
+	require.NoError(t, err, "channel 2 can reference the target before merging")
+	report, err := MergeIdenticalLibraries()
+	require.NoError(t, err)
+	require.Equal(t, 1, report.MergedGroups)
+	_, _, err = ResolveRequestAssetIDs(body, 7, 2)
+	assert.NoError(t, err, "merging must preserve a previously usable asset reference")
+	var copies []model.AssetReplica
+	require.NoError(t, db.Where("asset_id = ?", target.ID).Order("id").Find(&copies).Error)
+	require.Len(t, copies, 2, "both upstream copies remain available for deletion")
+	assert.Equal(t, model.AssetReplicaStatusFailed, copies[0].Status)
+	assert.Equal(t, libraryOfChannel(t, db, 1), *copies[1].LibraryID)
+	assert.Equal(t, "working-target", copies[1].UpstreamAssetID)
 }

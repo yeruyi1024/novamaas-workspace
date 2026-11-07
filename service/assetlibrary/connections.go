@@ -335,7 +335,7 @@ func MergeIdenticalLibraries() (*LibraryMergeReport, error) {
 		}
 		report.MergedGroups++
 		logger.LogInfo(context.Background(), fmt.Sprintf("asset-library accounts %v share one upstream account and were merged into %d", ids, keptID))
-		backfillMissingAssets(keptID)
+		backfillMissingAssets(keptID, true)
 	}
 	return report, nil
 }
@@ -385,7 +385,7 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 			return nil, err
 		}
 		if config.Enabled && !existing.Enabled {
-			backfillMissingAssets(existing.ID)
+			backfillMissingAssets(existing.ID, true)
 		}
 		return libraryConnectionView(existing.ID)
 	}
@@ -395,6 +395,9 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 	}
 	library := model.AssetLibraryFromConfig(name, config)
 	library.ProviderName, library.ResourceKey = providerName, &resourceKey
+	if existing != nil {
+		library.RateLimitLibraryID = existing.RateLimitLibraryID
+	}
 	credentialWriter := model.DB.Session(&gorm.Session{Logger: model.DB.Logger.LogMode(gormlogger.Silent)})
 	if existing == nil {
 		if reused, err := reusedLibraryView(resourceKey); reused != nil || err != nil {
@@ -416,6 +419,7 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 		// A different identity is a different upstream namespace. Existing
 		// upstream copies cannot be carried across, so the account must be new.
 		if priorKey, priorErr := libraryResourceKey(existing.ProviderConfig(0)); priorErr != nil || priorKey != resourceKey {
+			library.RateLimitLibraryID = 0
 			var owned int64
 			if err := tx.Model(&model.AssetReplica{}).Where("library_id = ? AND status <> ?", existing.ID, model.AssetReplicaStatusDeleted).Count(&owned).Error; err != nil {
 				return err
@@ -444,7 +448,7 @@ func SaveLibraryConnection(libraryID int, input LibraryConfigInput) (*LibraryCon
 		return nil, err
 	}
 	if config.Enabled && !existing.Enabled {
-		backfillMissingAssets(existing.ID)
+		backfillMissingAssets(existing.ID, true)
 	}
 	return libraryConnectionView(existing.ID)
 }
@@ -455,6 +459,7 @@ func sameLibraryIdentityConfig(first, second model.AssetChannelConfig) bool {
 		config.ID = 0
 		config.ChannelID = 0
 		config.LibraryID = 0
+		config.RateLimitLibraryID = 0
 		config.Enabled = false
 		config.QPM = 0
 		config.AccessKeyHint = ""
@@ -497,6 +502,7 @@ func BindChannelLibrary(channelID, libraryID int, enabled bool) (*ChannelConfigV
 	var channel *model.Channel
 	var library *model.AssetLibraryConnection
 	alreadyActive := false
+	resume := false
 	config := model.AssetChannelConfig{ChannelID: channelID}
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if libraryID > 0 {
@@ -516,6 +522,13 @@ func BindChannelLibrary(channelID, libraryID int, enabled bool) (*ChannelConfigV
 			return err
 		}
 		alreadyActive = current.LibraryID == libraryID && current.Enabled
+		if libraryID > 0 && enabled && !alreadyActive {
+			var active int64
+			if err := linkedAssetLibraryBindings(tx).Where("library_id = ? AND enabled = ?", libraryID, true).Count(&active).Error; err != nil {
+				return err
+			}
+			resume = active == 0
+		}
 		if libraryID > 0 && current.LibraryID > 0 && current.LibraryID != libraryID {
 			return &RequestError{StatusCode: http.StatusConflict, Err: fmt.Errorf("channel %d is already linked to resource account %d; unlink it from that account before linking another", channelID, current.LibraryID)}
 		}
@@ -533,7 +546,7 @@ func BindChannelLibrary(channelID, libraryID int, enabled bool) (*ChannelConfigV
 		return nil, err
 	}
 	if library != nil && enabled && !alreadyActive {
-		backfillMissingAssets(library.ID)
+		backfillMissingAssets(library.ID, resume)
 	}
 	view := channelConfigView(*channel, config)
 	if library != nil {
@@ -611,7 +624,7 @@ func queueMissingAssets(channelID int) error {
 // uploaded before it did, as enabling a channel did before shared accounts. It
 // does nothing for a disabled account or one without an enabled channel, and a
 // failure only logs: "Sync missing assets" stays available as a manual retry.
-func backfillMissingAssets(libraryID int) {
+func backfillMissingAssets(libraryID int, resume bool) {
 	var library model.AssetLibraryConnection
 	if err := model.DB.Select("id", "enabled").First(&library, libraryID).Error; err != nil || !library.Enabled {
 		return
@@ -619,6 +632,17 @@ func backfillMissingAssets(libraryID int) {
 	var channelIDs []int
 	if err := linkedAssetLibraryBindings(model.DB).Where("library_id = ? AND enabled = ?", libraryID, true).Pluck("channel_id", &channelIDs).Error; err != nil || len(channelIDs) == 0 {
 		return
+	}
+	if resume {
+		now := common.GetTimestamp()
+		if err := model.DB.Model(&model.AssetReplica{}).
+			Where("library_id = ? AND operation = ? AND progress < 100", libraryID, model.AssetReplicaOperationSync).
+			Where("status IN ?", []string{model.AssetReplicaStatusPending, model.AssetReplicaStatusProcessing, model.AssetReplicaStatusSyncing}).
+			Where("locked_by = ? OR locked_by IS NULL OR lease_until <= ?", "", now).
+			Updates(map[string]any{"created_at": now, "next_sync_at": now}).Error; err != nil {
+			logger.LogWarn(context.Background(), fmt.Sprintf("resume of paused assets in library %d failed: %v", libraryID, err))
+			return
+		}
 	}
 	if err := queueMissingAssets(channelIDs[0]); err != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("backfill of existing assets to asset library %d failed: %v", libraryID, err))
@@ -629,7 +653,7 @@ func backfillMissingAssets(libraryID int) {
 // scheduling fields only and never touches stored credentials.
 func assetSyncConfigs() ([]model.AssetChannelConfig, error) {
 	var libraries []model.AssetLibraryConnection
-	if err := model.DB.Select("id", "enabled", "qpm").Find(&libraries).Error; err != nil {
+	if err := model.DB.Select("id", "enabled", "qpm", "rate_limit_library_id").Find(&libraries).Error; err != nil {
 		return nil, err
 	}
 	var linkedIDs []int
@@ -641,8 +665,16 @@ func assetSyncConfigs() ([]model.AssetChannelConfig, error) {
 		linked[id] = true
 	}
 	configs := make([]model.AssetChannelConfig, 0, len(libraries))
+	budgets := make(map[int]int, len(libraries))
 	for _, library := range libraries {
-		configs = append(configs, model.AssetChannelConfig{LibraryID: library.ID, QPM: library.QPM, Enabled: library.Enabled && linked[library.ID]})
+		budgets[library.ID] = library.QPM
+	}
+	for _, library := range libraries {
+		qpm := library.QPM
+		if budget, ok := budgets[library.RateLimitLibraryID]; ok {
+			qpm = budget
+		}
+		configs = append(configs, model.AssetChannelConfig{LibraryID: library.ID, RateLimitLibraryID: library.RateLimitLibraryID, QPM: qpm, Enabled: library.Enabled && linked[library.ID]})
 	}
 	// Configurations that predate shared libraries stay usable until migrated.
 	var legacy []model.AssetChannelConfig

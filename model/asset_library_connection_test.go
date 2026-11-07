@@ -57,3 +57,49 @@ func TestSharedLibrarySchemaUpgradePreservesLegacyRowsAndAllowsMultipleNullChann
 		})
 	}
 }
+
+func TestMergeAssetLibraryGroupSwapsCopiesWithoutLosingUpstreamState(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql"} {
+		t.Run(dialect, func(t *testing.T) {
+			db := setupAssetSchedulerDB(t, dialect)
+			require.NoError(t, db.AutoMigrate(&AssetLibraryConnection{}, &AssetGroupReplica{}))
+			t.Cleanup(func() {
+				assert.NoError(t, db.Migrator().DropTable(&AssetLibraryConnection{}, &AssetGroupReplica{}))
+			})
+			first := AssetLibraryConnection{Name: "kept", Enabled: true, QPM: 30}
+			second := AssetLibraryConnection{Name: "retired", Enabled: true, QPM: 60}
+			require.NoError(t, db.Create(&first).Error)
+			require.NoError(t, db.Create(&second).Error)
+			failed := AssetReplica{AssetID: 1, LibraryID: &first.ID, Status: AssetReplicaStatusFailed, Operation: AssetReplicaOperationSync,
+				UpstreamAssetID: "failed-upstream", LastError: "provider failed", Attempts: 3}
+			working := AssetReplica{AssetID: 1, LibraryID: &second.ID, Status: AssetReplicaStatusActive, Operation: AssetReplicaOperationSync, UpstreamAssetID: "working-upstream"}
+			require.NoError(t, db.Create(&failed).Error)
+			require.NoError(t, db.Create(&working).Error)
+			for _, id := range []int64{2, 3} {
+				require.NoError(t, db.Create(&AssetReplica{AssetID: id, LibraryID: &first.ID, Status: AssetReplicaStatusActive, Operation: AssetReplicaOperationSync}).Error)
+			}
+			for _, library := range []AssetLibraryConnection{first, second} {
+				status := AssetReplicaStatusActive
+				if library.ID == first.ID {
+					status = AssetReplicaStatusFailed
+				}
+				require.NoError(t, db.Create(&AssetGroupReplica{GroupID: 1, LibraryID: &library.ID, Status: status, UpstreamGroupID: library.Name}).Error)
+			}
+			keptID, err := MergeAssetLibraryGroup([]int{first.ID, second.ID}, "fixture-resource")
+			require.NoError(t, err)
+			require.Equal(t, first.ID, keptID)
+			require.NoError(t, db.First(&working, working.ID).Error)
+			require.NoError(t, db.First(&failed, failed.ID).Error)
+			assert.Equal(t, first.ID, *working.LibraryID)
+			assert.Equal(t, "working-upstream", working.UpstreamAssetID)
+			assert.Equal(t, second.ID, *failed.LibraryID)
+			assert.Equal(t, "failed-upstream", failed.UpstreamAssetID)
+			assert.Equal(t, "provider failed", failed.LastError)
+			assert.Equal(t, 3, failed.Attempts)
+			var group AssetGroupReplica
+			require.NoError(t, db.Where("library_id = ?", first.ID).First(&group).Error)
+			assert.Equal(t, "retired", group.UpstreamGroupID)
+			assert.Equal(t, AssetReplicaStatusActive, group.Status)
+		})
+	}
+}

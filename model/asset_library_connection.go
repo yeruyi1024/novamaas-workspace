@@ -30,6 +30,7 @@ type AssetLibraryConnection struct {
 	CredentialKeyVersion string  `json:"-" gorm:"type:varchar(32)"`
 	LegacyChannelID      *int    `json:"legacy_channel_id,omitempty" gorm:"uniqueIndex"`
 	ResourceKey          *string `json:"-" gorm:"type:char(64);uniqueIndex"`
+	RateLimitLibraryID   int     `json:"-"`
 	CreatedAt            int64   `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt            int64   `json:"updated_at" gorm:"bigint;index"`
 }
@@ -57,7 +58,7 @@ func LockAssetLibraryChannels(tx *gorm.DB, channelIDs []int) ([]Channel, error) 
 
 func (value AssetLibraryConnection) ProviderConfig(channelID int) AssetChannelConfig {
 	return AssetChannelConfig{
-		ChannelID: channelID, LibraryID: value.ID, Enabled: value.Enabled,
+		ChannelID: channelID, LibraryID: value.ID, RateLimitLibraryID: value.RateLimitLibraryID, Enabled: value.Enabled,
 		Protocol: value.Protocol, AuthType: value.AuthType, BaseURL: value.BaseURL,
 		Region: value.Region, Service: value.Service, APIVersion: value.APIVersion,
 		ProjectName: value.ProjectName, QPM: value.QPM, AccessKeyID: value.AccessKeyID,
@@ -81,6 +82,9 @@ func AssetLibraryFromConfig(name string, config AssetChannelConfig) AssetLibrary
 // RateLimitID separates shared-library budgets from legacy channel budgets.
 // These keys are internal rate-limiter buckets, never routing-channel IDs.
 func (value AssetChannelConfig) RateLimitID() int {
+	if value.RateLimitLibraryID > 0 {
+		return -value.RateLimitLibraryID
+	}
 	if value.LibraryID > 0 {
 		return -value.LibraryID
 	}
@@ -134,8 +138,9 @@ func MigrateAssetLibraryConnections(db *gorm.DB) error {
 
 // MergeAssetLibraryGroup folds accounts that point at exactly the same upstream
 // account into the one holding the most active copies (lowest ID on a tie).
-// Channel bindings move to it and it takes the name of the lowest-ID account. A copy moves only when the kept account has none
-// for that asset or platform group, so nothing is uploaded again and nothing
+// Channel bindings move to it and it takes the name of the lowest-ID account.
+// Active copies fill gaps or replace unfinished/failed copies, which move to
+// the old account instead. Nothing is uploaded again and nothing
 // upstream is deleted; surplus copies stay with their old account, which keeps
 // its credentials so those copies can still be removed with the asset; an old
 // account holding no copies at all is deleted. It
@@ -191,20 +196,31 @@ func MergeAssetLibraryGroup(ids []int, resourceKey string) (int, error) {
 			model  any
 			column string
 		}{{&AssetReplica{}, "asset_id"}, {&AssetGroupReplica{}, "group_id"}} {
-			var held []int64
-			if err := tx.Model(table.model).Where("library_id = ?", keep.ID).Pluck(table.column, &held).Error; err != nil {
+			isAsset := table.column == "asset_id"
+			var held []struct {
+				ID        int64
+				Owner     int64
+				Status    string
+				Operation string
+			}
+			columns := "id, " + table.column + " as owner, status"
+			if isAsset {
+				columns += ", operation"
+			}
+			if err := tx.Model(table.model).Where("library_id = ?", keep.ID).Select(columns).Find(&held).Error; err != nil {
 				return err
 			}
-			taken := make(map[int64]bool, len(held))
-			for _, id := range held {
-				taken[id] = true
+			taken := make(map[int64]int, len(held))
+			for index, copy := range held {
+				taken[copy.Owner] = index
 			}
 			var candidates []struct {
-				ID    int64
-				Owner int64
+				ID        int64
+				Owner     int64
+				LibraryID int
 			}
-			query := tx.Model(table.model).Where("library_id IN ? AND status = ?", others, AssetReplicaStatusActive).Order("id asc").Select("id, " + table.column + " as owner")
-			if _, isAsset := table.model.(*AssetReplica); isAsset {
+			query := tx.Model(table.model).Where("library_id IN ? AND status = ?", others, AssetReplicaStatusActive).Order("id asc").Select("id, library_id, " + table.column + " as owner")
+			if isAsset {
 				query = query.Where("operation = ?", AssetReplicaOperationSync)
 			}
 			if err := query.Find(&candidates).Error; err != nil {
@@ -212,10 +228,30 @@ func MergeAssetLibraryGroup(ids []int, resourceKey string) (int, error) {
 			}
 			var moving []int64
 			for _, candidate := range candidates {
-				if !taken[candidate.Owner] {
-					taken[candidate.Owner] = true
-					moving = append(moving, candidate.ID)
+				if index, exists := taken[candidate.Owner]; exists {
+					if index < 0 {
+						continue
+					}
+					copy := held[index]
+					if isAsset && copy.Operation != AssetReplicaOperationSync {
+						continue
+					}
+					switch copy.Status {
+					case AssetReplicaStatusPending, AssetReplicaStatusSyncing, AssetReplicaStatusProcessing, AssetReplicaStatusFailed:
+						// Swap ownership inside this transaction to retain both rows
+						// without colliding with the (asset/group, library) index.
+						if err := tx.Model(table.model).Where("id = ?", candidate.ID).Update("library_id", nil).Error; err != nil {
+							return err
+						}
+						if err := tx.Model(table.model).Where("id = ?", copy.ID).Update("library_id", candidate.LibraryID).Error; err != nil {
+							return err
+						}
+					default:
+						continue // preserve active copies, rejection and deletion intent
+					}
 				}
+				taken[candidate.Owner] = -1
+				moving = append(moving, candidate.ID)
 			}
 			for start := 0; start < len(moving); start += 500 {
 				end := min(start+500, len(moving))
@@ -223,6 +259,12 @@ func MergeAssetLibraryGroup(ids []int, resourceKey string) (int, error) {
 					return err
 				}
 			}
+		}
+		// Retired accounts keep their credentials and copies, but all their
+		// maintenance requests must spend the surviving account's budget.
+		if err := tx.Model(&AssetLibraryConnection{}).Where("id IN ? OR rate_limit_library_id IN ?", ids, ids).
+			Update("rate_limit_library_id", keep.ID).Error; err != nil {
+			return err
 		}
 		// An account left with no copies and no channels has nothing to keep.
 		for _, id := range others {

@@ -333,3 +333,130 @@ func TestSharedLibraryResolvesSameUpstreamAssetThroughBothChannels(t *testing.T)
 	_, _, err = ResolveRequestAssetIDs(body, 7, 13)
 	require.Error(t, err, "another account cannot fall back to the first account's upstream ID")
 }
+
+func TestPausedProcessingResumesAfterReenable(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "pr89-review-fixture")
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"Result":{"Status":"Active"}}`)
+	}))
+	t.Cleanup(upstream.Close)
+	input := LibraryConfigInput{Name: "paused account", ChannelConfigInput: ChannelConfigInput{
+		Enabled: false, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthBearer,
+		BaseURL: upstream.URL, Credential: "fixture-secret", QPM: 60,
+	}}
+	library, err := SaveLibraryConnection(0, input)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.Channel{Id: 1, Name: "channel", Type: 61}).Error)
+	_, err = BindChannelLibrary(1, library.ID, true)
+	require.NoError(t, err)
+	group := model.AssetGroup{PublicID: "group-paused", OwnerUserID: 7, Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&group).Error)
+	asset := model.MediaAsset{PublicID: "asset-paused", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 200, Status: model.AssetStatusProcessing}
+	require.NoError(t, db.Create(&asset).Error)
+	now := common.GetTimestamp()
+	replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, UpstreamAssetID: "working-upstream",
+		Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusProcessing, Progress: 75,
+		CreatedAt: now - 600, NextSyncAt: now,
+	}
+	require.NoError(t, db.Create(&replica).Error)
+	scheduler := newAssetSyncScheduler("pr89-review")
+	paused, err := scheduler.claimNextConfig(model.AssetChannelConfig{LibraryID: library.ID, Enabled: false})
+	require.NoError(t, err)
+	require.Nil(t, paused)
+	for index, state := range []string{model.AssetReplicaStatusFailed, model.AssetReplicaStatusActive, model.AssetReplicaStatusSyncing} {
+		other := model.AssetReplica{AssetID: asset.ID + int64(index) + 1, LibraryID: &library.ID, Operation: model.AssetReplicaOperationSync,
+			Status: state, CreatedAt: now - 600, NextSyncAt: now + 3600}
+		if state == model.AssetReplicaStatusSyncing {
+			other.LockedBy, other.LeaseUntil = "live-worker", now+120
+		}
+		require.NoError(t, db.Create(&other).Error)
+	}
+	input.Enabled, input.Credential = true, ""
+	_, err = SaveLibraryConnection(library.ID, input)
+	require.NoError(t, err)
+	var untouched []model.AssetReplica
+	require.NoError(t, db.Where("library_id = ? AND asset_id <> ?", library.ID, asset.ID).Find(&untouched).Error)
+	require.Len(t, untouched, 3)
+	for _, other := range untouched {
+		assert.Equal(t, now-600, other.CreatedAt, "failed, active and currently leased work retains its budget")
+		assert.Equal(t, now+3600, other.NextSyncAt)
+	}
+	claimed, err := scheduler.claimNextConfig(model.AssetChannelConfig{LibraryID: library.ID, Enabled: true})
+	require.NoError(t, err)
+	require.NotNil(t, claimed)
+	syncReplica(context.Background(), claimed.LockedBy, claimed)
+	require.NoError(t, db.First(&replica, replica.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusActive, replica.Status, "an account pause must not exhaust the processing timeout: %s", replica.LastError)
+}
+
+func TestMergedHistoricalDeletionSharesCurrentAccountBudget(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "shared-delete-fixture")
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "DeleteAsset", r.URL.Query().Get("Action"))
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"Result":{}}`)
+	}))
+	t.Cleanup(upstream.Close)
+	for _, channelID := range []int{1, 2} {
+		seedLegacyChannel(t, db, channelID, upstream.URL, "fixture-ak", "fixture-secret", true)
+	}
+	asset := model.MediaAsset{PublicID: "asset-delete-budget", OwnerUserID: 7, StorageObjectID: 201, Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&asset).Error)
+	seedLegacyCopy(t, db, asset.ID, 1, "first-copy", model.AssetReplicaStatusActive)
+	seedLegacyCopy(t, db, asset.ID, 2, "historical-copy", model.AssetReplicaStatusActive)
+	require.NoError(t, model.MigrateAssetLibraryConnections(db))
+	report, err := MergeIdenticalLibraries()
+	require.NoError(t, err)
+	require.Equal(t, 1, report.MergedGroups)
+	var library model.AssetLibraryConnection
+	require.NoError(t, db.First(&library, libraryOfChannel(t, db, 1)).Error)
+	require.NoError(t, model.RequestAssetDeletion(db, asset.ID))
+	// Occupy the account's next request slot without relying on wall-clock sleeps.
+	reserveChannelRate(library.ProviderConfig(0).RateLimitID(), 1)
+	scheduler := newAssetSyncScheduler("historical-delete-budget")
+	scheduler.dispatch(context.Background())
+	scheduler.jobs.Wait()
+	assert.Zero(t, calls.Load(), "neither current nor historical copies may bypass the occupied account budget")
+	for range 2 {
+		channelRateState.Lock()
+		delete(channelRateState.next, library.ProviderConfig(0).RateLimitID())
+		delete(channelRateState.sentNext, library.ProviderConfig(0).RateLimitID())
+		channelRateState.Unlock()
+		scheduler.dispatch(context.Background())
+		scheduler.jobs.Wait()
+	}
+	assert.EqualValues(t, 2, calls.Load(), "both accounts retain their own deletion queue while sharing one budget")
+	var remaining int64
+	require.NoError(t, db.Model(&model.AssetReplica{}).Where("asset_id = ? AND status <> ?", asset.ID, model.AssetReplicaStatusDeleted).Count(&remaining).Error)
+	assert.Zero(t, remaining)
+}
+
+func TestFirstEnabledChannelResumesPausedWorkButAdditionalChannelsDoNot(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	library := model.AssetLibraryConnection{Name: "unlinked", Enabled: true}
+	require.NoError(t, db.Create(&library).Error)
+	for _, id := range []int{1, 2} {
+		require.NoError(t, db.Create(&model.Channel{Id: id, Name: "video channel", Type: constant.ChannelTypeVolcNative}).Error)
+	}
+	asset := model.MediaAsset{PublicID: "asset-relink", OwnerUserID: 7, StorageObjectID: 202, Status: model.AssetStatusProcessing}
+	require.NoError(t, db.Create(&asset).Error)
+	now := common.GetTimestamp()
+	replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, Operation: model.AssetReplicaOperationSync,
+		Status: model.AssetReplicaStatusProcessing, UpstreamAssetID: "already-submitted", CreatedAt: now - 600}
+	require.NoError(t, db.Create(&replica).Error)
+	_, err := BindChannelLibrary(1, library.ID, true)
+	require.NoError(t, err)
+	require.NoError(t, db.First(&replica, replica.ID).Error)
+	assert.GreaterOrEqual(t, replica.CreatedAt, now)
+	assert.Equal(t, "already-submitted", replica.UpstreamAssetID)
+	require.NoError(t, db.Model(&replica).Update("created_at", now-60).Error)
+	_, err = BindChannelLibrary(2, library.ID, true)
+	require.NoError(t, err)
+	require.NoError(t, db.First(&replica, replica.ID).Error)
+	assert.Equal(t, now-60, replica.CreatedAt, "adding a channel must not extend an account that was already synchronizing")
+}

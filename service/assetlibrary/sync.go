@@ -197,7 +197,10 @@ func (scheduler *assetSyncScheduler) dispatch(parent context.Context) time.Durat
 		}
 		allowedAt := reserveChannelRate(rateID, config.QPM)
 		ctx := withChannelRateReservation(parent, rateID, config.QPM, allowedAt, replicaWorkload(replica))
-		key := assetSyncQueue{rateID, replicaWorkload(replica)}
+		key := assetSyncQueue{config.ChannelID, replicaWorkload(replica)}
+		if config.LibraryID > 0 {
+			key.channelID = -config.LibraryID
+		}
 		scheduler.mu.Lock()
 		scheduler.inFlight[key]++
 		scheduler.mu.Unlock()
@@ -232,7 +235,10 @@ func (scheduler *assetSyncScheduler) claimNext(channelID int) (*model.AssetRepli
 }
 
 func (scheduler *assetSyncScheduler) claimNextConfig(config model.AssetChannelConfig) (*model.AssetReplica, error) {
-	channelID := config.RateLimitID()
+	channelID := config.ChannelID
+	if config.LibraryID > 0 {
+		channelID = -config.LibraryID
+	}
 	now := common.GetTimestamp()
 	start := scheduler.turns[channelID]
 	loaded := make(map[model.AssetReplicaWorkload]bool, len(assetSyncTurns))
@@ -250,7 +256,7 @@ func (scheduler *assetSyncScheduler) claimNextConfig(config model.AssetChannelCo
 		scheduler.mu.Lock()
 		busy := scheduler.inFlight[key] > 0
 		scheduler.mu.Unlock()
-		if busy || (workload == model.AssetReplicaWorkloadReview && channelReviewRateDelay(channelID) > 0) {
+		if busy || (workload == model.AssetReplicaWorkloadReview && channelReviewRateDelay(config.RateLimitID()) > 0) {
 			continue
 		}
 		if len(scheduler.pending[key]) == 0 {

@@ -76,6 +76,13 @@ func newProviderClient(config *model.AssetChannelConfig) (assetProvider, error) 
 	if config == nil {
 		return nil, errors.New("asset channel configuration is required")
 	}
+	if config.RateLimitLibraryID > 0 && config.RateLimitLibraryID != config.LibraryID {
+		var budget model.AssetLibraryConnection
+		if err := model.DB.Select("id", "qpm").First(&budget, config.RateLimitLibraryID).Error; err != nil {
+			return nil, err
+		}
+		config.QPM = budget.QPM
+	}
 	secret, err := decryptChannelCredential(config.EncryptedCredential)
 	if err != nil {
 		return nil, err
