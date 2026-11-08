@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -13,6 +14,85 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSharedLibraryAdminResponseRedactsKeysAndSavingDoesNotSynchronize(t *testing.T) {
+	db := setupManageUserTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.AssetLibraryConnection{}, &model.AssetChannelConfig{}, &model.AssetReplica{}, &model.MediaAsset{}))
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "admin-library-fixture")
+	require.NoError(t, db.Create(&model.Channel{Id: 41, Name: "pricing channel", Type: 61}).Error)
+	require.NoError(t, db.Create(&model.MediaAsset{PublicID: "asset-already-saved", StorageObjectID: 71, Status: model.AssetStatusReady}).Error)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Set("id", 1)
+	ctx.Set("role", common.RoleRootUser)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/asset-library/admin/libraries", strings.NewReader(`{"name":"Production account","provider_name":"Provider","enabled":true,"protocol":"volc_action","auth_type":"ak_sk","base_url":"https://provider.example","access_key_id":"fixture-access-id","credential":"fixture-secret-value"}`))
+	SaveAssetLibraryConnection(ctx)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var result struct {
+		Success bool
+		Data    assetService.LibraryConnectionView
+	}
+	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+	require.True(t, result.Success)
+	assert.Positive(t, result.Data.ID)
+	assert.Empty(t, result.Data.Channels)
+	assert.True(t, result.Data.CredentialConfigured)
+	assert.NotContains(t, response.Body.String(), "fixture-access-id")
+	assert.NotContains(t, response.Body.String(), "fixture-secret-value")
+	assert.NotContains(t, response.Body.String(), "encrypted_credential")
+	assert.NotContains(t, response.Body.String(), "resource_key")
+	var count int64
+	require.NoError(t, db.Model(&model.AssetReplica{}).Count(&count).Error)
+	assert.Zero(t, count, "saving parameters must not submit an upload")
+}
+
+func TestUnlinkingChannelDoesNotRequireDecryptingAccountCredentials(t *testing.T) {
+	db := setupManageUserTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.AssetChannelConfig{}, &model.AssetLibraryConnection{}, &model.AssetReplica{}, &model.MediaAsset{}, &model.AssetGroupReplica{}))
+	library := model.AssetLibraryConnection{Name: "backup account", EncryptedCredential: "unreadable-ciphertext"}
+	require.NoError(t, db.Create(&library).Error)
+	require.NoError(t, db.Create(&model.Channel{Id: 41, Name: "video", Type: 61}).Error)
+	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 41, LibraryID: library.ID, Enabled: true}).Error)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Set("id", 1)
+	ctx.Set("role", common.RoleRootUser)
+	ctx.Params = gin.Params{{Key: "channel_id", Value: "41"}}
+	ctx.Request = httptest.NewRequest(http.MethodPut, "/api/asset-library/admin/channels/41", strings.NewReader(`{"library_id":0}`))
+	UpdateAssetChannelConfig(ctx)
+	assert.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	assert.NotContains(t, response.Body.String(), "unreadable-ciphertext")
+	var binding model.AssetChannelConfig
+	require.NoError(t, db.First(&binding).Error)
+	assert.Zero(t, binding.LibraryID)
+}
+
+func TestMergeAssetLibrariesWithNothingToMergeChangesNothing(t *testing.T) {
+	db := setupManageUserTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.AssetChannelConfig{}, &model.AssetLibraryConnection{}, &model.AssetReplica{}, &model.AssetGroupReplica{}, &model.MediaAsset{}))
+	library := model.AssetLibraryConnection{Name: "only account", Enabled: true}
+	require.NoError(t, db.Create(&library).Error)
+	require.NoError(t, db.Create(&model.Channel{Id: 41, Name: "video", Type: 61}).Error)
+	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 41, LibraryID: library.ID, Enabled: true}).Error)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Set("id", 1)
+	ctx.Set("role", common.RoleRootUser)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/asset-library/admin/libraries/merge", nil)
+	MergeAssetLibraries(ctx)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var result struct {
+		Success bool
+		Data    assetService.LibraryMergeReport
+	}
+	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+	assert.True(t, result.Success)
+	assert.Zero(t, result.Data.MergedGroups)
+	assert.Zero(t, result.Data.DeferredGroups)
+	var accounts int64
+	require.NoError(t, db.Model(&model.AssetLibraryConnection{}).Count(&accounts).Error)
+	assert.EqualValues(t, 1, accounts)
+}
 
 type assetGroupListResponse struct {
 	Success bool                     `json:"success"`

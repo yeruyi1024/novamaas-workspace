@@ -33,12 +33,16 @@ vi.mock('@/features/assets/api', () => ({
   })),
 }))
 vi.mock('../api', () => ({
-  listAssetChannelConfigs: vi.fn(async () => ({
+  listAssetLibraryConnections: vi.fn(async () => ({
     success: true,
     data: [
       {
-        channel_id: 7,
-        channel_name: 'YooFang production',
+        id: 7,
+        name: 'YooFang production',
+        provider_name: 'YooFang',
+        summary: { total: 1, active: 0, failed: 1, pending: 0, processing: 0 },
+        missing: 0,
+        channels: [{ id: 7, name: 'YooFang production', enabled: true }],
         enabled: true,
       },
     ],
@@ -88,7 +92,7 @@ beforeEach(() => {
 
 afterEach(() => queryClient?.clear())
 
-function renderManagement() {
+function renderManagement(initialLibraryId = 7) {
   queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -97,12 +101,22 @@ function renderManagement() {
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <AssetSyncManagement />
+      <AssetSyncManagement initialLibraryId={initialLibraryId} />
     </QueryClientProvider>
   )
 }
 
 describe('asset synchronization management', () => {
+  test('opens a compact library overview and loads asset rows only after selecting an account', async () => {
+    renderManagement(0)
+    expect(await screen.findByRole('region', { name: 'YooFang' })).toBeVisible()
+    expect(listAssetSyncJobs).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+    expect(await screen.findByText('Campaign hero')).toBeVisible()
+    expect(listAssetSyncJobs).toHaveBeenCalledWith(
+      expect.objectContaining({ libraryId: 7 })
+    )
+  })
   test('keeps failed synchronization handling on the administrator page', async () => {
     renderManagement()
 
@@ -180,7 +194,9 @@ describe('asset synchronization management', () => {
     renderManagement()
 
     expect(await screen.findByText('Rejected hero')).toBeVisible()
-    expect(screen.getAllByText('Asset rejected by upstream').length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText('Asset rejected by upstream').length
+    ).toBeGreaterThan(0)
     expect(screen.getByText(/Real-person content was rejected/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: 'Retry' })

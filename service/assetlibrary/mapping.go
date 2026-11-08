@@ -82,17 +82,35 @@ func ResolveRequestAssetIDs(body []byte, ownerUserID int, channelID int) ([]byte
 	if len(resolved) == 0 {
 		return body, 0, nil
 	}
-	var configCount int64
-	if err := model.DB.Model(&model.AssetChannelConfig{}).Where("channel_id = ? AND enabled = ?", channelID, true).Count(&configCount).Error; err != nil {
+	var binding model.AssetChannelConfig
+	err := model.DB.Where("channel_id = ? AND enabled = ?", channelID, true).First(&binding).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, 0, &RequestError{StatusCode: http.StatusConflict, Err: errors.New("the selected channel has no enabled asset-library integration")}
+	}
+	if err != nil {
 		return nil, 0, err
 	}
-	if configCount != 1 {
-		return nil, 0, &RequestError{StatusCode: http.StatusConflict, Err: errors.New("the selected channel has no enabled asset-library integration")}
+	if binding.LibraryID > 0 {
+		// Disabling an account only stops writing new copies to it; the copies it
+		// already holds stay usable, so only a missing account is an error here.
+		var accounts int64
+		if err := model.DB.Model(&model.AssetLibraryConnection{}).Where("id = ?", binding.LibraryID).Count(&accounts).Error; err != nil {
+			return nil, 0, err
+		}
+		if accounts == 0 {
+			return nil, 0, &RequestError{StatusCode: http.StatusConflict, Err: errors.New("the selected channel's shared asset library is unavailable")}
+		}
 	}
 	for publicID := range resolved {
 		asset := localAssets[publicID]
 		var replica model.AssetReplica
-		if err := model.DB.Where("asset_id = ? AND channel_id = ?", asset.ID, channelID).First(&replica).Error; err != nil {
+		query := model.DB.Where("asset_id = ?", asset.ID)
+		if binding.LibraryID > 0 {
+			query = query.Where("library_id = ?", binding.LibraryID)
+		} else {
+			query = query.Where("channel_id = ? AND library_id IS NULL", channelID)
+		}
+		if err := query.First(&replica).Error; err != nil {
 			return nil, 0, &RequestError{StatusCode: http.StatusConflict, Err: fmt.Errorf("asset %s has not been synchronized to the selected channel", publicID)}
 		}
 		if replica.Status != model.AssetReplicaStatusActive || replica.UpstreamAssetID == "" {
