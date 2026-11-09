@@ -113,7 +113,8 @@ function RequestLogDetail(props: { id: number }) {
 
 export function AssetRequestLogDialog(props: {
   open: boolean
-  channelId: number
+  channelId?: number
+  libraryId?: number
   replicaId?: number
   onOpenChange: (open: boolean) => void
 }) {
@@ -139,6 +140,7 @@ export function AssetRequestLogDialog(props: {
       'admin',
       'request-logs',
       props.channelId,
+      props.libraryId,
       props.replicaId,
       source,
       result,
@@ -150,7 +152,8 @@ export function AssetRequestLogDialog(props: {
     queryFn: async () =>
       assertAssetSuccess(
         await listAssetRequestLogs({
-          channelId: props.channelId,
+          channelId: props.replicaId ? undefined : props.channelId,
+          libraryId: props.replicaId ? undefined : props.libraryId,
           replicaId: props.replicaId,
           source,
           result,
@@ -171,7 +174,8 @@ export function AssetRequestLogDialog(props: {
         <DialogHeader>
           <DialogTitle>{t('Request logs')}</DialogTitle>
           <DialogDescription>
-            {t('Channel ID')} · {props.channelId}
+            {props.libraryId ? t('Upstream asset library ID') : t('Channel ID')}{' '}
+            · {props.libraryId || props.channelId}
             {props.replicaId ? ` · ${t('Task ID')} ${props.replicaId}` : ''}
           </DialogDescription>
         </DialogHeader>

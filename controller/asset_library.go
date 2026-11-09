@@ -202,6 +202,106 @@ func ListAssetChannelConfigs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": configs})
 }
 
+func ListAssetLibraryConnections(c *gin.Context) {
+	libraries, err := assetService.ListLibraryConnections()
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": libraries})
+}
+
+func DeleteAssetLibraryConnection(c *gin.Context) {
+	libraryID, err := strconv.Atoi(c.Param("library_id"))
+	if err != nil || libraryID <= 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+		return
+	}
+	if err := assetService.DeleteLibraryConnection(libraryID); err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	recordManageAudit(c, "asset_library.connection_delete_requested", map[string]interface{}{"library_id": libraryID})
+	c.JSON(http.StatusAccepted, gin.H{"success": true})
+}
+
+func SaveAssetLibraryConnection(c *gin.Context) {
+	libraryID := 0
+	if c.Param("library_id") != "" {
+		var err error
+		libraryID, err = strconv.Atoi(c.Param("library_id"))
+		if err != nil || libraryID <= 0 {
+			assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+			return
+		}
+	}
+	var input assetService.LibraryConfigInput
+	if err := common.DecodeJson(c.Request.Body, &input); err != nil {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library configuration")})
+		return
+	}
+	library, err := assetService.SaveLibraryConnection(libraryID, input)
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	recordManageAudit(c, "asset_library.connection_save", map[string]interface{}{"library_id": library.ID, "enabled": library.Enabled})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": library})
+}
+
+// MergeAssetLibraries folds accounts that share exactly the same upstream
+// account. It runs only when an administrator asks for it.
+func MergeAssetLibraries(c *gin.Context) {
+	report, err := assetService.MergeIdenticalLibraries()
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	recordManageAudit(c, "asset_library.merge", map[string]interface{}{"merged_groups": report.MergedGroups, "deferred_groups": report.DeferredGroups})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": report})
+}
+
+func TestAssetLibraryConnection(c *gin.Context) {
+	libraryID := 0
+	if c.Param("library_id") != "" {
+		var err error
+		libraryID, err = strconv.Atoi(c.Param("library_id"))
+		if err != nil || libraryID <= 0 {
+			assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+			return
+		}
+	}
+	var input *assetService.LibraryConfigInput
+	if c.Request.ContentLength != 0 {
+		input = &assetService.LibraryConfigInput{}
+		if err := common.DecodeJson(c.Request.Body, input); err != nil {
+			assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library test request")})
+			return
+		}
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
+	defer cancel()
+	if err := assetService.TestLibraryConnection(ctx, libraryID, input); err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func SyncAssetLibraryConnection(c *gin.Context) {
+	libraryID, err := strconv.Atoi(c.Param("library_id"))
+	if err != nil || libraryID <= 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+		return
+	}
+	if err := assetService.QueueLibrarySync(libraryID); err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	recordManageAudit(c, "asset_library.connection_sync_missing", map[string]interface{}{"library_id": libraryID})
+	c.JSON(http.StatusAccepted, gin.H{"success": true})
+}
+
 func UpdateAssetChannelConfig(c *gin.Context) {
 	channelID, ok := assetChannelID(c)
 	if !ok {
@@ -268,7 +368,12 @@ func ListAssetSyncJobs(c *gin.Context) {
 		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid channel ID")})
 		return
 	}
-	result, err := assetService.ListSyncJobs(pageInfo.GetPage(), pageInfo.GetPageSize(), channelID, c.Query("status"))
+	libraryID, err := strconv.Atoi(c.DefaultQuery("library_id", "0"))
+	if err != nil || libraryID < 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+		return
+	}
+	result, err := assetService.ListSyncJobs(pageInfo.GetPage(), pageInfo.GetPageSize(), channelID, c.Query("status"), assetService.SyncJobFilter{LibraryID: libraryID})
 	if err != nil {
 		assetLibraryError(c, err)
 		return

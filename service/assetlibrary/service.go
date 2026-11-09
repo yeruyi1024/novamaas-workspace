@@ -112,6 +112,7 @@ type AssetListView struct {
 }
 
 type ChannelConfigInput struct {
+	LibraryID   *int   `json:"library_id,omitempty"`
 	Enabled     bool   `json:"enabled"`
 	Protocol    string `json:"protocol"`
 	AuthType    string `json:"auth_type"`
@@ -126,6 +127,9 @@ type ChannelConfigInput struct {
 }
 
 type ChannelConfigView struct {
+	LibraryID            int    `json:"library_id"`
+	LibraryName          string `json:"library_name"`
+	LibraryEnabled       bool   `json:"library_enabled"`
 	ChannelID            int    `json:"channel_id"`
 	ChannelName          string `json:"channel_name"`
 	ChannelType          int    `json:"channel_type"`
@@ -144,23 +148,27 @@ type ChannelConfigView struct {
 }
 
 type SyncJobView struct {
-	ID           int64  `json:"id"`
-	AssetID      string `json:"asset_id"`
-	AssetName    string `json:"asset_name"`
-	AssetType    string `json:"asset_type"`
-	GroupID      string `json:"group_id"`
-	GroupName    string `json:"group_name"`
-	OwnerUserID  int    `json:"owner_user_id"`
-	OwnerName    string `json:"owner_name"`
-	ChannelID    int    `json:"channel_id"`
-	ChannelName  string `json:"channel_name"`
-	Operation    string `json:"operation"`
-	Status       string `json:"status"`
-	Progress     int    `json:"progress"`
-	Attempts     int    `json:"attempts"`
-	LastError    string `json:"last_error,omitempty"`
-	LastSyncedAt int64  `json:"last_synced_at"`
-	UpdatedAt    int64  `json:"updated_at"`
+	UpstreamAssetID string               `json:"upstream_asset_id,omitempty"`
+	LibraryID       int                  `json:"library_id"`
+	LibraryName     string               `json:"library_name"`
+	Channels        []LibraryChannelView `json:"channels"`
+	ID              int64                `json:"id"`
+	AssetID         string               `json:"asset_id"`
+	AssetName       string               `json:"asset_name"`
+	AssetType       string               `json:"asset_type"`
+	GroupID         string               `json:"group_id"`
+	GroupName       string               `json:"group_name"`
+	OwnerUserID     int                  `json:"owner_user_id"`
+	OwnerName       string               `json:"owner_name"`
+	ChannelID       int                  `json:"channel_id"`
+	ChannelName     string               `json:"channel_name"`
+	Operation       string               `json:"operation"`
+	Status          string               `json:"status"`
+	Progress        int                  `json:"progress"`
+	Attempts        int                  `json:"attempts"`
+	LastError       string               `json:"last_error,omitempty"`
+	LastSyncedAt    int64                `json:"last_synced_at"`
+	UpdatedAt       int64                `json:"updated_at"`
 }
 
 type SyncJobSummary struct {
@@ -177,6 +185,10 @@ type SyncJobListView struct {
 	Page     int            `json:"page"`
 	PageSize int            `json:"page_size"`
 	Summary  SyncJobSummary `json:"summary"`
+}
+
+type SyncJobFilter struct {
+	LibraryID int
 }
 
 func CreateGroup(ownerUserID int, input GroupInput) (*model.AssetGroup, error) {
@@ -484,6 +496,14 @@ func ListChannelConfigs() ([]ChannelConfigView, error) {
 		return nil, err
 	}
 	byChannel := make(map[int]model.AssetChannelConfig, len(configs))
+	var libraries []model.AssetLibraryConnection
+	if err := model.DB.Find(&libraries).Error; err != nil {
+		return nil, err
+	}
+	byLibrary := make(map[int]model.AssetLibraryConnection, len(libraries))
+	for _, library := range libraries {
+		byLibrary[library.ID] = library
+	}
 	for _, config := range configs {
 		byChannel[config.ChannelID] = config
 	}
@@ -493,90 +513,88 @@ func ListChannelConfigs() ([]ChannelConfigView, error) {
 		if !ok {
 			config = model.AssetChannelConfig{ChannelID: channel.Id, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthAKSK, BaseURL: DefaultBaseURL, Region: DefaultRegion, Service: DefaultService, APIVersion: DefaultAPIVersion, QPM: 60}
 		}
-		views = append(views, channelConfigView(channel, config))
+		library, shared := byLibrary[config.LibraryID]
+		if shared {
+			enabled := config.Enabled
+			config = library.ProviderConfig(channel.Id)
+			config.Enabled = enabled
+		}
+		view := channelConfigView(channel, config)
+		if shared {
+			view.LibraryName, view.LibraryEnabled = library.Name, library.Enabled
+		}
+		views = append(views, view)
 	}
 	return views, nil
 }
 
 func SaveChannelConfig(channelID int, input ChannelConfigInput) (*ChannelConfigView, error) {
+	if input.LibraryID != nil {
+		return BindChannelLibrary(channelID, *input.LibraryID, input.Enabled)
+	}
 	channel, err := eligibleChannel(channelID)
 	if err != nil {
 		return nil, err
 	}
 	var existing model.AssetChannelConfig
-	hasExisting := model.DB.Where("channel_id = ?", channelID).First(&existing).Error == nil
-	config := model.AssetChannelConfig{
-		ChannelID:   channelID,
-		Enabled:     input.Enabled,
-		Protocol:    normalizeProtocol(input.Protocol),
-		AuthType:    strings.TrimSpace(input.AuthType),
-		BaseURL:     strings.TrimSpace(input.BaseURL),
-		Region:      strings.TrimSpace(input.Region),
-		Service:     strings.TrimSpace(input.Service),
-		APIVersion:  strings.TrimSpace(input.APIVersion),
-		ProjectName: strings.TrimSpace(input.ProjectName),
-		QPM:         input.QPM,
-		AccessKeyID: strings.TrimSpace(input.AccessKeyID),
+	result := model.DB.Where("channel_id = ?", channelID).Limit(1).Find(&existing)
+	if result.Error != nil {
+		return nil, result.Error
 	}
-	applyProtocolDefaults(&config)
-	if config.QPM == 0 {
-		config.QPM = 60
-	}
-	credential := strings.TrimSpace(input.Credential)
-	if credential == "" && hasExisting && normalizeProtocol(existing.Protocol) == config.Protocol && existing.AuthType == config.AuthType {
-		config.EncryptedCredential = existing.EncryptedCredential
-		config.CredentialKeyVersion = existing.CredentialKeyVersion
-		config.AccessKeyHint = existing.AccessKeyHint
-		if config.AccessKeyID == "" {
-			config.AccessKeyID = existing.AccessKeyID
+	if result.RowsAffected > 0 && existing.LibraryID == 0 {
+		if err := model.MigrateAssetLibraryConnections(model.DB); err != nil {
+			return nil, err
 		}
-	} else if credential != "" {
-		config.EncryptedCredential, err = encryptChannelCredential(credential)
+		if err := RecordLibraryIdentities(); err != nil {
+			return nil, err
+		}
+		if err := model.DB.First(&existing, existing.ID).Error; err != nil {
+			return nil, err
+		}
+	}
+	if existing.LibraryID > 0 {
+		var library model.AssetLibraryConnection
+		if err := model.DB.First(&library, existing.LibraryID).Error; err != nil {
+			return nil, err
+		}
+		libraryInput := input
+		libraryInput.Enabled = library.Enabled
+		prepared, err := prepareLibraryConfig(libraryInput, &library)
 		if err != nil {
-			return nil, &RequestError{StatusCode: http.StatusServiceUnavailable, Err: err}
+			return nil, err
 		}
-		config.CredentialKeyVersion = channelCredentialVersion
-		if config.AuthType == model.AssetChannelAuthBearer {
-			config.AccessKeyHint = credentialHint(credential)
-		} else {
-			config.AccessKeyHint = credentialHint(config.AccessKeyID)
+		unchanged := sameLibraryIdentityConfig(library.ProviderConfig(0), prepared)
+		if !unchanged && input.Credential != "" {
+			oldKey, oldErr := libraryResourceKey(library.ProviderConfig(0))
+			newKey, newErr := libraryResourceKey(prepared)
+			unchanged = oldErr == nil && newErr == nil && oldKey == newKey
 		}
+		if !unchanged || prepared.QPM != library.QPM {
+			return nil, &RequestError{StatusCode: http.StatusConflict, Code: "shared_account_config_required", Err: errors.New("edit shared credentials and parameters from the resource account, not a single channel")}
+		}
+		return BindChannelLibrary(channelID, library.ID, input.Enabled)
 	}
-	if err = validateChannelConfig(&config); err != nil {
-		return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: err}
-	}
-	err = model.DB.Transaction(func(tx *gorm.DB) error {
-		if hasExisting {
-			config.ID = existing.ID
-			config.CreatedAt = existing.CreatedAt
-			config.UpdatedAt = common.GetTimestamp()
-			if err := tx.Save(&config).Error; err != nil {
-				return err
-			}
-		} else if err := tx.Create(&config).Error; err != nil {
-			return err
-		}
-		if config.Enabled {
-			var assetIDs []int64
-			if err := tx.Model(&model.MediaAsset{}).Where("status IN ?", []string{model.AssetStatusProcessing, model.AssetStatusReady}).Pluck("id", &assetIDs).Error; err != nil {
-				return err
-			}
-			for _, assetID := range assetIDs {
-				if err := model.QueueAssetReplicas(tx, assetID, []int{channelID}); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
+	library, err := SaveLibraryConnection(0, LibraryConfigInput{
+		Name: channel.Name, ProviderName: channel.Name, ChannelConfigInput: input,
 	})
 	if err != nil {
 		return nil, err
 	}
-	view := channelConfigView(*channel, config)
-	return &view, nil
+	return BindChannelLibrary(channelID, library.ID, input.Enabled)
 }
 
 func TestChannelConfig(ctx context.Context, channelID int, input *ChannelConfigInput) error {
+	if input != nil && input.LibraryID != nil {
+		return TestLibraryConnection(ctx, *input.LibraryID, nil)
+	}
+	if input != nil {
+		var binding model.AssetChannelConfig
+		if result := model.DB.Select("library_id").Where("channel_id = ?", channelID).Find(&binding); result.Error != nil {
+			return result.Error
+		} else if binding.LibraryID > 0 {
+			return TestLibraryConnection(ctx, binding.LibraryID, &LibraryConfigInput{ChannelConfigInput: *input})
+		}
+	}
 	var config *model.AssetChannelConfig
 	if input != nil {
 		view, err := buildUnsavedConfig(channelID, *input)
@@ -592,6 +610,9 @@ func TestChannelConfig(ctx context.Context, channelID int, input *ChannelConfigI
 		if err := model.DB.Where("channel_id = ?", channelID).First(&stored).Error; err != nil {
 			return err
 		}
+		if stored.LibraryID > 0 {
+			return TestLibraryConnection(ctx, stored.LibraryID, nil)
+		}
 		config = &stored
 	}
 	client, err := newProviderClient(config)
@@ -605,6 +626,9 @@ func QueueChannelSync(channelID int) error {
 	config := model.AssetChannelConfig{}
 	if err := model.DB.Where("channel_id = ? AND enabled = ?", channelID, true).First(&config).Error; err != nil {
 		return err
+	}
+	if config.LibraryID > 0 {
+		return QueueLibrarySync(config.LibraryID)
 	}
 	var assetIDs []int64
 	if err := model.DB.Model(&model.MediaAsset{}).Where("status IN ?", []string{model.AssetStatusProcessing, model.AssetStatusReady}).Pluck("id", &assetIDs).Error; err != nil {
@@ -620,7 +644,7 @@ func QueueChannelSync(channelID int) error {
 	})
 }
 
-func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJobListView, error) {
+func ListSyncJobs(page int, pageSize int, channelID int, status string, filters ...SyncJobFilter) (*SyncJobListView, error) {
 	status = strings.TrimSpace(status)
 	if status != "" && !validReplicaStatus(status) {
 		return nil, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid synchronization status")}
@@ -635,10 +659,18 @@ func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJo
 		pageSize = 100
 	}
 
-	listQuery := model.DB.Model(&model.AssetReplica{})
-	if channelID > 0 {
-		listQuery = listQuery.Where("channel_id = ?", channelID)
+	filter := SyncJobFilter{}
+	if len(filters) > 0 {
+		filter = filters[0]
 	}
+	if channelID > 0 && filter.LibraryID == 0 {
+		var binding model.AssetChannelConfig
+		if result := model.DB.Select("library_id").Where("channel_id = ?", channelID).Find(&binding); result.Error != nil {
+			return nil, result.Error
+		}
+		filter.LibraryID = binding.LibraryID
+	}
+	listQuery := syncJobScope(model.DB.Model(&model.AssetReplica{}), channelID, filter.LibraryID)
 	if status == "" {
 		listQuery = listQuery.Where("status <> ?", model.AssetReplicaStatusDeleted)
 	} else {
@@ -654,10 +686,7 @@ func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJo
 		return nil, err
 	}
 
-	summaryQuery := model.DB.Model(&model.AssetReplica{}).Where("status <> ?", model.AssetReplicaStatusDeleted)
-	if channelID > 0 {
-		summaryQuery = summaryQuery.Where("channel_id = ?", channelID)
-	}
+	summaryQuery := syncJobScope(model.DB.Model(&model.AssetReplica{}), channelID, filter.LibraryID).Where("status <> ?", model.AssetReplicaStatusDeleted)
 	var statusCounts []struct {
 		Status string
 		Count  int64
@@ -733,20 +762,62 @@ func ListSyncJobs(page int, pageSize int, channelID int, status string) (*SyncJo
 			channels[channel.Id] = channel.Name
 		}
 	}
+	libraryIDs := make([]int, 0, len(replicas))
+	for _, replica := range replicas {
+		if replica.LibraryID != nil {
+			libraryIDs = append(libraryIDs, *replica.LibraryID)
+		}
+	}
+	libraryNames := make(map[int]string, len(libraryIDs))
+	linkedChannels := map[int][]LibraryChannelView{}
+	if len(libraryIDs) > 0 {
+		var libraries []model.AssetLibraryConnection
+		if err := model.DB.Select("id", "name").Where("id IN ?", libraryIDs).Find(&libraries).Error; err != nil {
+			return nil, err
+		}
+		for _, library := range libraries {
+			libraryNames[library.ID] = library.Name
+		}
+		var err error
+		if linkedChannels, err = linkedLibraryChannels(libraryIDs); err != nil {
+			return nil, err
+		}
+	}
 
 	items := make([]SyncJobView, 0, len(replicas))
 	for _, replica := range replicas {
 		asset := assets[replica.AssetID]
 		group := groups[asset.GroupID]
-		items = append(items, SyncJobView{
-			ID: replica.ID, AssetID: asset.PublicID, AssetName: asset.Name, AssetType: asset.AssetType,
+		view := SyncJobView{
+			UpstreamAssetID: replica.UpstreamAssetID,
+			ID:              replica.ID, AssetID: asset.PublicID, AssetName: asset.Name, AssetType: asset.AssetType,
 			GroupID: group.PublicID, GroupName: group.Name, OwnerUserID: asset.OwnerUserID, OwnerName: owners[asset.OwnerUserID],
 			ChannelID: replica.ChannelID, ChannelName: channels[replica.ChannelID], Operation: replica.Operation,
 			Status: replica.Status, Progress: replica.Progress, Attempts: replica.Attempts, LastError: replica.LastError,
 			LastSyncedAt: replica.LastSyncedAt, UpdatedAt: replica.UpdatedAt,
-		})
+			Channels: []LibraryChannelView{},
+		}
+		if replica.LibraryID != nil {
+			view.LibraryID, view.LibraryName = *replica.LibraryID, libraryNames[*replica.LibraryID]
+			if linked := linkedChannels[*replica.LibraryID]; linked != nil {
+				view.Channels = linked
+			}
+		}
+		items = append(items, view)
 	}
 	return &SyncJobListView{Items: items, Total: total, Page: page, PageSize: pageSize, Summary: summary}, nil
+}
+
+func syncJobScope(query *gorm.DB, channelID int, libraryID int) *gorm.DB {
+	switch {
+	case libraryID > 0 && channelID > 0:
+		return query.Where("library_id = ? OR channel_id = ?", libraryID, channelID)
+	case libraryID > 0:
+		return query.Where("library_id = ?", libraryID)
+	case channelID > 0:
+		return query.Where("channel_id = ?", channelID)
+	}
+	return query
 }
 
 func RetrySyncJob(replicaID int64) error {
@@ -796,10 +867,46 @@ func assetViews(assets []model.MediaAsset, groups map[int64]string, ownerNames .
 	return views
 }
 
+// enabledChannelIDs returns the channels whose uploads must be mirrored. A
+// shared-library binding counts only while its library is enabled and its
+// channel still exists.
 func enabledChannelIDs(tx *gorm.DB) ([]int, error) {
-	var ids []int
-	err := tx.Model(&model.AssetChannelConfig{}).Where("enabled = ?", true).Pluck("channel_id", &ids).Error
-	return ids, err
+	var bindings []model.AssetChannelConfig
+	if err := tx.Select("channel_id", "library_id").Where("enabled = ?", true).Find(&bindings).Error; err != nil {
+		return nil, err
+	}
+	var linkedChannelIDs, linkedLibraryIDs []int
+	for _, binding := range bindings {
+		if binding.LibraryID > 0 {
+			linkedChannelIDs = append(linkedChannelIDs, binding.ChannelID)
+			linkedLibraryIDs = append(linkedLibraryIDs, binding.LibraryID)
+		}
+	}
+	enabledLibraries := map[int]bool{}
+	existingChannels := map[int]bool{}
+	if len(linkedLibraryIDs) > 0 {
+		var libraries []model.AssetLibraryConnection
+		if err := tx.Select("id").Where("id IN ? AND enabled = ?", linkedLibraryIDs, true).Find(&libraries).Error; err != nil {
+			return nil, err
+		}
+		for _, library := range libraries {
+			enabledLibraries[library.ID] = true
+		}
+		var channels []model.Channel
+		if err := tx.Select("id").Where("id IN ?", linkedChannelIDs).Find(&channels).Error; err != nil {
+			return nil, err
+		}
+		for _, channel := range channels {
+			existingChannels[channel.Id] = true
+		}
+	}
+	ids := make([]int, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.LibraryID == 0 || (enabledLibraries[binding.LibraryID] && existingChannels[binding.ChannelID]) {
+			ids = append(ids, binding.ChannelID)
+		}
+	}
+	return ids, nil
 }
 
 func eligibleChannel(channelID int) (*model.Channel, error) {
@@ -895,6 +1002,7 @@ func isLoopbackHost(host string) bool {
 
 func channelConfigView(channel model.Channel, config model.AssetChannelConfig) ChannelConfigView {
 	return ChannelConfigView{
+		LibraryID: config.LibraryID,
 		ChannelID: channel.Id, ChannelName: channel.Name, ChannelType: channel.Type, Enabled: config.Enabled,
 		Protocol: normalizeProtocol(config.Protocol), AuthType: config.AuthType, BaseURL: config.BaseURL, Region: config.Region, Service: config.Service,
 		APIVersion: config.APIVersion, ProjectName: config.ProjectName, AccessKeyHint: config.AccessKeyHint,

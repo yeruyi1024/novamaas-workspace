@@ -35,6 +35,22 @@ func ListAssetRequestLogs(c *gin.Context) {
 		}
 		filter.ChannelID = parsed
 	}
+	if value := c.Query("library_id"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 0 {
+			badRequest()
+			return
+		}
+		filter.LibraryID = parsed
+		if parsed > 0 {
+			var library model.AssetLibraryConnection
+			if err := model.DB.Select("id", "legacy_channel_id").First(&library, parsed).Error; err != nil {
+				assetLibraryError(c, err)
+				return
+			}
+			filter.LegacyChannelID = library.LegacyChannelID
+		}
+	}
 	if value := c.Query("replica_id"); value != "" {
 		parsed, err := strconv.ParseInt(value, 10, 64)
 		if err != nil || parsed < 0 {

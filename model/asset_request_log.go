@@ -15,8 +15,9 @@ import (
 // live in a separate, short-lived table so list queries stay inexpensive.
 type AssetRequestLog struct {
 	ID            int64  `json:"id" gorm:"primaryKey"`
-	CreatedAt     int64  `json:"created_at" gorm:"bigint;index:idx_asset_request_time,priority:1;index:idx_asset_request_channel_time,priority:2;index:idx_asset_request_replica_time,priority:2"`
+	CreatedAt     int64  `json:"created_at" gorm:"bigint;index:idx_asset_request_time,priority:1;index:idx_asset_request_channel_time,priority:2;index:idx_asset_request_replica_time,priority:2;index:idx_asset_request_library_time,priority:2"`
 	ChannelID     int    `json:"channel_id" gorm:"index:idx_asset_request_channel_time,priority:1"`
+	LibraryID     int    `json:"library_id" gorm:"index:idx_asset_request_library_time,priority:1"`
 	ReplicaID     int64  `json:"replica_id" gorm:"index:idx_asset_request_replica_time,priority:1"`
 	AssetID       int64  `json:"asset_id"`
 	RequestID     string `json:"request_id" gorm:"type:varchar(64);index"`
@@ -54,16 +55,18 @@ type AssetRequestLogWithDetail struct {
 }
 
 type AssetRequestLogFilter struct {
-	ChannelID int
-	ReplicaID int64
-	RequestID string
-	Source    string
-	Result    string
-	StartMS   int64
-	EndMS     int64
-	CursorMS  int64
-	CursorID  int64
-	Limit     int
+	ChannelID       int
+	LibraryID       int
+	LegacyChannelID *int
+	ReplicaID       int64
+	RequestID       string
+	Source          string
+	Result          string
+	StartMS         int64
+	EndMS           int64
+	CursorMS        int64
+	CursorID        int64
+	Limit           int
 }
 
 func assetRequestLogDB() *gorm.DB {
@@ -147,6 +150,13 @@ func ListAssetRequestLogs(ctx context.Context, filter AssetRequestLogFilter) ([]
 		Where("created_at >= ? AND created_at <= ?", filter.StartMS, filter.EndMS)
 	if filter.ChannelID > 0 {
 		query = query.Where("channel_id = ?", filter.ChannelID)
+	}
+	if filter.LibraryID > 0 {
+		if filter.LegacyChannelID != nil {
+			query = query.Where("library_id = ? OR ((library_id = 0 OR library_id IS NULL) AND channel_id = ?)", filter.LibraryID, *filter.LegacyChannelID)
+		} else {
+			query = query.Where("library_id = ?", filter.LibraryID)
+		}
 	}
 	if filter.ReplicaID > 0 {
 		query = query.Where("replica_id = ?", filter.ReplicaID)

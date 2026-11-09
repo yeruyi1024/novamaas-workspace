@@ -83,7 +83,11 @@ test('lists requests for one synchronization job and follows the next cursor', a
     screen.getByText('Some request logs were dropped on this node: 3')
   ).toBeVisible()
   expect(listAssetRequestLogs).toHaveBeenCalledWith(
-    expect.objectContaining({ channelId: 7, replicaId: 91, pageSize: 20 })
+    expect.objectContaining({
+      channelId: undefined,
+      replicaId: 91,
+      pageSize: 20,
+    })
   )
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
   expect(await screen.findByText('CreateAsset')).toBeVisible()

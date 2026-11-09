@@ -368,6 +368,7 @@ func migrateDB() error {
 		&AssetGroup{},
 		&MediaAsset{},
 		&AssetChannelConfig{},
+		&AssetLibraryConnection{},
 		&AssetAccessKey{},
 		&AssetWebhookEndpoint{},
 		&AssetWebhookDelivery{},
@@ -377,6 +378,9 @@ func migrateDB() error {
 		&AuthzRole{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := MigrateAssetLibraryConnections(DB); err != nil {
 		return err
 	}
 	if err := MigrateExternalIdentityClaimIndexes(); err != nil {
@@ -461,6 +465,12 @@ func migrateDBFast() error {
 		{&StorageCredential{}, "StorageCredential"},
 		{&StoragePolicy{}, "StoragePolicy"},
 		{&StorageObject{}, "StorageObject"},
+		{&AssetGroup{}, "AssetGroup"},
+		{&MediaAsset{}, "MediaAsset"},
+		{&AssetChannelConfig{}, "AssetChannelConfig"},
+		{&AssetLibraryConnection{}, "AssetLibraryConnection"},
+		{&AssetGroupReplica{}, "AssetGroupReplica"},
+		{&AssetReplica{}, "AssetReplica"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))
@@ -484,6 +494,9 @@ func migrateDBFast() error {
 		if err != nil {
 			return err
 		}
+	}
+	if err := MigrateAssetLibraryConnections(DB); err != nil {
+		return err
 	}
 	if err := MigrateExternalIdentityClaimIndexes(); err != nil {
 		return err
