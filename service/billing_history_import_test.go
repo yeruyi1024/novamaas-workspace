@@ -16,15 +16,20 @@ import (
 )
 
 type historyImportArchive struct {
-	body []byte
-	err  error
+	body     []byte
+	err      error
+	importID string
+	userID   int
+	month    string
+	rows     int64
 }
 
-func (store *historyImportArchive) Put(_ context.Context, _ string, _ string, _ int, _ int, _ string, body []byte, _ int64) (*model.BillingArtifact, error) {
+func (store *historyImportArchive) PutHistorySource(_ context.Context, importID string, userID int, month string, body []byte, rows int64) (*model.BillingArtifact, error) {
 	if store.err != nil {
 		return nil, store.err
 	}
 	store.body = body
+	store.importID, store.userID, store.month, store.rows = importID, userID, month, rows
 	return &model.BillingArtifact{ID: 1}, nil
 }
 
@@ -60,6 +65,10 @@ func TestBillingHistoryImportRequiresReviewedEvidenceAndNeverChargesWallet(t *te
 	store := &historyImportArchive{}
 	batch, err := ConfirmBillingHistoryImport(ctx, 96, 1, 1, "2020-04", "00000000000000000000000000000096", review.SourceSHA256, "Checked against historical consumption and administrator funding records", "live-admin-session", store)
 	require.NoError(t, err)
+	assert.Equal(t, batch.ID, store.importID)
+	assert.Equal(t, 96, store.userID)
+	assert.Equal(t, "2020-04", store.month)
+	assert.Equal(t, int64(3), store.rows)
 	assert.Equal(t, int64(3), batch.Records)
 	assert.Equal(t, int64(1), batch.FromSequence)
 	assert.Equal(t, int64(3), batch.ToSequence)

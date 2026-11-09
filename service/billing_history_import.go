@@ -38,6 +38,10 @@ type BillingHistoryReview struct {
 	BoundaryAt int64 `json:"boundary_at"`
 }
 
+type BillingHistoryArchiveWriter interface {
+	PutHistorySource(context.Context, string, int, string, []byte, int64) (*model.BillingArtifact, error)
+}
+
 // This is a read-only review. No ledger, account, import batch or object-store
 // writes occur until the administrator explicitly confirms this exact digest.
 func ReviewBillingHistory(ctx context.Context, userID int, month string) (*BillingHistoryReview, error) {
@@ -140,7 +144,7 @@ func ReviewBillingHistory(ctx context.Context, userID int, month string) (*Billi
 // Financial mutation is confined to the local ledger transaction. In
 // particular, this NEVER invokes wallet deduction, token quota, or user usage
 // counters. Cloud failure, stale reviews and commit races leave the ledger alone.
-func ConfirmBillingHistoryImport(ctx context.Context, userID, actorID, profileID int, month, id, digest, note, sessionID string, store BillingArchiveWriter) (*model.BillingHistoryImport, error) {
+func ConfirmBillingHistoryImport(ctx context.Context, userID, actorID, profileID int, month, id, digest, note, sessionID string, store BillingHistoryArchiveWriter) (*model.BillingHistoryImport, error) {
 	note = strings.TrimSpace(note)
 	if userID <= 0 || actorID <= 0 || profileID <= 0 || sessionID == "" || len(id) != 32 || len(digest) != 64 || note == "" || len([]rune(note)) > 2000 {
 		return nil, model.ErrBillingHistoryBlocked
@@ -177,7 +181,7 @@ func ConfirmBillingHistoryImport(ctx context.Context, userID, actorID, profileID
 	if err := writer.Close(); err != nil {
 		return nil, err
 	}
-	artifact, err := store.Put(ctx, batchID, "source", 0, userID, "application/gzip", compressed.Bytes(), int64(len(review.Records)))
+	artifact, err := store.PutHistorySource(ctx, batchID, userID, month, compressed.Bytes(), int64(len(review.Records)))
 	if err != nil {
 		return nil, err
 	}
