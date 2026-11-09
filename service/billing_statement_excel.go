@@ -3,13 +3,16 @@ package service
 import (
 	"archive/zip"
 	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/xuri/excelize/v2"
 )
@@ -17,8 +20,48 @@ import (
 const billingExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 // The workbook is another view of the frozen ledger snapshot. It deliberately
-// excludes live usage logs, provider costs and inferred historical list prices.
+// excludes provider costs and inferred historical list prices; the detail sheet
+// adds the usage figures of its requests, read when the workbook is built.
 func RenderBillingStatementExcel(statement *model.BillingStatement, snapshot *BillingSnapshot) ([]byte, error) {
+	return RenderBillingStatementExcelWithDetails(statement, snapshot, nil)
+}
+
+// BillingExcelDetail is one frozen ledger record listed in the 详细日志 sheet.
+type BillingExcelDetail struct {
+	PostedAt     int64
+	Kind         string
+	Amount       string
+	RequestID    string
+	ModelName    string
+	TokenID      int
+	TokenName    string
+	BillingGroup string
+	BillingRate  string
+	// SourceLogID and TaskID link a request's entries; they are not listed.
+	// Usage is what the usage log behind the entry recorded when the workbook
+	// was made, so it is not part of the frozen ledger.
+	SourceLogID int
+	TaskID      string
+	Usage       model.LogLink
+	// EventKey finds the reservation behind a text request; ReservedAmount is
+	// what was held for it, in the statement currency, empty when unknown.
+	EventKey       string
+	ReservedAmount string
+	// Task is what the task record reports for a video request: its tokens and
+	// run time, which the usage log does not carry.
+	Task      model.TaskUsage
+	TaskFound bool
+	// Refund follows the ledger entry's own sign, the rule the day and model
+	// summaries use, so the sheet sums to the same totals.
+	Refund bool
+}
+
+// billingExcelDetailSheetRows keeps each sheet below Excel's 1,048,576 row limit.
+const billingExcelDetailSheetRows = 1_000_000
+
+// RenderBillingStatementExcelWithDetails renders the workbook; snapshots that
+// enable DetailSheet also get the per-record 详细日志 sheets from details.
+func RenderBillingStatementExcelWithDetails(statement *model.BillingStatement, snapshot *BillingSnapshot, details []BillingExcelDetail) ([]byte, error) {
 	if err := statement.VerifySnapshot(); err != nil {
 		return nil, err
 	}
@@ -284,6 +327,11 @@ func RenderBillingStatementExcel(statement *model.BillingStatement, snapshot *Bi
 			return nil, err
 		}
 	}
+	if snapshot.DetailSheet {
+		if err := writeBillingExcelDetailSheets(book, snapshot, details, header, money, percent, len(rows)+1); err != nil {
+			return nil, err
+		}
+	}
 	buffer, err := book.WriteToBuffer()
 	if err != nil {
 		return nil, err
@@ -331,4 +379,481 @@ func billingExcelAmount(value string) any {
 		return value
 	}
 	return amount.InexactFloat64()
+}
+
+// billingExcelRequestRow is every ledger entry of one request, kept on the
+// ledger's own terms so that each column adds up to the statement's totals:
+// first is the first charge (for a video task, what was held when it was
+// submitted), extra the charges after it, refund what was returned, and actual
+// what the request cost: first + extra - refund. The charges add up to the
+// statement's consumption and the refunds to its refunds.
+//
+// reserved is what a text request had frozen before it was settled. A temporary
+// freeze is not consumption, so it is shown apart and is in no total.
+type billingExcelRequestRow struct {
+	BillingExcelDetail
+	first, extra, refund decimal.Decimal
+	charged              bool
+	reserved             decimal.Decimal
+	hasReserved          bool
+}
+
+// actual is what the request cost.
+func (r billingExcelRequestRow) actual() decimal.Decimal {
+	return r.first.Add(r.extra).Sub(r.refund)
+}
+
+// mergeBillingExcelDetails folds the entries of one request into one row, in
+// the order requests first appear. A task's refund carries its own request ID,
+// so entries of one task merge by task. Entries with neither stay apart.
+func mergeBillingExcelDetails(details []BillingExcelDetail) ([]billingExcelRequestRow, error) {
+	// Imports append old events after live entries, so sequence order cannot
+	// identify the first charge. Prefer the original charge on timestamp ties.
+	sort.SliceStable(details, func(i, j int) bool {
+		if details[i].PostedAt != details[j].PostedAt {
+			return details[i].PostedAt < details[j].PostedAt
+		}
+		return details[i].Kind != "task_adjustment" && details[j].Kind == "task_adjustment"
+	})
+	rows := make([]billingExcelRequestRow, 0, len(details))
+	byRequest := make(map[string]int, len(details))
+	for _, detail := range details {
+		amount, err := decimal.NewFromString(detail.Amount)
+		if err != nil {
+			return nil, err
+		}
+		key := ""
+		switch {
+		case detail.TaskID != "":
+			key = "task:" + detail.TaskID
+		case detail.RequestID != "":
+			key = "request:" + detail.RequestID
+		}
+		index, found := byRequest[key]
+		if !found || key == "" {
+			index = len(rows)
+			rows = append(rows, billingExcelRequestRow{BillingExcelDetail: detail})
+			if key != "" {
+				byRequest[key] = index
+			}
+		}
+		row := &rows[index]
+		// The first charge of a request is what it was charged up front; a later
+		// one, such as the extra charge when a task costs more than was held, is an
+		// extra charge. A refund carries the ledger's negative sign.
+		switch {
+		case detail.Refund:
+			row.refund = row.refund.Sub(amount)
+		case !row.charged:
+			row.first, row.charged = amount, true
+		default:
+			row.extra = row.extra.Add(amount)
+		}
+		if row.BillingGroup == "" {
+			row.BillingGroup = detail.BillingGroup
+		}
+		if !row.Usage.Found {
+			row.Usage = detail.Usage
+		}
+		if row.ReservedAmount == "" {
+			row.ReservedAmount = detail.ReservedAmount
+		}
+		if !row.TaskFound {
+			row.Task, row.TaskFound = detail.Task, detail.TaskFound
+		}
+		if row.BillingRate == "" {
+			row.BillingRate = detail.BillingRate
+		}
+	}
+	for i := range rows {
+		// Round the displayed components after merging the request, so their
+		// arithmetic agrees with its displayed net amount.
+		rows[i].first = rows[i].first.Round(6)
+		rows[i].extra = rows[i].extra.Round(6)
+		rows[i].refund = rows[i].refund.Round(6)
+		if rows[i].BillingRate == "" {
+			rows[i].BillingRate = rows[i].Usage.GroupRatio
+		}
+		if rows[i].ReservedAmount == "" {
+			continue
+		}
+		reserved, err := decimal.NewFromString(rows[i].ReservedAmount)
+		if err != nil {
+			return nil, err
+		}
+		rows[i].reserved, rows[i].hasReserved = reserved, true
+	}
+	return rows, nil
+}
+
+// figures are the usage columns of one request: a text request's own log, or
+// for a video task what the task record reports.
+func (r billingExcelRequestRow) figures() billingExcelFigures {
+	figures := billingExcelFigures{
+		input: r.Usage.PromptTokens, output: r.Usage.CompletionTokens, cacheRead: r.Usage.CacheTokens, cacheWrite: r.Usage.CacheWrite,
+		seconds: r.Usage.UseTime, ip: r.Usage.Ip, stream: r.Usage.IsStream, text: r.Usage.Found && r.TaskID == "" && !r.Usage.IsTask,
+	}
+	if r.TaskFound {
+		if figures.output == 0 {
+			figures.output = r.Task.TotalTokens
+		}
+		if figures.seconds == 0 {
+			figures.seconds = r.Task.Seconds
+		}
+	}
+	return figures
+}
+
+// billingExcelFigures are the usage columns of a request; text marks a text
+// request, the only kind with a stream flag.
+type billingExcelFigures struct {
+	input, output, cacheRead, cacheWrite, seconds int
+	ip                                            string
+	stream, text                                  bool
+}
+
+// billingExcelColumn is one column of the detail sheet. A column with nothing
+// to show in any row is left out rather than filled with zeros.
+type billingExcelColumn struct {
+	title string
+	width float64
+	show  bool
+	value func(r billingExcelRequestRow) any
+}
+
+func writeBillingExcelDetailSheets(book *excelize.File, snapshot *BillingSnapshot, details []BillingExcelDetail, header, money, percent, overviewNextRow int) error {
+	requests, err := mergeBillingExcelDetails(details)
+	if err != nil {
+		return err
+	}
+	var charge, refund decimal.Decimal
+	for _, request := range requests {
+		charge = charge.Add(request.first).Add(request.extra)
+		refund = refund.Add(request.refund)
+	}
+	// The overview rounds the month's integer quota once. Disclose the
+	// difference from rounded request rows without inventing charge records.
+	var roundingRows [][]any
+	for _, total := range []struct {
+		label, amount string
+		detail        decimal.Decimal
+	}{
+		{"详细日志消费舍入差额", snapshot.Total.Charge, charge},
+		{"详细日志退款舍入差额", snapshot.Total.Refund, refund},
+		{"详细日志净额舍入差额", snapshot.Total.Amount, charge.Sub(refund)},
+	} {
+		value, err := decimal.NewFromString(total.amount)
+		if err != nil {
+			return err
+		}
+		difference := value.Sub(total.detail)
+		if !difference.IsZero() {
+			roundingRows = append(roundingRows, []any{total.label, billingStatementExcelAmount(difference.StringFixed(6), snapshot)})
+		}
+	}
+	if len(roundingRows) > 0 {
+		roundingRows = append(roundingRows, []any{"详细日志舍入说明", "明细合计加对应舍入差额等于总览；差额不改变账本或扣费。"})
+		for i, row := range roundingRows {
+			if err := book.SetSheetRow("总览", fmt.Sprintf("A%d", overviewNextRow+i), &row); err != nil {
+				return err
+			}
+			if i < len(roundingRows)-1 {
+				cell := fmt.Sprintf("B%d", overviewNextRow+i)
+				if err := book.SetCellStyle("总览", cell, cell, money); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	var hasStream, hasInput, hasOutput, hasCacheRead, hasCacheWrite, hasSeconds, hasIP, hasRate, hasReserved bool
+	for _, request := range requests {
+		hasReserved = hasReserved || request.hasReserved
+		figures := request.figures()
+		hasStream = hasStream || figures.text
+		hasInput, hasOutput = hasInput || figures.input > 0, hasOutput || figures.output > 0
+		hasCacheRead, hasCacheWrite = hasCacheRead || figures.cacheRead > 0, hasCacheWrite || figures.cacheWrite > 0
+		hasSeconds, hasIP = hasSeconds || figures.seconds > 0, hasIP || figures.ip != ""
+		if value, err := decimal.NewFromString(request.BillingRate); err == nil && !value.IsNegative() {
+			hasRate = true
+		}
+	}
+	// Zero shows as a dash, as in the amount columns.
+	countFormat := `#,##0;-#,##0;"-"`
+	count, err := book.NewStyle(&excelize.Style{CustomNumFmt: &countFormat})
+	if err != nil {
+		return err
+	}
+	number := func(value int) any { return excelize.Cell{StyleID: count, Value: value} }
+	amount := func(value decimal.Decimal) any {
+		return excelize.Cell{StyleID: money, Value: billingStatementExcelAmount(value.StringFixed(6), snapshot)}
+	}
+	all := []billingExcelColumn{
+		{"时间", 21, true, func(r billingExcelRequestRow) any {
+			return time.Unix(r.PostedAt, 0).In(billingLocation).Format("2006-01-02 15:04:05")
+		}},
+		{"用户", 24, true, func(billingExcelRequestRow) any { return snapshot.Username }},
+		{"令牌", 28, true, func(r billingExcelRequestRow) any {
+			switch {
+			case r.TokenID == 0:
+				return "未记录"
+			case r.TokenName == "":
+				return fmt.Sprintf("#%d", r.TokenID)
+			}
+			return r.TokenName
+		}},
+		{"所选分组", 14, true, func(r billingExcelRequestRow) any {
+			if group := cmp.Or(r.BillingGroup, r.Usage.Group); group != "" {
+				return group
+			}
+			return "未记录"
+		}},
+		{"模型", 36, true, func(r billingExcelRequestRow) any {
+			if r.ModelName == "" {
+				return "未标注模型"
+			}
+			return r.ModelName
+		}},
+		{"流", 6, hasStream, func(r billingExcelRequestRow) any {
+			figures := r.figures()
+			switch {
+			case !figures.text:
+				return ""
+			case figures.stream:
+				return "是"
+			}
+			return "否"
+		}},
+		{"输入 Token", 13, hasInput, func(r billingExcelRequestRow) any { return number(r.figures().input) }},
+		{"输出 Token", 13, hasOutput, func(r billingExcelRequestRow) any { return number(r.figures().output) }},
+		{"缓存读取", 13, hasCacheRead, func(r billingExcelRequestRow) any { return number(r.figures().cacheRead) }},
+		{"缓存写入", 13, hasCacheWrite, func(r billingExcelRequestRow) any { return number(r.figures().cacheWrite) }},
+		{"计费费率", 14, hasRate, func(r billingExcelRequestRow) any {
+			if value, err := decimal.NewFromString(r.BillingRate); err == nil && !value.IsNegative() {
+				return excelize.Cell{StyleID: percent, Value: value.InexactFloat64()}
+			}
+			return "未记录"
+		}},
+		// 首次扣费 + 补扣金额 - 退款金额 = 实际扣费金额. The first two add up to the
+		// statement's consumption, the refunds to its refunds and the last to its
+		// net amount. 预冻结金额 is a text request's temporary freeze, in no total.
+		{"预冻结金额", 22, hasReserved, func(r billingExcelRequestRow) any {
+			if !r.hasReserved {
+				return ""
+			}
+			return amount(r.reserved)
+		}},
+		{"首次扣费", 22, true, func(r billingExcelRequestRow) any { return amount(r.first) }},
+		{"补扣金额", 22, true, func(r billingExcelRequestRow) any { return amount(r.extra) }},
+		{"退款金额", 22, true, func(r billingExcelRequestRow) any { return amount(r.refund) }},
+		{"实际扣费金额", 22, true, func(r billingExcelRequestRow) any { return amount(r.actual()) }},
+		{"耗时(秒)", 10, hasSeconds, func(r billingExcelRequestRow) any { return number(r.figures().seconds) }},
+		{"IP", 16, hasIP, func(r billingExcelRequestRow) any { return r.figures().ip }},
+		{"请求ID", 44, true, func(r billingExcelRequestRow) any { return r.RequestID }},
+		{"扣费说明", 60, true, func(r billingExcelRequestRow) any { return r.explanation(snapshot.Currency.Code) }},
+	}
+	columns := make([]billingExcelColumn, 0, len(all))
+	for _, column := range all {
+		if column.show {
+			columns = append(columns, column)
+		}
+	}
+	lastColumn, err := excelize.ColumnNumberToName(len(columns))
+	if err != nil {
+		return err
+	}
+	sheetCount := max(1, (len(requests)+billingExcelDetailSheetRows-1)/billingExcelDetailSheetRows)
+	for sheet := 0; sheet < sheetCount; sheet++ {
+		name := "详细日志"
+		if sheet > 0 {
+			name = fmt.Sprintf("详细日志%d", sheet+1)
+		}
+		if _, err := book.NewSheet(name); err != nil {
+			return err
+		}
+		writer, err := book.NewStreamWriter(name)
+		if err != nil {
+			return err
+		}
+		if err := writer.SetPanes(&excelize.Panes{Freeze: true, YSplit: 1, TopLeftCell: "A2", ActivePane: "bottomLeft"}); err != nil {
+			return err
+		}
+		headerRow := make([]any, len(columns))
+		for i, column := range columns {
+			if err := writer.SetColWidth(i+1, i+1, column.width); err != nil {
+				return err
+			}
+			headerRow[i] = excelize.Cell{StyleID: header, Value: column.title}
+		}
+		if err := writer.SetRow("A1", headerRow, excelize.RowOpts{Height: 32}); err != nil {
+			return err
+		}
+		from := sheet * billingExcelDetailSheetRows
+		to := min(len(requests), from+billingExcelDetailSheetRows)
+		for i, request := range requests[from:to] {
+			row := make([]any, len(columns))
+			for j, column := range columns {
+				row[j] = column.value(request)
+			}
+			cell, err := excelize.CoordinatesToCellName(1, i+2)
+			if err != nil {
+				return err
+			}
+			if err := writer.SetRow(cell, row); err != nil {
+				return err
+			}
+		}
+		if err := writer.Flush(); err != nil {
+			return err
+		}
+		if err := book.AutoFilter(name, fmt.Sprintf("A1:%s%d", lastColumn, to-from+1), nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// explanation says in words how the request's charge came about.
+func (r billingExcelRequestRow) explanation(currency string) string {
+	text := func(value decimal.Decimal) string { return value.StringFixed(6) + " " + currency }
+	switch {
+	case !r.charged && r.refund.IsPositive():
+		return "本账期内无对应扣费，退回 " + text(r.refund)
+	case r.extra.IsZero() && r.refund.IsZero():
+		switch {
+		case r.hasReserved && r.reserved.IsZero():
+			return "未预扣，按实际用量扣费 " + text(r.actual())
+		case r.hasReserved:
+			return "预冻结 " + text(r.reserved) + "（临时冻结，不计入消费），按实际用量扣费 " + text(r.actual())
+		}
+		return "按 " + text(r.actual()) + " 一次计费"
+	}
+	first := "首次扣费 "
+	if r.TaskID != "" || r.Usage.IsTask {
+		first = "提交时预扣 "
+	}
+	parts := []string{first + text(r.first)}
+	if r.extra.IsPositive() {
+		parts = append(parts, "完成后补扣 "+text(r.extra))
+	}
+	if r.refund.IsPositive() {
+		parts = append(parts, "完成后退回 "+text(r.refund))
+	}
+	return strings.Join(append(parts, "实际扣费 "+text(r.actual())), "，")
+}
+
+// linkBillingExcelDetails finds each entry's task and, when the ledger did not
+// record one, its group from the usage log behind it. A task refund's request
+// ID is the task ID itself.
+func linkBillingExcelDetails(userID int, details []BillingExcelDetail) error {
+	var logIDs []int
+	var requestIDs []string
+	for _, detail := range details {
+		switch {
+		case detail.Kind == "task_adjustment":
+		case detail.SourceLogID > 0 && !common.UsingLogDatabase(common.DatabaseTypeClickHouse):
+			logIDs = append(logIDs, detail.SourceLogID)
+		case detail.RequestID != "":
+			requestIDs = append(requestIDs, detail.RequestID)
+		}
+	}
+	byID, err := model.GetLogLinksByIDs(userID, logIDs)
+	if err != nil {
+		return err
+	}
+	byRequest, err := model.GetLogLinksByRequestIDs(userID, requestIDs)
+	if err != nil {
+		return err
+	}
+	for i := range details {
+		detail := &details[i]
+		var link model.LogLink
+		switch {
+		case detail.Kind == "task_adjustment":
+			detail.TaskID = detail.RequestID
+			continue
+		case detail.SourceLogID > 0 && !common.UsingLogDatabase(common.DatabaseTypeClickHouse):
+			link = byID[detail.SourceLogID]
+		default:
+			link = byRequest[detail.RequestID]
+		}
+		detail.TaskID, detail.Usage = link.TaskID, link
+		if detail.BillingGroup == "" {
+			detail.BillingGroup = link.Group
+		}
+	}
+
+	// The older video logs recorded no task ID, so their refund, which does,
+	// would stay a row of its own. A task is submitted when it is charged: find
+	// it by that time.
+	var chargeTimes []int64
+	for _, detail := range details {
+		if detail.TaskID == "" && detail.Usage.IsTask {
+			chargeTimes = append(chargeTimes, detail.Usage.CreatedAt)
+		}
+	}
+	taskIDs, err := model.GetTaskIDsBySubmitTimes(userID, chargeTimes)
+	if err != nil {
+		return err
+	}
+	for i := range details {
+		if details[i].TaskID == "" && details[i].Usage.IsTask {
+			details[i].TaskID = taskIDs[details[i].Usage.CreatedAt]
+		}
+	}
+	return nil
+}
+
+// attachBillingExcelReservations records what each text request held up front,
+// from the reservation its settlement entry belongs to.
+func attachBillingExcelReservations(userID int, details []BillingExcelDetail, rate, unit decimal.Decimal) error {
+	eventKeys := make([]string, 0, len(details))
+	for _, detail := range details {
+		eventKeys = append(eventKeys, detail.EventKey)
+	}
+	operations, err := model.GetBillingOperationsByEventKeys(userID, eventKeys)
+	if err != nil {
+		return err
+	}
+	for i := range details {
+		if operation, found := operations[details[i].EventKey]; found {
+			details[i].ReservedAmount = decimal.NewFromInt(operation.Reserved).Mul(rate).Div(unit).StringFixed(6)
+		}
+	}
+	return nil
+}
+
+// enrichBillingExcelDetails adds to the frozen entries what the ledger does not
+// hold: token names, the usage log and task behind each entry, and the
+// reservation a text request settled. The links come first, since the task
+// usage is looked up by the task they find.
+func enrichBillingExcelDetails(userID int, details []BillingExcelDetail, rate, unit decimal.Decimal) error {
+	tokenIDs := lo.Uniq(lo.FilterMap(details, func(detail BillingExcelDetail, _ int) (int, bool) { return detail.TokenID, detail.TokenID > 0 }))
+	tokenNames, err := model.GetTokenNamesByIDs(tokenIDs)
+	if err != nil {
+		return err
+	}
+	for i := range details {
+		details[i].TokenName = tokenNames[details[i].TokenID]
+	}
+	if err := linkBillingExcelDetails(userID, details); err != nil {
+		return err
+	}
+	if err := attachBillingExcelTaskUsage(userID, details); err != nil {
+		return err
+	}
+	return attachBillingExcelReservations(userID, details, rate, unit)
+}
+
+// attachBillingExcelTaskUsage adds what the task records report, for the video
+// requests whose usage logs carry no tokens or run time.
+func attachBillingExcelTaskUsage(userID int, details []BillingExcelDetail) error {
+	taskIDs := lo.Uniq(lo.FilterMap(details, func(detail BillingExcelDetail, _ int) (string, bool) { return detail.TaskID, detail.TaskID != "" }))
+	usage, err := model.GetTaskUsageByTaskIDs(userID, taskIDs)
+	if err != nil {
+		return err
+	}
+	for i := range details {
+		details[i].Task, details[i].TaskFound = usage[details[i].TaskID]
+	}
+	return nil
 }

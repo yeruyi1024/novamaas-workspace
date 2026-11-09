@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/model"
@@ -68,9 +69,64 @@ func (store *BillingArchiveStore) Read(ctx context.Context, key string, size int
 	return body, nil
 }
 
-// Put verifies a read-back before publishing metadata. A retry can reuse the
-// exact existing bytes, but can never overwrite an earlier immutable object.
+// Existing verifies a previously published artifact before a retry reuses it.
+// A missing artifact returns nil; corrupt or unavailable evidence is an error.
+func (store *BillingArchiveStore) Existing(ctx context.Context, statementID, kind string, ordinal int) (*model.BillingArtifact, error) {
+	var artifact model.BillingArtifact
+	err := model.DB.WithContext(ctx).Where("statement_id = ? AND kind = ? AND ordinal = ?", statementID, kind, ordinal).First(&artifact).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := store.Read(ctx, artifact.ObjectKey, artifact.Size, artifact.SHA256); err != nil {
+		return nil, err
+	}
+	return &artifact, nil
+}
+
+// Put requires a formal statement, including when reusing an existing artifact.
 func (store *BillingArchiveStore) Put(ctx context.Context, statementID, kind string, ordinal, userID int, contentType string, body []byte, rows int64) (*model.BillingArtifact, error) {
+	statement, err := model.GetBillingStatement(statementID)
+	if err != nil {
+		return nil, err
+	}
+	if userID <= 0 || statement.UserID != userID {
+		return nil, errors.New("invalid billing archive owner")
+	}
+	if _, err := time.Parse("2006-01", statement.Month); err != nil {
+		return nil, errors.New("invalid billing archive month")
+	}
+	return store.putArtifact(ctx, statementID, kind, ordinal, userID, statement.Month, contentType, body, rows)
+}
+
+// PutHistorySource archives the reviewed history before its import transaction.
+// The import has no formal statement; its owner and month come from that review.
+func (store *BillingArchiveStore) PutHistorySource(ctx context.Context, importID string, userID int, month string, body []byte, rows int64) (*model.BillingArtifact, error) {
+	id, ok := strings.CutPrefix(importID, "history-")
+	if !ok || len(id) != 32 {
+		return nil, errors.New("invalid billing history archive ID")
+	}
+	if _, err := hex.DecodeString(id); err != nil {
+		return nil, errors.New("invalid billing history archive ID")
+	}
+	if userID <= 0 {
+		return nil, errors.New("invalid billing archive owner")
+	}
+	start, _, err := model.BillingMonthBounds(month)
+	if err != nil || start < 0 {
+		return nil, errors.New("invalid billing archive month")
+	}
+	if rows <= 0 || rows > model.MaxBillingHistoryRecords {
+		return nil, errors.New("invalid billing history archive record count")
+	}
+	return store.putArtifact(ctx, importID, "source", 0, userID, month, "application/gzip", body, rows)
+}
+
+// putArtifact verifies a read-back before publishing metadata. Retries reuse
+// the original path and bytes, including archives created by older versions.
+func (store *BillingArchiveStore) putArtifact(ctx context.Context, statementID, kind string, ordinal, userID int, month, contentType string, body []byte, rows int64) (*model.BillingArtifact, error) {
 	if len(body) == 0 || len(body) > 16*1024*1024 {
 		return nil, errors.New("billing archive chunk exceeds 16 MiB")
 	}
@@ -82,23 +138,20 @@ func (store *BillingArchiveStore) Put(ctx context.Context, statementID, kind str
 		if artifact.SHA256 != digest {
 			return nil, model.ErrBillingConflict
 		}
+		var object model.StorageObject
+		if err := model.DB.WithContext(ctx).Where("object_id = ?", artifact.ObjectID).First(&object).Error; err != nil {
+			return nil, err
+		}
+		if object.OwnerUserID != userID || object.StorageProfileID != store.profileID || object.Purpose != model.StorageObjectPurposeBillingArchive || object.ObjectKey != artifact.ObjectKey {
+			return nil, model.ErrBillingConflict
+		}
 		_, err = store.Read(ctx, artifact.ObjectKey, artifact.Size, artifact.SHA256)
 		return &artifact, err
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	statement, err := model.GetBillingStatement(statementID)
-	if err != nil {
-		return nil, err
-	}
-	if userID <= 0 || statement.UserID != userID {
-		return nil, errors.New("invalid billing archive owner")
-	}
-	if _, err := time.Parse("2006-01", statement.Month); err != nil {
-		return nil, errors.New("invalid billing archive month")
-	}
-	key := fmt.Sprintf("billing/user-%s/%s/%s/%s/%06d-%s", permanentStorageUserHash(userID), statement.Month, statementID, kind, ordinal, digest)
+	key := fmt.Sprintf("billing/user-%s/%s/%s/%s/%06d-%s", permanentStorageUserHash(userID), month, statementID, kind, ordinal, digest)
 	objectHash := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", store.profileID, key)))
 	object := model.StorageObject{ObjectID: hex.EncodeToString(objectHash[:]), OwnerUserID: userID, StorageProfileID: store.profileID, Purpose: model.StorageObjectPurposeBillingArchive, ObjectKey: key, ContentType: contentType, Size: int64(len(body)), SHA256: digest, Status: model.StorageObjectStatusUploading}
 	// Register the object before I/O to freeze the profile's bucket/endpoint.
@@ -127,7 +180,7 @@ func (store *BillingArchiveStore) Put(ctx context.Context, statementID, kind str
 	if err := model.DB.Where("statement_id = ? AND kind = ? AND ordinal = ?", statementID, kind, ordinal).First(&artifact).Error; err != nil {
 		return nil, err
 	}
-	if artifact.SHA256 != digest || artifact.ObjectKey != key {
+	if artifact.SHA256 != digest || artifact.ObjectKey != key || artifact.ObjectID != object.ObjectID {
 		return nil, model.ErrBillingConflict
 	}
 	return &artifact, nil

@@ -31,6 +31,15 @@ type BillingHistoryReview struct {
 	Records           []model.BillingHistoryRecord `json:"-"`
 	Account           model.BillingAccount         `json:"-"`
 	Source            []byte                       `json:"-"`
+
+	// Partial marks a month that formal accounting entered part-way: only the
+	// part before BoundaryAt, where the formal ledger begins, is imported.
+	Partial    bool  `json:"partial"`
+	BoundaryAt int64 `json:"boundary_at"`
+}
+
+type BillingHistoryArchiveWriter interface {
+	PutHistorySource(context.Context, string, int, string, []byte, int64) (*model.BillingArtifact, error)
 }
 
 // This is a read-only review. No ledger, account, import batch or object-store
@@ -52,11 +61,11 @@ func ReviewBillingHistory(ctx context.Context, userID int, month string) (*Billi
 	if !exists {
 		return nil, gorm.ErrRecordNotFound
 	}
-	records, err := model.GetBillingHistoryRecords(ctx, userID, month, state.Account.AccountingStartAt)
+	records, err := model.GetBillingHistoryRecords(ctx, userID, month, state.Account.AccountingStartAt, state.Boundary)
 	if err != nil {
 		return nil, err
 	}
-	review := &BillingHistoryReview{UserID: userID, Month: month, Customer: customer, Ready: true, SourceCount: len(records), RecordLimit: model.MaxBillingHistoryRecords, Account: state.Account, ExistingStatement: state.ActiveStatement, OldStartAt: state.Account.AccountingStartAt, NewStartAt: state.Account.AccountingStartAt}
+	review := &BillingHistoryReview{UserID: userID, Month: month, Customer: customer, Ready: true, SourceCount: len(records), RecordLimit: model.MaxBillingHistoryRecords, Partial: state.Boundary < end, BoundaryAt: state.Boundary, Account: state.Account, ExistingStatement: state.ActiveStatement, OldStartAt: state.Account.AccountingStartAt, NewStartAt: state.Account.AccountingStartAt}
 	review.Checks = []BillingCheck{
 		{Code: "month_closed", Passed: common.GetTimestamp() >= end+86400},
 		{Code: "identity_complete", Passed: state.Account.CompanyTitle != "" && state.Account.TaxID != ""},
@@ -120,9 +129,10 @@ func ReviewBillingHistory(ctx context.Context, userID int, month string) (*Billi
 		Account       model.BillingAccount         `json:"account"`
 		Sequence      int64                        `json:"sequence"`
 		StartSequence int64                        `json:"start_sequence"`
+		BoundaryAt    int64                        `json:"boundary_at"`
 		Snapshot      *BillingSnapshot             `json:"snapshot"`
 		Records       []model.BillingHistoryRecord `json:"records"`
-	}{1, "administrator_verified_usage_logs", state.Account, state.Account.Sequence, state.Account.StartSequence, review.Snapshot, records})
+	}{1, "administrator_verified_usage_logs", state.Account, state.Account.Sequence, state.Account.StartSequence, state.Boundary, review.Snapshot, records})
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +144,7 @@ func ReviewBillingHistory(ctx context.Context, userID int, month string) (*Billi
 // Financial mutation is confined to the local ledger transaction. In
 // particular, this NEVER invokes wallet deduction, token quota, or user usage
 // counters. Cloud failure, stale reviews and commit races leave the ledger alone.
-func ConfirmBillingHistoryImport(ctx context.Context, userID, actorID, profileID int, month, id, digest, note, sessionID string, store BillingArchiveWriter) (*model.BillingHistoryImport, error) {
+func ConfirmBillingHistoryImport(ctx context.Context, userID, actorID, profileID int, month, id, digest, note, sessionID string, store BillingHistoryArchiveWriter) (*model.BillingHistoryImport, error) {
 	note = strings.TrimSpace(note)
 	if userID <= 0 || actorID <= 0 || profileID <= 0 || sessionID == "" || len(id) != 32 || len(digest) != 64 || note == "" || len([]rune(note)) > 2000 {
 		return nil, model.ErrBillingHistoryBlocked
@@ -171,7 +181,7 @@ func ConfirmBillingHistoryImport(ctx context.Context, userID, actorID, profileID
 	if err := writer.Close(); err != nil {
 		return nil, err
 	}
-	artifact, err := store.Put(ctx, batchID, "source", 0, userID, "application/gzip", compressed.Bytes(), int64(len(review.Records)))
+	artifact, err := store.PutHistorySource(ctx, batchID, userID, month, compressed.Bytes(), int64(len(review.Records)))
 	if err != nil {
 		return nil, err
 	}

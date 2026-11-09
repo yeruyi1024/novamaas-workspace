@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
@@ -15,15 +16,20 @@ import (
 )
 
 type historyImportArchive struct {
-	body []byte
-	err  error
+	body     []byte
+	err      error
+	importID string
+	userID   int
+	month    string
+	rows     int64
 }
 
-func (store *historyImportArchive) Put(_ context.Context, _ string, _ string, _ int, _ int, _ string, body []byte, _ int64) (*model.BillingArtifact, error) {
+func (store *historyImportArchive) PutHistorySource(_ context.Context, importID string, userID int, month string, body []byte, rows int64) (*model.BillingArtifact, error) {
 	if store.err != nil {
 		return nil, store.err
 	}
 	store.body = body
+	store.importID, store.userID, store.month, store.rows = importID, userID, month, rows
 	return &model.BillingArtifact{ID: 1}, nil
 }
 
@@ -59,6 +65,10 @@ func TestBillingHistoryImportRequiresReviewedEvidenceAndNeverChargesWallet(t *te
 	store := &historyImportArchive{}
 	batch, err := ConfirmBillingHistoryImport(ctx, 96, 1, 1, "2020-04", "00000000000000000000000000000096", review.SourceSHA256, "Checked against historical consumption and administrator funding records", "live-admin-session", store)
 	require.NoError(t, err)
+	assert.Equal(t, batch.ID, store.importID)
+	assert.Equal(t, 96, store.userID)
+	assert.Equal(t, "2020-04", store.month)
+	assert.Equal(t, int64(3), store.rows)
 	assert.Equal(t, int64(3), batch.Records)
 	assert.Equal(t, int64(1), batch.FromSequence)
 	assert.Equal(t, int64(3), batch.ToSequence)
@@ -308,4 +318,123 @@ func TestBillingHistoryImportRejectsExistingSummaryInPartialStartingHour(t *test
 	var entries int64
 	require.NoError(t, model.DB.Model(&model.BillingEntry{}).Count(&entries).Error)
 	assert.Zero(t, entries)
+}
+
+// Formal accounting switched on part-way through the month: what was booked
+// before is draft, what follows is formal. The import fills the draft part
+// only, so the month becomes one complete statement period.
+func seedMidMonthSwitchOn(t *testing.T) (start, boundary int64) {
+	t.Helper()
+	truncate(t)
+	seedUser(t, 96, 8765432)
+	start, _, err := model.BillingMonthBounds("2020-04")
+	require.NoError(t, err)
+	boundary = start + 10*86400 + 1800
+	hour := boundary - 1800
+	require.NoError(t, model.DB.Create(&model.BillingAccount{UserID: 96, AccountingStartAt: start, StartSequence: 3, Sequence: 4, CompanyTitle: "Mid-month Customer", TaxID: "MIDMONTH", ProfileVersion: 1}).Error)
+	require.NoError(t, model.DB.Create(&[]model.BillingEntry{
+		// Booked before formal accounting began: draft, never on a statement.
+		{UserID: 96, Sequence: 1, PostedAt: start + 86400, EventKey: "draft-charge", Kind: "usage", Quota: 500000, RequestID: "draft-charge"},
+		{UserID: 96, Sequence: 2, PostedAt: start + 2*86400, EventKey: "draft-refund", Kind: "usage", Quota: -125000, RequestID: "draft-refund"},
+		// Formal from the moment accounting began.
+		{UserID: 96, Sequence: 3, PostedAt: boundary, EventKey: "formal-straddle", Kind: "usage", Quota: 100000, RequestID: "straddle", WalletDelta: -100000},
+		{UserID: 96, Sequence: 4, PostedAt: boundary + 60, EventKey: "formal-later", Kind: "usage", Quota: 200000, RequestID: "formal-later", WalletDelta: -200000},
+	}).Error)
+	require.NoError(t, model.DB.Create(&model.BillingHour{UserID: 96, Hour: hour, Charge: 300000, Count: 2, FirstSequence: 3, LastSequence: 4}).Error)
+	require.NoError(t, model.LOG_DB.Create(&[]model.Log{
+		{Id: 961, UserId: 96, CreatedAt: start + 86400, Type: model.LogTypeConsume, Quota: 500000, RequestId: "draft-charge"},
+		{Id: 962, UserId: 96, CreatedAt: start + 2*86400, Type: model.LogTypeRefund, Quota: 125000, RequestId: "draft-refund"},
+		{Id: 963, UserId: 96, CreatedAt: boundary - 600, Type: model.LogTypeConsume, Quota: 300000, RequestId: "draft-same-hour"},
+		// Written just before the boundary, booked by the formal ledger just after.
+		{Id: 964, UserId: 96, CreatedAt: boundary - 5, Type: model.LogTypeConsume, Quota: 100000, RequestId: "straddle"},
+		{Id: 965, UserId: 96, CreatedAt: boundary + 60, Type: model.LogTypeConsume, Quota: 200000, RequestId: "formal-later"},
+	}).Error)
+	return start, boundary
+}
+
+func TestBillingHistoryImportBackfillsOnlyTheMonthBeforeFormalAccountingBegan(t *testing.T) {
+	start, boundary := seedMidMonthSwitchOn(t)
+	ctx := context.Background()
+
+	review, err := ReviewBillingHistory(ctx, 96, "2020-04")
+	require.NoError(t, err)
+	require.True(t, review.Ready, "a month with formal entries can be filled in up to them: %+v", review.Checks)
+	assert.True(t, review.Partial)
+	assert.Equal(t, boundary, review.BoundaryAt)
+	require.Len(t, review.Records, 3, "the logs before the boundary, not the one the formal ledger booked or the later ones")
+	assert.Equal(t, int64(800000), review.Snapshot.ChargeQuota)
+	assert.Equal(t, int64(125000), review.Snapshot.RefundQuota)
+
+	store := &historyImportArchive{}
+	batch, err := ConfirmBillingHistoryImport(ctx, 96, 1, 1, "2020-04", "00000000000000000000000000000096", review.SourceSHA256, "Checked against the usage logs before formal accounting began", "live-admin-session", store)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), batch.Records)
+	assert.Equal(t, int64(5), batch.FromSequence)
+	assert.Equal(t, int64(7), batch.ToSequence)
+
+	var user model.User
+	require.NoError(t, model.DB.First(&user, 96).Error)
+	assert.Equal(t, 8765432, user.Quota, "an import books; it never charges the wallet")
+	account, err := model.GetBillingAccount(96)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), account.StartSequence, "the formal start does not move")
+
+	var hours []model.BillingHour
+	require.NoError(t, model.DB.Where("user_id = ?", 96).Order("hour asc").Find(&hours).Error)
+	require.Len(t, hours, 3, "the first formal hour was added to, not opened a second time")
+	boundaryHour := hours[2]
+	assert.Equal(t, boundary-1800, boundaryHour.Hour)
+	assert.Equal(t, int64(600000), boundaryHour.Charge)
+	assert.Equal(t, int64(3), boundaryHour.Count)
+	assert.Equal(t, int64(3), boundaryHour.FirstSequence)
+	assert.Equal(t, int64(7), boundaryHour.LastSequence)
+
+	statement, err := PrepareBillingStatement(96, 1, 1, "2020-04")
+	require.NoError(t, err)
+	assert.Equal(t, start, statement.StartAt)
+	var snapshot BillingSnapshot
+	require.NoError(t, common.UnmarshalJsonStr(statement.Snapshot, &snapshot))
+	assert.Equal(t, int64(1100000), snapshot.ChargeQuota, "the whole month: the formal entries and the filled-in ones")
+	assert.Equal(t, int64(125000), snapshot.RefundQuota)
+	require.NoError(t, BuildBillingArchive(ctx, statement, &memoryBillingArchive{files: map[string][]byte{}}))
+
+	again, err := ReviewBillingHistory(ctx, 96, "2020-04")
+	require.NoError(t, err)
+	assert.False(t, again.Ready, "a month is imported once")
+}
+
+func TestBillingHistoryImportOfAMidMonthSwitchOnStillBlocksOnFormalSummaryBeforeTheBoundary(t *testing.T) {
+	start, _ := seedMidMonthSwitchOn(t)
+	require.NoError(t, model.DB.Create(&model.BillingHour{UserID: 96, Hour: start + 86400, Charge: 1, Count: 1, FirstSequence: 1, LastSequence: 1}).Error)
+
+	review, err := ReviewBillingHistory(context.Background(), 96, "2020-04")
+	require.NoError(t, err)
+	assert.False(t, review.Ready)
+	assert.Contains(t, review.Checks, BillingCheck{Code: "history_empty_ledger", Passed: false})
+}
+
+func TestBillingHistoryReviewChecksTheLimitAfterExcludingBookedRequests(t *testing.T) {
+	for _, eligible := range []int{model.MaxBillingHistoryRecords, model.MaxBillingHistoryRecords + 1} {
+		t.Run(fmt.Sprintf("%d eligible records", eligible), func(t *testing.T) {
+			start, _ := seedMidMonthSwitchOn(t)
+			require.NoError(t, model.LOG_DB.Where("user_id = ?", 96).Delete(&model.Log{}).Error)
+			logs := make([]model.Log, eligible+2)
+			for i := range logs {
+				requestID := fmt.Sprintf("history-%d", i)
+				if i == 0 {
+					requestID = "straddle"
+				}
+				if i == 1 {
+					requestID = "formal-later"
+				}
+				logs[i] = model.Log{UserId: 96, CreatedAt: start + 86400, Type: model.LogTypeConsume, Quota: 1, RequestId: requestID}
+			}
+			require.NoError(t, model.LOG_DB.CreateInBatches(&logs, 100).Error)
+
+			review, err := ReviewBillingHistory(context.Background(), 96, "2020-04")
+			require.NoError(t, err)
+			assert.Equal(t, eligible, review.SourceCount, "booked requests must not hide the last eligible records")
+			assert.Equal(t, eligible <= model.MaxBillingHistoryRecords, review.Ready)
+		})
+	}
 }

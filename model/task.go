@@ -13,6 +13,7 @@ import (
 	commonRelay "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	hosttypes "github.com/QuantumNous/new-api/types"
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 )
 
@@ -617,4 +618,79 @@ func (t *Task) ToOpenAIVideo() *dto.OpenAIVideo {
 	openAIVideo.CompletedAt = t.UpdatedAt
 	openAIVideo.SetMetadata("url", t.GetResultURL())
 	return openAIVideo
+}
+
+// TaskUsage is what a finished task consumed: the tokens its platform reported
+// and how long it ran.
+type TaskUsage struct {
+	TotalTokens int
+	Seconds     int
+}
+
+// GetTaskUsageByTaskIDs returns the usage of the user's tasks by their public
+// task ID. Tasks the platform reported no usage for are still listed, so the
+// run time shows.
+func GetTaskUsageByTaskIDs(userID int, taskIDs []string) (map[string]TaskUsage, error) {
+	usage := make(map[string]TaskUsage, len(taskIDs))
+	for _, batch := range lo.Chunk(taskIDs, 500) {
+		var tasks []Task
+		if err := DB.Select("task_id", "submit_time", "finish_time", "data").Where("user_id = ? AND task_id IN ?", userID, batch).Find(&tasks).Error; err != nil {
+			return nil, err
+		}
+		for _, task := range tasks {
+			var data struct {
+				Usage struct {
+					TotalTokens      int `json:"total_tokens"`
+					CompletionTokens int `json:"completion_tokens"`
+				} `json:"usage"`
+			}
+			if len(task.Data) > 0 {
+				// Tasks without readable results simply report no tokens.
+				_ = common.Unmarshal(task.Data, &data)
+			}
+			item := TaskUsage{TotalTokens: data.Usage.TotalTokens}
+			if item.TotalTokens == 0 {
+				item.TotalTokens = data.Usage.CompletionTokens
+			}
+			if task.FinishTime > task.SubmitTime && task.SubmitTime > 0 {
+				item.Seconds = int(task.FinishTime - task.SubmitTime)
+			}
+			usage[task.TaskID] = item
+		}
+	}
+	return usage, nil
+}
+
+// GetTaskIDsBySubmitTimes finds the task behind each charge time for the user's
+// charges whose usage log recorded no task ID, which the older video logs did
+// not. A task is submitted when it is charged, so a time resolves to the task
+// the user submitted within a second of it, and only when that is a single one:
+// with two candidates neither is guessed.
+func GetTaskIDsBySubmitTimes(userID int, times []int64) (map[int64]string, error) {
+	taskIDs := make(map[int64]string, len(times))
+	unique := lo.Filter(lo.Uniq(times), func(at int64, _ int) bool { return at > 0 })
+	for _, batch := range lo.Chunk(unique, 150) {
+		window := make([]int64, 0, len(batch)*3)
+		for _, at := range batch {
+			window = append(window, at-1, at, at+1)
+		}
+		var tasks []Task
+		if err := DB.Select("task_id", "submit_time").Where("user_id = ? AND submit_time IN ?", userID, window).Find(&tasks).Error; err != nil {
+			return nil, err
+		}
+		for _, at := range batch {
+			var candidate string
+			count := 0
+			for _, task := range tasks {
+				if task.SubmitTime >= at-1 && task.SubmitTime <= at+1 {
+					candidate = task.TaskID
+					count++
+				}
+			}
+			if count == 1 {
+				taskIDs[at] = candidate
+			}
+		}
+	}
+	return taskIDs, nil
 }

@@ -190,6 +190,8 @@ export interface BillingHistoryReview {
   source_sha256: string
   source_count: number
   record_limit: number
+  partial: boolean
+  boundary_at: number
   existing_statement: string
   old_start_at: number
   new_start_at: number

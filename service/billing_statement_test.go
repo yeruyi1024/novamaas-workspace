@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,11 +17,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xuri/excelize/v2"
 )
 
 type memoryBillingArchive struct {
 	files  map[string][]byte
 	writes int
+}
+
+func (store *memoryBillingArchive) Existing(_ context.Context, _ string, kind string, _ int) (*model.BillingArtifact, error) {
+	body, exists := store.files[kind]
+	if !exists {
+		return nil, nil
+	}
+	hash := sha256.Sum256(body)
+	return &model.BillingArtifact{SHA256: hex.EncodeToString(hash[:]), Size: int64(len(body))}, nil
 }
 
 func (store *memoryBillingArchive) Put(_ context.Context, statementID, kind string, ordinal, userID int, contentType string, body []byte, rows int64) (*model.BillingArtifact, error) {
@@ -437,4 +448,111 @@ func TestDurableStreamingReservationsSettleOnlyOnce(t *testing.T) {
 	require.NoError(t, model.DB.Where("user_id = ?", 46).Find(&ledger).Error)
 	require.Len(t, ledger, 1)
 	assert.Equal(t, int64(reserved), ledger[0].Quota)
+}
+
+func TestBillingArchiveExcelListsFrozenRecordsWithTokenAndGroup(t *testing.T) {
+	truncate(t)
+	posted := int64(1769875200)
+	require.NoError(t, model.DB.Create(&model.Token{Id: 7, UserId: 47, Key: "archive-detail-key", Name: "prod-key"}).Error)
+	require.NoError(t, model.DB.Create(&model.BillingOperation{ID: "op-detail", UserID: 47, State: "settled", Reserved: 40, Actual: 100, RequestID: "req-detail", ModelName: "model", TokenID: 7}).Error)
+	require.NoError(t, model.DB.Create(&model.BillingEntry{EventKey: "settle:op-detail", UserID: 47, Sequence: 1, PostedAt: posted, Kind: "usage", Quota: 100, RequestID: "req-detail", ModelName: "model", TokenID: 7, BillingGroup: "standard", BillingRate: "0.8"}).Error)
+	require.NoError(t, model.DB.Create(&model.BillingEntry{EventKey: "detail-sheet-fallback", UserID: 47, Sequence: 2, PostedAt: posted + 60, Kind: "usage", Quota: 50, RequestID: "req-fallback", ModelName: "model", TokenID: 7}).Error)
+	require.NoError(t, model.DB.Create(&model.Log{UserId: 47, RequestId: "req-fallback", Group: "selected-group", Type: model.LogTypeConsume, IsStream: true, PromptTokens: 77, CompletionTokens: 5, UseTime: 3, Ip: "10.1.1.1", CreatedAt: posted + 60}).Error)
+	snapshot, err := BuildBillingSnapshot(&model.BillingAccount{UserID: 47, CompanyTitle: "测试企业", TaxID: "TEST"}, "2026-02", []model.BillingHour{{Hour: posted, Charge: 150, Count: 2}})
+	require.NoError(t, err)
+	snapshot.PDFTemplateVersion = 9
+	snapshot.PDFLogoPNG = billingPlatformMarkV2
+	snapshot.Username = "detail_customer"
+	snapshot.DetailSheet = true
+	require.NoError(t, attachBillingModelRows(snapshot, []model.BillingModelTotal{{ModelName: "model", Charge: 150, Count: 2, ChargeCount: 2, ActiveDays: 1, FirstPosted: posted, LastPosted: posted + 60}}))
+	body, err := common.Marshal(snapshot)
+	require.NoError(t, err)
+	hash := sha256.Sum256(body)
+	statement := &model.BillingStatement{ID: "detail-sheet", UserID: 47, Month: "2026-02", Revision: 1, Snapshot: string(body), SnapshotSHA256: hex.EncodeToString(hash[:]), StartAt: posted, EndAt: 1772294400, CreatedAt: 1772380800, FromSequence: 1, ToSequence: 2}
+	store := &memoryBillingArchive{files: map[string][]byte{}}
+	require.NoError(t, BuildBillingArchive(context.Background(), statement, store))
+
+	book, err := excelize.OpenReader(bytes.NewReader(store.files["xlsx"]))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	assert.Equal(t, []string{"detail_customer", "prod-key", "standard", "model"}, rows[1][1:5])
+	assert.Equal(t, "req-detail", rows[1][16])
+	assert.Equal(t, []string{"0.000080", "0.000200", "0.000000", "0.000000", "0.000200"}, rows[1][9:14], "the reservation, shown apart, and the one charge the ledger holds")
+	assert.Equal(t, []string{"", "0.000100", "0.000000", "0.000000", "0.000100"}, rows[2][9:14], "an entry without a reservation lists none")
+	assert.Equal(t, "selected-group", rows[2][3], "entries without a recorded group use the usage log's group")
+	assert.Equal(t, []string{"是", "77", "5"}, rows[2][5:8], "the usage log's stream flag and tokens")
+	assert.Equal(t, []string{"3", "10.1.1.1"}, rows[2][14:16], "the usage log's duration and IP")
+}
+
+func TestBillingArchiveExcelMergesTaskHoldWithItsRefund(t *testing.T) {
+	truncate(t)
+	posted := int64(1769875200)
+	// A task refund is booked under the task ID, not under the submit request.
+	require.NoError(t, model.DB.Create(&model.BillingEntry{EventKey: "task-hold", UserID: 48, Sequence: 1, PostedAt: posted, Kind: "usage", Quota: 100, RequestID: "req-submit", ModelName: "video-model"}).Error)
+	require.NoError(t, model.DB.Create(&model.BillingEntry{EventKey: "task-refund", UserID: 48, Sequence: 2, PostedAt: posted + 600, Kind: "task_adjustment", Quota: -30, RequestID: "task_abc", ModelName: "video-model"}).Error)
+	require.NoError(t, model.DB.Create(&model.Log{UserId: 48, RequestId: "req-submit", Group: "video", Type: model.LogTypeConsume, Other: `{"task_id":"task_abc","group_ratio":0.86}`, CreatedAt: posted}).Error)
+	require.NoError(t, model.DB.AutoMigrate(&model.Task{}))
+	require.NoError(t, model.DB.Create(&model.Task{TaskID: "task_abc", UserId: 48, SubmitTime: posted, FinishTime: posted + 300, Data: []byte(`{"usage":{"total_tokens":1234}}`)}).Error)
+	snapshot, err := BuildBillingSnapshot(&model.BillingAccount{UserID: 48, CompanyTitle: "测试企业", TaxID: "TEST"}, "2026-02", []model.BillingHour{{Hour: posted, Charge: 100, Count: 1}, {Hour: posted + 600 - (posted+600)%3600, Refund: 30, Count: 1}})
+	require.NoError(t, err)
+	snapshot.PDFTemplateVersion = 9
+	snapshot.PDFLogoPNG = billingPlatformMarkV2
+	snapshot.DetailSheet = true
+	require.NoError(t, attachBillingModelRows(snapshot, []model.BillingModelTotal{{ModelName: "video-model", Charge: 100, Refund: 30, Count: 2, ChargeCount: 1, RefundCount: 1, ActiveDays: 1, FirstPosted: posted, LastPosted: posted + 600}}))
+	body, err := common.Marshal(snapshot)
+	require.NoError(t, err)
+	hash := sha256.Sum256(body)
+	statement := &model.BillingStatement{ID: "task-merge", UserID: 48, Month: "2026-02", Revision: 1, Snapshot: string(body), SnapshotSHA256: hex.EncodeToString(hash[:]), StartAt: posted, EndAt: 1772294400, CreatedAt: 1772380800, FromSequence: 1, ToSequence: 2}
+	store := &memoryBillingArchive{files: map[string][]byte{}}
+	require.NoError(t, BuildBillingArchive(context.Background(), statement, store))
+
+	book, err := excelize.OpenReader(bytes.NewReader(store.files["xlsx"]))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 2, "the hold and its refund are one row")
+	assert.Equal(t, []string{"时间", "用户", "令牌", "所选分组", "模型", "输出 Token", "计费费率", "首次扣费", "补扣金额", "退款金额", "实际扣费金额", "耗时(秒)", "请求ID", "扣费说明"}, rows[0])
+	assert.Equal(t, "req-submit", rows[1][12])
+	assert.Equal(t, "video", rows[1][3], "the refund entry lends no group; the usage log does")
+	assert.Equal(t, []string{"1,234", "86.00%"}, rows[1][5:7], "the task record's tokens and the rate from the usage log")
+	assert.Equal(t, []string{"0.000200", "0.000000", "0.000060", "0.000140"}, rows[1][7:11], "the hold, no extra charge, the refund, and what the request cost")
+	assert.Equal(t, "300", rows[1][11], "the task's run time")
+}
+
+func TestBillingArchiveExcelMergesAnOlderTaskHoldThatRecordedNoTaskID(t *testing.T) {
+	truncate(t)
+	posted := int64(1769875200)
+	// The older video logs recorded no task ID; only the refund's log does.
+	require.NoError(t, model.DB.Create(&model.BillingEntry{EventKey: "task-hold", UserID: 49, Sequence: 1, PostedAt: posted, Kind: "usage", Quota: 100, RequestID: "req-submit", ModelName: "video-model", SourceLogID: 501}).Error)
+	require.NoError(t, model.DB.Create(&model.BillingEntry{EventKey: "task-refund", UserID: 49, Sequence: 2, PostedAt: posted + 3700, Kind: "history_refund", Quota: -30, RequestID: "req-refund", ModelName: "video-model", SourceLogID: 502}).Error)
+	require.NoError(t, model.DB.Create(&model.Log{Id: 501, UserId: 49, RequestId: "req-submit", Type: model.LogTypeConsume, Other: `{"is_task":true}`, CreatedAt: posted}).Error)
+	require.NoError(t, model.DB.Create(&model.Log{Id: 502, UserId: 49, RequestId: "req-refund", Type: model.LogTypeRefund, Other: `{"task_id":"task_old"}`, CreatedAt: posted + 3700}).Error)
+	require.NoError(t, model.DB.AutoMigrate(&model.Task{}))
+	require.NoError(t, model.DB.Create(&model.Task{TaskID: "task_old", UserId: 49, SubmitTime: posted + 1, FinishTime: posted + 3700}).Error)
+	snapshot, err := BuildBillingSnapshot(&model.BillingAccount{UserID: 49, CompanyTitle: "测试企业", TaxID: "TEST"}, "2026-02", []model.BillingHour{{Hour: posted, Charge: 100, Count: 1}, {Hour: posted + 3600, Refund: 30, Count: 1}})
+	require.NoError(t, err)
+	snapshot.PDFTemplateVersion = 9
+	snapshot.PDFLogoPNG = billingPlatformMarkV2
+	snapshot.DetailSheet = true
+	require.NoError(t, attachBillingModelRows(snapshot, []model.BillingModelTotal{{ModelName: "video-model", Charge: 100, Refund: 30, Count: 2, ChargeCount: 1, RefundCount: 1, ActiveDays: 1, FirstPosted: posted, LastPosted: posted + 3700}}))
+	body, err := common.Marshal(snapshot)
+	require.NoError(t, err)
+	hash := sha256.Sum256(body)
+	statement := &model.BillingStatement{ID: "task-merge-old", UserID: 49, Month: "2026-02", Revision: 1, Snapshot: string(body), SnapshotSHA256: hex.EncodeToString(hash[:]), StartAt: posted, EndAt: 1772294400, CreatedAt: 1772380800, FromSequence: 1, ToSequence: 2}
+	store := &memoryBillingArchive{files: map[string][]byte{}}
+	require.NoError(t, BuildBillingArchive(context.Background(), statement, store))
+
+	book, err := excelize.OpenReader(bytes.NewReader(store.files["xlsx"]))
+	require.NoError(t, err)
+	defer book.Close()
+	rows, err := book.GetRows("详细日志")
+	require.NoError(t, err)
+
+	require.Len(t, rows, 2, "the hold and its refund are one row although the hold's log has no task ID")
+	assert.Equal(t, "req-submit", rows[1][len(rows[1])-2])
 }
