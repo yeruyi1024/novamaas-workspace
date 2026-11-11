@@ -51,3 +51,6 @@ go.work.sum
 # Local Codex configuration and generated PDF review files.
 .codex/environments/
 /output/pdf/
+
+# Private billing recovery evidence mounted by operations.
+/approved-billing-debits.json

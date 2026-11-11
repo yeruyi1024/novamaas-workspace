@@ -299,3 +299,47 @@ export function billingPreviousMonth() {
   const previous = new Date(Date.UTC(year, month - 2, 1))
   return previous.toISOString().slice(0, 7)
 }
+
+export interface ReviewedDebit {
+  user_id: number
+  username: string
+  request_id: string
+  upstream_request_id?: string
+  source: 'usage_log' | 'supplier_statement'
+  quota: number
+  amount: string
+  status: 'blocked' | 'ready' | 'applied' | 'already_applied'
+  entry_id?: number
+}
+export interface DebitEvidence {
+  account: number
+  month: string
+}
+export async function reviewDebits(input: DebitEvidence) {
+  return unwrap(
+    (
+      await api.post<Response<ReviewedDebit[]>>(
+        '/api/billing/admin/reviewed-debits/preview',
+        input
+      )
+    ).data
+  )
+}
+export async function collectReviewedDebit(
+  input: DebitEvidence,
+  row: ReviewedDebit
+) {
+  return unwrap(
+    (
+      await api.post<Response<ReviewedDebit>>(
+        '/api/billing/admin/reviewed-debits/collect',
+        {
+          ...input,
+          request_id: row.request_id,
+          confirm_user_id: row.user_id,
+          confirm_quota: row.quota,
+        }
+      )
+    ).data
+  )
+}
