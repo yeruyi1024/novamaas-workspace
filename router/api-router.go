@@ -115,6 +115,7 @@ func SetApiRouter(router *gin.Engine) {
 			billingAdmin.POST("/usage-audit/pdf", middleware.RequirePermission(authz.FinancialAccountingView), middleware.CriticalRateLimit(), controller.DownloadUsageAuditPDF)
 			billingAdmin.GET("/preview", controller.BillingMonthPreview)
 			billingAdmin.GET("/storage-profiles", controller.BillingStorageProfiles)
+			billingAdmin.POST("/reviewed-debits", middleware.CriticalRateLimit(), controller.ReviewedBillingDebits)
 			billingAdmin.GET("/history-review", controller.ReviewBillingHistory)
 			billingAdmin.GET("/history-imports", controller.ListBillingHistoryImports)
 			billingAdmin.POST("/history-imports", controller.ConfirmBillingHistoryImport)

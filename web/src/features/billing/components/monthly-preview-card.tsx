@@ -51,6 +51,7 @@ import {
 import { BillingReadiness } from './billing-readiness'
 import { BillingRows } from './billing-rows'
 import { HistoryImportDialog } from './history-import-dialog'
+import { PendingDebitDialog } from './pending-debit-dialog'
 
 export function MonthlyPreviewCard(props: {
   userId: number
@@ -146,6 +147,11 @@ export function MonthlyPreviewCard(props: {
             </Button>
           </div>
         </FieldGroup>
+        <PendingDebitDialog
+          key={`${props.userId}:${month}`}
+          month={month}
+          account={props.userId}
+        />
         {profiles.isError && (
           <p role='alert'>
             {t('Failed to load archive storage. Refresh to retry.')}
