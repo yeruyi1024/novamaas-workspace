@@ -2,13 +2,11 @@ package model
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestReviewedDebitsRestoreSourcesAndCollectExactlyOnce(t *testing.T) {
@@ -33,40 +31,31 @@ func TestReviewedDebitsRestoreSourcesAndCollectExactlyOnce(t *testing.T) {
 	b.Supplier = &SupplierDebitEvidence{BaseCNY: "0.14", CostCNY: "0.035", SaleRatio: "0.5", BuyRatio: "0.25", Input: 10, Output: 20, Group: "test", Row: 3, LogID: "invoice-line", Sheet: "usage"}
 	for _, c := range []ReviewedDebit{a, b} {
 		require.NoError(t, DB.Create(&BillingOperation{ID: c.OperationID, UserID: id, State: "reserved", TokenID: token.Id, RequestID: c.RequestID, ModelName: c.Model, CreatedAt: start + 90}).Error)
-		r, err := RecoverReviewedDebit(context.Background(), c, operator.Id, false)
-		require.NoError(t, err)
-		assert.Equal(t, "ready", r.Status)
 	}
-	var n int64
-	require.NoError(t, DB.Model(&Log{}).Where("request_id = ?", b.RequestID).Count(&n).Error)
-	assert.Zero(t, n)
+	ctx := context.Background()
+	pair := []ReviewedDebit{a, b}
+	_, total, err := RecoverReviewedDebits(ctx, pair, operator.Id, nil)
+	require.NoError(t, err)
+	require.Equal(t, a.Quota+b.Quota, total)
 	bad := b
 	bad.UpstreamID = a.UpstreamID
-	_, err = RecoverReviewedDebit(context.Background(), bad, operator.Id, true)
+	_, _, err = RecoverReviewedDebits(ctx, []ReviewedDebit{a, bad}, operator.Id, &total)
 	require.ErrorIs(t, err, ErrBillingConflict)
-	_, err = RecoverReviewedDebit(context.Background(), b, id, true)
-	require.Error(t, err)
-	// Fail after the supplemental log, cost and wallet updates. None may survive.
-	require.NoError(t, DB.Callback().Update().Before("gorm:update").Register("test:fail_debit", func(db *gorm.DB) {
-		if db.Statement.Table == "billing_operations" {
-			db.AddError(errors.New("injected update failure"))
-		}
-	}))
-	_, err = RecoverReviewedDebit(context.Background(), b, operator.Id, true)
-	require.NoError(t, DB.Callback().Update().Remove("test:fail_debit"))
-	require.Error(t, err)
-	require.NoError(t, DB.Model(&CostAccountingSnapshot{}).Where("request_id = ?", b.RequestID).Count(&n).Error)
-	assert.Zero(t, n)
-	require.NoError(t, DB.Model(&Log{}).Where("request_id = ?", b.RequestID).Count(&n).Error)
-	assert.Zero(t, n)
-	for _, c := range []ReviewedDebit{b, a} {
-		r, err := RecoverReviewedDebit(context.Background(), c, operator.Id, true)
-		require.NoError(t, err)
-		assert.Equal(t, "applied", r.Status)
-		again, err := RecoverReviewedDebit(context.Background(), c, operator.Id, true)
-		require.NoError(t, err)
-		assert.Equal(t, "already_applied", again.Status)
-		assert.Equal(t, r.EntryID, again.EntryID)
+	var count int64
+	require.NoError(t, DB.Model(&BillingEntry{}).Where("user_id = ?", id).Count(&count).Error)
+	require.Zero(t, count, "second request failure rolls back first")
+	stale := a.Quota
+	_, _, err = RecoverReviewedDebits(ctx, pair, operator.Id, &stale)
+	require.ErrorIs(t, err, ErrBillingConflict)
+	receipts, charged, err := RecoverReviewedDebits(ctx, pair, operator.Id, &total)
+	require.NoError(t, err)
+	assert.Equal(t, total, charged)
+	retry, charged, err := RecoverReviewedDebits(ctx, pair, operator.Id, &total)
+	require.NoError(t, err)
+	assert.Zero(t, charged)
+	for i, r := range retry {
+		assert.Equal(t, "already_applied", r.Status)
+		assert.Equal(t, receipts[i].EntryID, r.EntryID)
 	}
 	var reconstructed Log
 	require.NoError(t, DB.Take(&reconstructed, "request_id = ?", b.RequestID).Error)

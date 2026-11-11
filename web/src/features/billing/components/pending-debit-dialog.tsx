@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -31,12 +30,38 @@ import {
 } from '@/components/ui/dialog'
 import { handleServerError } from '@/lib/handle-server-error'
 
-import { collectReviewedDebit, reviewDebits, type ReviewedDebit } from '../api'
+import { reviewedDebits, type ReviewedDebits } from '../api'
 
-type Props = { account: number; month: string }
-export function PendingDebitDialog(props: Props) {
+export function PendingDebitDialog({
+  account,
+  month,
+}: {
+  account: number
+  month: string
+}) {
   const { t } = useTranslation()
+  const client = useQueryClient()
   const [open, setOpen] = useState(false)
+  const key = ['billing', 'reviewed-debits', account, month]
+  const preview = useQuery({
+    queryKey: key,
+    queryFn: () => reviewedDebits(account, month),
+    enabled: open,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+  const apply = useMutation({
+    mutationFn: (data: ReviewedDebits) => reviewedDebits(account, month, data),
+    onSuccess: (result) => {
+      client.setQueryData(key, result)
+      void client.invalidateQueries({ queryKey: ['billing'] })
+    },
+    onError: (error) => {
+      handleServerError(error)
+      void preview.refetch()
+    },
+  })
+  const data = preview.isError ? undefined : preview.data
   return (
     <>
       <Button
@@ -47,98 +72,55 @@ export function PendingDebitDialog(props: Props) {
         {t('Collect outstanding charges')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        {open && <ReviewContent {...props} />}
-      </Dialog>
-    </>
-  )
-}
-function ReviewContent({ account, month }: Props) {
-  const { t } = useTranslation()
-  const client = useQueryClient()
-  const preview = useQuery({
-    queryKey: ['billing', 'reviewed-debits', account, month],
-    queryFn: () => reviewDebits({ account, month }),
-    retry: false,
-    refetchOnWindowFocus: false,
-  })
-  const [receipts, setReceipts] = useState<Record<string, number>>({})
-  const apply = useMutation({
-    mutationFn: (row: ReviewedDebit) =>
-      collectReviewedDebit({ account, month }, row),
-    onSuccess: (row) => {
-      const entryId = row.entry_id
-      if (entryId) {
-        setReceipts((prev) => ({ ...prev, [row.request_id]: entryId }))
-      }
-      toast.success(
-        t('Wallet debit recorded (entry {{id}}).', { id: row.entry_id })
-      )
-      void client.invalidateQueries({ queryKey: ['billing'] })
-    },
-    onError: handleServerError,
-  })
-  return (
-    <DialogContent className='max-h-[85dvh] overflow-y-auto sm:max-w-xl'>
-      <DialogHeader>
-        <DialogTitle>{t('Collect outstanding charges')}</DialogTitle>
-        <DialogDescription>
-          {month} ·{' '}
-          {t('Confirm this request has not been collected separately.')}
-        </DialogDescription>
-      </DialogHeader>
-      {preview.isPending && <p>{t('Loading...')}</p>}
-      {preview.isError && (
-        <p role='alert'>
-          {t('Check the evidence file, account, month and billing currency.')}
-        </p>
-      )}
-      {preview.data?.map((row) => {
-        const entry = receipts[row.request_id] ?? row.entry_id
-        return (
-          <section
-            key={row.request_id}
-            className='space-y-2 border-t pt-3 text-sm'
-          >
-            <p>
-              {row.username} (#{row.user_id}) · {month}
+        <DialogContent className='max-h-[85dvh] overflow-y-auto sm:max-w-xl'>
+          <DialogHeader>
+            <DialogTitle>{t('Collect outstanding charges')}</DialogTitle>
+            <DialogDescription>
+              {month}
+              {data && ` · ${data.username} (#${data.user_id})`}
+            </DialogDescription>
+          </DialogHeader>
+          {preview.isFetching && <p>{t('Loading...')}</p>}
+          {preview.isError && (
+            <p role='alert'>
+              {t(
+                'Wallet debit unavailable. Recheck the ledger, balance and historical import period.'
+              )}
             </p>
-            <p className='break-all'>
-              {t('Request ID')}: {row.request_id}
-            </p>
-            <p>
-              {row.source === 'usage_log'
-                ? t('Usage log')
-                : t('Supplier statement')}
-            </p>
-            {row.upstream_request_id && (
-              <p className='break-all'>
-                {t('Upstream Request ID')}: {row.upstream_request_id}
-              </p>
-            )}
-            <p className='font-semibold'>
-              {t('Wallet debit')}: CNY {row.amount}
-            </p>
-            {entry && (
-              <p>{t('Wallet debit recorded (entry {{id}}).', { id: entry })}</p>
-            )}
-            {row.status === 'blocked' && (
+          )}
+          {data?.rows.map((row) => (
+            <div key={row.request_id} className='border-t pt-2 text-sm'>
               <p>
-                {t(
-                  'Wallet debit unavailable. Recheck the ledger, balance and historical import period.'
-                )}
+                {row.supplier ? t('Supplier statement') : t('Usage log')} · CNY{' '}
+                {row.amount}
               </p>
-            )}
-            {!entry && row.status === 'ready' && (
+              <p className='break-all'>
+                {t('Request ID')}: {row.request_id}
+              </p>
+              {row.entry_id && (
+                <p>
+                  {t('Wallet debit recorded (entry {{id}}).', {
+                    id: row.entry_id,
+                  })}
+                </p>
+              )}
+            </div>
+          ))}
+          {data && data.rows.some((row) => row.status === 'ready') && (
+            <>
+              <p className='font-semibold'>
+                {t('Total')}: CNY {data.total}
+              </p>
               <Button
-                disabled={apply.isPending}
-                onClick={() => apply.mutate(row)}
+                disabled={preview.isFetching || apply.isPending}
+                onClick={() => apply.mutate(data)}
               >
                 {t('Confirm wallet debit')}
               </Button>
-            )}
-          </section>
-        )
-      })}
-    </DialogContent>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

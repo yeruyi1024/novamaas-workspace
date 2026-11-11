@@ -300,44 +300,33 @@ export function billingPreviousMonth() {
   return previous.toISOString().slice(0, 7)
 }
 
-export interface ReviewedDebit {
+export interface ReviewedDebits {
   user_id: number
   username: string
-  request_id: string
-  upstream_request_id?: string
-  source: 'usage_log' | 'supplier_statement'
-  quota: number
-  amount: string
-  status: 'blocked' | 'ready' | 'applied' | 'already_applied'
-  entry_id?: number
+  total: string
+  total_quota: number
+  rows: {
+    request_id: string
+    amount: string
+    supplier: boolean
+    status: 'ready' | 'applied' | 'already_applied'
+    entry_id?: number
+  }[]
 }
-export interface DebitEvidence {
-  account: number
-  month: string
-}
-export async function reviewDebits(input: DebitEvidence) {
-  return unwrap(
-    (
-      await api.post<Response<ReviewedDebit[]>>(
-        '/api/billing/admin/reviewed-debits/preview',
-        input
-      )
-    ).data
-  )
-}
-export async function collectReviewedDebit(
-  input: DebitEvidence,
-  row: ReviewedDebit
+export async function reviewedDebits(
+  account: number,
+  month: string,
+  confirmed?: ReviewedDebits
 ) {
   return unwrap(
     (
-      await api.post<Response<ReviewedDebit>>(
-        '/api/billing/admin/reviewed-debits/collect',
+      await api.post<Response<ReviewedDebits>>(
+        '/api/billing/admin/reviewed-debits',
         {
-          ...input,
-          request_id: row.request_id,
-          confirm_user_id: row.user_id,
-          confirm_quota: row.quota,
+          account,
+          month,
+          confirm_user_id: confirmed?.user_id,
+          confirm_quota: confirmed?.total_quota,
         }
       )
     ).data
