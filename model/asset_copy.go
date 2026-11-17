@@ -33,10 +33,99 @@ type AssetCopyPair struct {
 }
 
 type AssetCopiedGroup struct {
-	SourceID       int64           `json:"source_id"`
-	TargetPublicID string          `json:"target_public_id"`
-	Name           string          `json:"name"`
-	Assets         []AssetCopyPair `json:"assets"`
+	SourceID       int64                  `json:"source_id"`
+	TargetPublicID string                 `json:"target_public_id"`
+	Name           string                 `json:"name"`
+	Assets         []AssetCopyPair        `json:"assets"`
+	Destinations   []AssetCopyDestination `json:"destinations,omitempty"`
+}
+
+type AssetCopyDestination struct {
+	LibraryID int `json:"library_id,omitempty"`
+	ChannelID int `json:"channel_id,omitempty"`
+}
+
+type AssetCopyProgress struct {
+	ReadyCount       int  `json:"ready_count"`
+	ProcessingCount  int  `json:"processing_count"`
+	FailedCount      int  `json:"failed_count"`
+	UnavailableCount int  `json:"unavailable_count"`
+	CanDeleteSources bool `json:"can_delete_sources"`
+}
+
+// A successful asset is usable on every required account. Terminal failures
+// also finish processing; this read never locks assets or replicas.
+func GetAssetCopyProgress(tx *gorm.DB, ownerID int, groups []AssetCopiedGroup) (AssetCopyProgress, error) {
+	progress := AssetCopyProgress{}
+	var ids []int64
+	for _, group := range groups {
+		for _, pair := range group.Assets {
+			ids = append(ids, pair.TargetID)
+		}
+	}
+	if len(ids) == 0 {
+		progress.CanDeleteSources = true
+		return progress, nil
+	}
+	var assets []MediaAsset
+	if err := tx.Where("id IN ? AND owner_user_id = ?", ids, ownerID).Find(&assets).Error; err != nil {
+		return progress, err
+	}
+	var replicas []AssetReplica
+	if err := tx.Where("asset_id IN ?", ids).Find(&replicas).Error; err != nil {
+		return progress, err
+	}
+	statuses := make(map[int64]string, len(assets))
+	for _, asset := range assets {
+		statuses[asset.ID] = asset.Status
+	}
+	byAsset := make(map[int64][]AssetReplica)
+	for _, replica := range replicas {
+		byAsset[replica.AssetID] = append(byAsset[replica.AssetID], replica)
+	}
+	for _, group := range groups {
+		for _, pair := range group.Assets {
+			status := statuses[pair.TargetID]
+			if status == "" || status == AssetStatusDeleted || status == AssetStatusUnavailable {
+				progress.UnavailableCount++
+				continue
+			}
+			current := byAsset[pair.TargetID]
+			ready := status == AssetStatusReady && len(current) > 0
+			pending := false
+			active := make(map[AssetCopyDestination]bool, len(current))
+			for _, replica := range current {
+				usable := replica.Operation == AssetReplicaOperationSync && replica.Status == AssetReplicaStatusActive && replica.UpstreamAssetID != ""
+				ready = ready && usable
+				if replica.Operation == AssetReplicaOperationSync {
+					switch replica.Status {
+					case AssetReplicaStatusPending, AssetReplicaStatusSyncing, AssetReplicaStatusProcessing:
+						pending = true
+					case AssetReplicaStatusFailed:
+						pending = pending || replica.NextSyncAt > 0
+					}
+				}
+				destination := AssetCopyDestination{ChannelID: replica.ChannelID}
+				if replica.LibraryID != nil {
+					destination = AssetCopyDestination{LibraryID: *replica.LibraryID}
+				}
+				active[destination] = usable
+			}
+			for _, destination := range group.Destinations {
+				ready = ready && active[destination]
+			}
+			switch {
+			case ready:
+				progress.ReadyCount++
+			case pending:
+				progress.ProcessingCount++
+			default:
+				progress.FailedCount++
+			}
+		}
+	}
+	progress.CanDeleteSources = progress.ProcessingCount == 0
+	return progress, nil
 }
 
 // MigrateAssetCopyReferences drops the former one-asset-per-file uniqueness:
@@ -225,10 +314,18 @@ func CopyAssetGroupsWithTx(tx *gorm.DB, batch *AssetCopyBatch, publicIDs []strin
 	}
 
 	manifest := make([]AssetCopiedGroup, 0, len(groups))
+	var required []AssetCopyDestination
+	for _, destination := range destinations {
+		scope := AssetCopyDestination{ChannelID: destination.ChannelID}
+		if destination.LibraryID != nil {
+			scope = AssetCopyDestination{LibraryID: *destination.LibraryID}
+		}
+		required = append(required, scope)
+	}
 	entries := make(map[int64]int, len(groups))
 	for index, group := range groups {
 		entries[group.ID] = len(manifest)
-		manifest = append(manifest, AssetCopiedGroup{SourceID: group.ID, TargetPublicID: targets[index].PublicID, Name: group.Name, Assets: []AssetCopyPair{}})
+		manifest = append(manifest, AssetCopiedGroup{SourceID: group.ID, TargetPublicID: targets[index].PublicID, Name: group.Name, Assets: []AssetCopyPair{}, Destinations: required})
 	}
 	for index, source := range sources {
 		entry := &manifest[entries[source.GroupID]]
@@ -242,10 +339,8 @@ func CopyAssetGroupsWithTx(tx *gorm.DB, batch *AssetCopyBatch, publicIDs []strin
 	return copies, tx.Create(batch).Error
 }
 
-// DeleteAssetCopySources deletes this batch's source assets with the normal
-// per-asset deletion. A source is kept when its copy was deleted or when the
-// source user moved it out of the copied group; the shared file stays while
-// any copy uses it.
+// DeleteAssetCopySources cleans the source snapshot uniformly after processing
+// finishes. Later uploads and sources moved out of the copied groups stay.
 func DeleteAssetCopySources(batchID string, operatorID int) (*AssetCopyBatch, error) {
 	var batch AssetCopyBatch
 	err := DB.Transaction(func(tx *gorm.DB) error {
@@ -262,38 +357,36 @@ func DeleteAssetCopySources(batchID string, operatorID int) (*AssetCopyBatch, er
 		if err := common.UnmarshalJsonStr(batch.Manifest, &manifest); err != nil {
 			return err
 		}
+		progress, err := GetAssetCopyProgress(tx, batch.TargetUserID, manifest)
+		if err != nil {
+			return err
+		}
+		if !progress.CanDeleteSources {
+			return fmt.Errorf("%w: wait for the batch to finish before deleting sources", ErrAssetCopyConflict)
+		}
 		groupIDs := make([]int64, 0, len(manifest))
-		var sourceIDs, targetIDs []int64
-		copiedFrom, copiedTo := map[int64]int64{}, map[int64]int64{}
+		var sourceIDs []int64
+		copiedFrom := map[int64]int64{}
 		for _, group := range manifest {
 			groupIDs = append(groupIDs, group.SourceID)
 			for _, pair := range group.Assets {
 				sourceIDs = append(sourceIDs, pair.SourceID)
-				targetIDs = append(targetIDs, pair.TargetID)
-				copiedFrom[pair.SourceID], copiedTo[pair.SourceID] = group.SourceID, pair.TargetID
+				copiedFrom[pair.SourceID] = group.SourceID
 			}
 		}
 		var groups []AssetGroup
 		if err := lockForUpdate(tx).Where("id IN ?", groupIDs).Order("id asc").Find(&groups).Error; err != nil {
 			return err
 		}
-		var sources, targets []MediaAsset
+		var sources []MediaAsset
 		if len(sourceIDs) > 0 {
 			if err := lockForUpdate(tx).Where("id IN ?", sourceIDs).Order("id asc").Find(&sources).Error; err != nil {
 				return err
 			}
-			if err := lockForUpdate(tx).Where("id IN ? AND owner_user_id = ? AND status <> ?", targetIDs, batch.TargetUserID, AssetStatusDeleted).
-				Order("id asc").Find(&targets).Error; err != nil {
-				return err
-			}
-		}
-		liveCopies := make(map[int64]bool, len(targets))
-		for _, target := range targets {
-			liveCopies[target.ID] = true
 		}
 		for _, source := range sources {
 			if source.OwnerUserID != batch.SourceUserID || source.Status == AssetStatusDeleted ||
-				source.GroupID != copiedFrom[source.ID] || !liveCopies[copiedTo[source.ID]] {
+				source.GroupID != copiedFrom[source.ID] {
 				continue
 			}
 			if err := RequestAssetDeletion(tx, source.ID); err != nil {
@@ -314,6 +407,6 @@ func DeleteAssetCopySources(batchID string, operatorID int) (*AssetCopyBatch, er
 		}
 		batch.SourcesDeletedAt = common.GetTimestamp()
 		return tx.Model(&batch).Update("sources_deleted_at", batch.SourcesDeletedAt).Error
-	})
+	}, assetDeletionTxOptions())
 	return &batch, err
 }

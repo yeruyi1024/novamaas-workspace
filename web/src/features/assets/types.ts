@@ -174,6 +174,7 @@ export type AssetCopyResult = {
   processing_count: number
   failed_count: number
   unavailable_count: number
+  can_delete_sources: boolean
   groups: { id: string; name: string; asset_count: number }[]
   asset_count: number
   sources_deleted_at: number

@@ -138,7 +138,7 @@ func TestAssetCopyQueuesOneTaskPerEnabledAccount(t *testing.T) {
 	assert.Equal(t, []int{shared.ID, second.ID}, libraries, "channels sharing an account get one task; paused accounts get none")
 }
 
-func TestAssetCopyWithoutSynchronizationCreatesReadyAssetsAndNotifiesOnlyTarget(t *testing.T) {
+func TestAssetCopyWithoutSynchronizationAllowsCleanupAndNotifiesOnlyTarget(t *testing.T) {
 	db, input, _ := setupAssetCopy(t, model.AssetStatusReady)
 	require.NoError(t, db.Model(&model.AssetChannelConfig{}).Where("channel_id = ?", 91).Update("enabled", false).Error)
 	require.NoError(t, db.Create(&model.AssetWebhookEndpoint{PublicID: model.SystemAssetWebhookEndpointID, Status: model.AssetWebhookEndpointStatusEnabled}).Error)
@@ -148,7 +148,10 @@ func TestAssetCopyWithoutSynchronizationCreatesReadyAssetsAndNotifiesOnlyTarget(
 	}
 	result, err := CopyAssetGroups(100, input)
 	require.NoError(t, err)
-	assert.Equal(t, 1, result.ReadyCount)
+	assert.Zero(t, result.ReadyCount)
+	assert.True(t, result.CanDeleteSources)
+	_, err = DeleteCopiedSources(result.ID, 100)
+	require.NoError(t, err)
 	copies := targetCopies(t, db)
 	require.Len(t, copies, 1)
 	assert.Equal(t, model.AssetStatusReady, copies[0].Status)
@@ -184,7 +187,7 @@ func TestAssetCopyTargetRejectionDoesNotAffectSource(t *testing.T) {
 	assert.Equal(t, "asset://asset-upstream-0", gjson.GetBytes(mapped, "content.0.image_url.url").String())
 }
 
-func TestAssetCopySynchronizesWithItsOwnUpstreamIDAfterSourceCleanup(t *testing.T) {
+func TestAssetCopySynchronizesWithItsOwnUpstreamIDBeforeSourceCleanup(t *testing.T) {
 	db, input, originals := setupAssetCopy(t, model.AssetStatusReady)
 	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "copy-provider-fixture")
 	require.NoError(t, db.AutoMigrate(&model.StorageProfile{}, &model.StorageCredential{}))
@@ -225,8 +228,9 @@ func TestAssetCopySynchronizesWithItsOwnUpstreamIDAfterSourceCleanup(t *testing.
 	result, err := CopyAssetGroups(100, input)
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.ProcessingCount)
+	assert.False(t, result.CanDeleteSources)
 	_, err = DeleteCopiedSources(result.ID, 100)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, model.ErrAssetCopyConflict, "sources stay until the batch finishes")
 	require.NoError(t, db.Create(&model.AssetWebhookEndpoint{PublicID: model.SystemAssetWebhookEndpointID, Status: model.AssetWebhookEndpointStatusEnabled}).Error)
 	for _, owner := range []int{1, 2} {
 		require.NoError(t, db.Create(&model.AssetWebhookEndpoint{PublicID: fmt.Sprintf("we_copy_%d", owner), OwnerUserID: owner,
@@ -264,77 +268,58 @@ func TestAssetCopySynchronizesWithItsOwnUpstreamIDAfterSourceCleanup(t *testing.
 	receipt, err := GetAssetCopy(result.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, receipt.ReadyCount)
+	require.True(t, receipt.CanDeleteSources)
+	_, err = DeleteCopiedSources(result.ID, 100)
+	require.NoError(t, err)
+	mapped, _, err = ResolveRequestAssetIDs([]byte(fmt.Sprintf(`{"content":[{"image_url":{"url":"asset://%s"}}]}`, copy.PublicID)), 2, 91)
+	require.NoError(t, err, "the copy keeps working after its source is deleted")
+	assert.Equal(t, "asset://target-new-id", gjson.GetBytes(mapped, "content.0.image_url.url").String())
 	var object model.StorageObject
 	require.NoError(t, db.First(&object, originals[0].StorageObjectID).Error)
 	assert.Equal(t, model.StorageObjectStatusUploaded, object.Status)
 }
 
-func TestAssetCopySourceCleanupKeepsNewUploadsAndTheFileForCopies(t *testing.T) {
-	db, input, originals := setupAssetCopy(t, model.AssetStatusReady)
+func TestAssetCopyCompletedCleanupKeepsMovedSourcesLaterUploadsAndSharedFiles(t *testing.T) {
+	db, input, originals := setupAssetCopy(t, model.AssetStatusReady, model.AssetStatusReady)
 	result, err := CopyAssetGroups(100, input)
 	require.NoError(t, err)
-	newAsset := model.MediaAsset{PublicID: "asset-new-upload", OwnerUserID: 1, GroupID: originals[0].GroupID, StorageObjectID: 999, Status: model.AssetStatusReady}
-	require.NoError(t, db.Create(&newAsset).Error)
-	_, err = DeleteCopiedSources(result.ID, 100)
-	require.NoError(t, err)
-	_, err = DeleteCopiedSources(result.ID, 100)
-	require.NoError(t, err, "cleanup retries are idempotent")
+	copies := targetCopies(t, db)
+	markCopiesReady(t, db)
+	moved := model.AssetGroup{PublicID: "group-moved", OwnerUserID: 1, Name: "Moved", Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&moved).Error)
+	require.NoError(t, db.Model(&originals[1]).Update("group_id", moved.ID).Error)
+	later := model.MediaAsset{PublicID: "asset-later", OwnerUserID: 1, GroupID: originals[0].GroupID, StorageObjectID: 999, Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&later).Error)
+	for range 2 {
+		_, err = DeleteCopiedSources(result.ID, 100)
+		require.NoError(t, err)
+	}
 	_, err = model.FindMediaAsset(originals[0].PublicID, 1, false)
 	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
-	_, err = model.FindMediaAsset(newAsset.PublicID, 1, false)
-	require.NoError(t, err)
+	for _, id := range []string{later.PublicID, originals[1].PublicID} {
+		_, err = model.FindMediaAsset(id, 1, false)
+		require.NoError(t, err)
+	}
 	_, err = model.FindAssetGroup(input.GroupIDs[0], 1, false)
-	require.NoError(t, err, "a group with later uploads must survive")
-	// The source's own upstream copy is deleted; the shared file is kept.
+	require.NoError(t, err)
 	var replica model.AssetReplica
 	require.NoError(t, db.Where("asset_id = ?", originals[0].ID).First(&replica).Error)
 	assert.Equal(t, model.AssetReplicaOperationDelete, replica.Operation)
-	require.NoError(t, db.Model(&replica).Updates(map[string]any{"status": model.AssetReplicaStatusSyncing, "locked_by": "delete-worker"}).Error)
-	require.NoError(t, model.AcknowledgeAssetReplicaDeletion(replica.ID, "delete-worker", replica.UpstreamAssetID))
 	var object model.StorageObject
 	require.NoError(t, db.First(&object, originals[0].StorageObjectID).Error)
-	assert.Equal(t, model.StorageObjectStatusUploaded, object.Status, "the copy still uses the file")
-	copies := targetCopies(t, db)
-	require.Len(t, copies, 1)
-	_, err = GetAsset(copies[0].PublicID, 2)
+	assert.Equal(t, model.StorageObjectStatusUploaded, object.Status)
+	mapped, _, err := ResolveRequestAssetIDs([]byte(fmt.Sprintf(`{"content":[{"image_url":{"url":"asset://%s"}}]}`, copies[0].PublicID)), 2, 91)
 	require.NoError(t, err)
-	require.NoError(t, DeleteAsset(copies[0].PublicID, 2, false))
-	require.NoError(t, db.First(&object, object.ID).Error)
-	assert.Equal(t, model.StorageObjectStatusDeletePending, object.Status, "the last asset reclaims the file")
+	assert.Equal(t, "asset://target-own-upstream-id", gjson.GetBytes(mapped, "content.0.image_url.url").String())
 }
 
-func TestAssetCopyCleanupKeepsSourcesWhoseCopyWasDeleted(t *testing.T) {
-	db, input, originals := setupAssetCopy(t, model.AssetStatusReady, model.AssetStatusReady)
-	result, err := CopyAssetGroups(100, input)
-	require.NoError(t, err)
+func markCopiesReady(t *testing.T, db *gorm.DB) {
+	t.Helper()
 	copies := targetCopies(t, db)
-	require.Len(t, copies, 2)
-	require.NoError(t, DeleteAsset(copies[0].PublicID, 2, false))
-	_, err = DeleteCopiedSources(result.ID, 100)
-	require.NoError(t, err)
-	_, err = model.FindMediaAsset(originals[0].PublicID, 1, false)
-	require.NoError(t, err, "without its copy the source is the only remaining asset")
-	_, err = model.FindMediaAsset(originals[1].PublicID, 1, false)
-	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
-	_, err = model.FindAssetGroup(input.GroupIDs[0], 1, false)
-	require.NoError(t, err)
-}
-
-func TestAssetCopyCleanupKeepsSourcesMovedToAnotherGroup(t *testing.T) {
-	db, input, originals := setupAssetCopy(t, model.AssetStatusReady, model.AssetStatusReady)
-	result, err := CopyAssetGroups(100, input)
-	require.NoError(t, err)
-	other := model.AssetGroup{PublicID: "group-reorganized", OwnerUserID: 1, Name: "Kept", Status: model.AssetStatusReady}
-	require.NoError(t, db.Create(&other).Error)
-	require.NoError(t, db.Model(&model.MediaAsset{}).Where("id = ?", originals[1].ID).Update("group_id", other.ID).Error)
-	_, err = DeleteCopiedSources(result.ID, 100)
-	require.NoError(t, err)
-	_, err = model.FindMediaAsset(originals[0].PublicID, 1, false)
-	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
-	_, err = model.FindMediaAsset(originals[1].PublicID, 1, false)
-	require.NoError(t, err, "an asset the source user moved after the copy is kept")
-	_, err = model.FindAssetGroup(input.GroupIDs[0], 1, false)
-	require.ErrorIs(t, err, gorm.ErrRecordNotFound, "the emptied copied group is removed")
+	for _, copy := range copies {
+		require.NoError(t, db.Model(&copy).Update("status", model.AssetStatusReady).Error)
+		require.NoError(t, db.Model(&model.AssetReplica{}).Where("asset_id = ?", copy.ID).Updates(map[string]any{"status": model.AssetReplicaStatusActive, "upstream_asset_id": "target-own-upstream-id"}).Error)
+	}
 }
 
 func TestAssetCopyRechecksCurrentRolesBeforeWriting(t *testing.T) {
@@ -449,6 +434,7 @@ func TestAssetCopyCleanupKeepsUploadsCommittedAfterItsInitialSnapshot(t *testing
 	}
 	result, err := CopyAssetGroups(100, input)
 	require.NoError(t, err)
+	markCopiesReady(t, db)
 	newUpload := model.MediaAsset{PublicID: "asset-concurrent-upload", OwnerUserID: 1, GroupID: assets[0].GroupID, StorageObjectID: 999, Status: model.AssetStatusReady}
 	inserted := false
 	require.NoError(t, db.Callback().Query().After("gorm:query").Register("upload_after_cleanup_snapshot", func(tx *gorm.DB) {
@@ -523,4 +509,123 @@ func TestAssetCopyDoesNotLockRowsUpdatedByRelayBilling(t *testing.T) {
 	_, err := CopyAssetGroups(100, input)
 	require.NoError(t, err)
 	require.True(t, checked)
+}
+
+func TestAssetCopyWaitsForEveryAccountToFinishProcessing(t *testing.T) {
+	db, input, sources := setupAssetCopy(t, model.AssetStatusReady)
+	second := model.AssetLibraryConnection{Name: "second account", Enabled: true}
+	require.NoError(t, db.Create(&second).Error)
+	require.NoError(t, db.Create(&model.Channel{Id: 92, Status: common.ChannelStatusEnabled}).Error)
+	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 92, LibraryID: second.ID, Enabled: true}).Error)
+	result, err := CopyAssetGroups(100, input)
+	require.NoError(t, err)
+	copies := targetCopies(t, db)
+	require.Len(t, copies, 1)
+	var replicas []model.AssetReplica
+	require.NoError(t, db.Where("asset_id = ?", copies[0].ID).Order("id").Find(&replicas).Error)
+	require.Len(t, replicas, 2)
+	require.NoError(t, db.Model(&copies[0]).Update("status", model.AssetStatusReady).Error)
+	require.NoError(t, db.Model(&replicas[0]).Updates(map[string]any{"status": model.AssetReplicaStatusActive, "upstream_asset_id": "copy-first-account"}).Error)
+	receipt, err := GetAssetCopy(result.ID)
+	require.NoError(t, err)
+	assert.Zero(t, receipt.ReadyCount, "one account is not a completed copy")
+	_, err = DeleteCopiedSources(result.ID, 100)
+	require.ErrorIs(t, err, model.ErrAssetCopyConflict)
+	require.NoError(t, db.First(&sources[0], sources[0].ID).Error)
+	assert.Equal(t, model.AssetStatusReady, sources[0].Status)
+	for _, status := range []string{model.AssetReplicaStatusFailed, model.AssetReplicaStatusRejected, model.AssetReplicaStatusProcessing} {
+		require.NoError(t, db.Model(&replicas[1]).Update("status", status).Error)
+		receipt, err = GetAssetCopy(result.ID)
+		require.NoError(t, err)
+		if status == model.AssetReplicaStatusRejected {
+			assert.True(t, receipt.CanDeleteSources)
+			assert.Equal(t, 1, receipt.FailedCount)
+		} else {
+			assert.False(t, receipt.CanDeleteSources)
+			_, err = DeleteCopiedSources(result.ID, 100)
+			require.ErrorIs(t, err, model.ErrAssetCopyConflict)
+		}
+	}
+	require.NoError(t, db.Delete(&replicas[1]).Error)
+	receipt, err = GetAssetCopy(result.ID)
+	require.NoError(t, err)
+	assert.Zero(t, receipt.ReadyCount, "a removed required account cannot become completed")
+	assert.True(t, receipt.CanDeleteSources)
+	require.NoError(t, db.Create(&replicas[1]).Error)
+	require.NoError(t, db.Model(&replicas[1]).Update("status", model.AssetReplicaStatusActive).Error)
+	receipt, err = GetAssetCopy(result.ID)
+	require.NoError(t, err)
+	assert.Zero(t, receipt.ReadyCount, "active without an upstream ID is not successful")
+	assert.True(t, receipt.CanDeleteSources)
+	require.NoError(t, db.Model(&replicas[1]).Updates(map[string]any{"status": model.AssetReplicaStatusActive, "upstream_asset_id": "copy-second-account"}).Error)
+	receipt, err = GetAssetCopy(result.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, receipt.ReadyCount)
+	_, err = DeleteCopiedSources(result.ID, 100)
+	require.NoError(t, err)
+}
+
+func TestAssetCopyFinishedBatchCleanupIncludesUnavailableSources(t *testing.T) {
+	for _, status := range []string{model.AssetStatusDeleted, model.AssetStatusUnavailable, "missing"} {
+		t.Run(status, func(t *testing.T) {
+			db, input, originals := setupAssetCopy(t, model.AssetStatusReady, model.AssetStatusReady)
+			result, err := CopyAssetGroups(100, input)
+			require.NoError(t, err)
+			markCopiesReady(t, db)
+			if status == "missing" {
+				require.NoError(t, db.Where("owner_user_id = ?", 2).Delete(&model.MediaAsset{}).Error)
+			} else {
+				require.NoError(t, db.Model(&model.MediaAsset{}).Where("owner_user_id = ?", 2).Update("status", status).Error)
+			}
+			receipt, err := GetAssetCopy(result.ID)
+			require.NoError(t, err)
+			assert.Zero(t, receipt.ReadyCount)
+			assert.True(t, receipt.CanDeleteSources)
+			_, err = DeleteCopiedSources(result.ID, 100)
+			require.NoError(t, err)
+			_, err = model.FindMediaAsset(originals[0].PublicID, 1, false)
+			require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+			_, err = model.FindMediaAsset(originals[1].PublicID, 1, false)
+			require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+		})
+	}
+}
+
+func TestAssetCopyPartialCompletionDeletesTheSourceBatch(t *testing.T) {
+	db, input, originals := setupAssetCopy(t, model.AssetStatusReady, model.AssetStatusReady)
+	result, err := CopyAssetGroups(100, input)
+	require.NoError(t, err)
+	markCopiesReady(t, db)
+	copies := targetCopies(t, db)
+	for _, status := range []string{model.AssetReplicaStatusPending, model.AssetReplicaStatusFailed} {
+		require.NoError(t, db.Model(&model.AssetReplica{}).Where("asset_id = ?", copies[1].ID).Updates(map[string]any{"status": status, "next_sync_at": common.GetTimestamp() + 60}).Error)
+		receipt, err := GetAssetCopy(result.ID)
+		require.NoError(t, err)
+		assert.Equal(t, 1, receipt.ProcessingCount)
+		assert.False(t, receipt.CanDeleteSources)
+		_, err = DeleteCopiedSources(result.ID, 100)
+		require.ErrorIs(t, err, model.ErrAssetCopyConflict)
+	}
+	require.NoError(t, db.Model(&model.AssetReplica{}).Where("asset_id = ?", copies[1].ID).Updates(map[string]any{"status": model.AssetReplicaStatusFailed, "next_sync_at": 0, "upstream_asset_id": ""}).Error)
+	receipt, err := GetAssetCopy(result.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, receipt.ReadyCount)
+	assert.Equal(t, 1, receipt.FailedCount)
+	assert.Zero(t, receipt.ProcessingCount)
+	assert.True(t, receipt.CanDeleteSources)
+	_, err = DeleteCopiedSources(result.ID, 100)
+	require.NoError(t, err)
+	_, err = model.FindMediaAsset(originals[0].PublicID, 1, false)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	_, err = model.FindMediaAsset(originals[1].PublicID, 1, false)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	_, err = model.FindAssetGroup(input.GroupIDs[0], 1, false)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	for _, copy := range copies {
+		_, err = model.FindMediaAsset(copy.PublicID, 2, false)
+		require.NoError(t, err, "failed destination copies remain available for retry")
+		var object model.StorageObject
+		require.NoError(t, db.First(&object, copy.StorageObjectID).Error)
+		assert.Equal(t, model.StorageObjectStatusUploaded, object.Status)
+	}
 }

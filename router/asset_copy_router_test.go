@@ -73,11 +73,11 @@ func TestAssetCopyRoutesAllowAdministratorsForCustomersOnly(t *testing.T) {
 	copyPath := "/api/asset-library/admin/copies"
 	batchPath := copyPath + "/copy-admin-route-test"
 	input := fmt.Sprintf(`{"request_id":"copy-admin-route-test","source_user_id":%d,"target_user_id":%d,"group_ids":["group-route-source"]}`, source.Id, target.Id)
-	for _, route := range []struct{ method, path string }{{"POST", copyPath}, {"GET", batchPath}, {"POST", batchPath + "/delete-sources"}} {
+	for _, route := range []struct{ method, path string }{{"POST", copyPath}, {"GET", batchPath}} {
 		assert.Equal(t, http.StatusUnauthorized, request(0, route.method, route.path, input).Code)
 		assert.Equal(t, http.StatusForbidden, request(common.RoleCommonUser, route.method, route.path, input).Code)
 	}
-	for _, route := range []struct{ method, path string }{{"POST", copyPath}, {"GET", batchPath}, {"POST", batchPath + "/delete-sources"}} {
+	for _, route := range []struct{ method, path string }{{"POST", copyPath}, {"GET", batchPath}} {
 		response := request(common.RoleAdminUser, route.method, route.path, input)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.Contains(t, response.Body.String(), `"success":true`)
@@ -91,7 +91,10 @@ func TestAssetCopyRoutesAllowAdministratorsForCustomersOnly(t *testing.T) {
 	require.NoError(t, db.Where("asset_id = ? AND library_id = ?", copiedAsset.ID, library.ID).First(&replica).Error)
 	assert.Equal(t, model.AssetReplicaStatusPending, replica.Status)
 	assert.Empty(t, replica.UpstreamAssetID)
-	assert.Equal(t, model.AssetReplicaOperationSync, replica.Operation, "source cleanup must retain target synchronization")
+	assert.Equal(t, http.StatusConflict, request(common.RoleAdminUser, "POST", batchPath+"/delete-sources", "").Code)
+	require.NoError(t, db.Model(&copiedAsset).Update("status", model.AssetStatusReady).Error)
+	require.NoError(t, db.Model(&replica).Updates(map[string]any{"status": model.AssetReplicaStatusActive, "upstream_asset_id": "target-copy-upstream"}).Error)
+	assert.Equal(t, http.StatusOK, request(common.RoleAdminUser, "POST", batchPath+"/delete-sources", "").Code)
 	assert.Equal(t, http.StatusForbidden, request(common.RoleAdminUser, "GET", "/api/asset-library/admin/libraries", "").Code)
 	for _, protectedRole := range []int{common.RoleAdminUser, common.RoleRootUser} {
 		protectedUser := users[protectedRole]

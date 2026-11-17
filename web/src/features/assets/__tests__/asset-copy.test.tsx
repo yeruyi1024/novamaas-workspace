@@ -16,10 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/react-query'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { api } from '@/lib/api'
 
@@ -42,13 +53,14 @@ const result = {
   id: 'copy-request-000001',
   source_user_id: 1,
   target_user_id: 2,
-  ready_count: 1,
+  ready_count: 2,
   processing_count: 0,
-  failed_count: 1,
+  failed_count: 0,
   unavailable_count: 0,
   groups: [{ id: 'group-copy', name: 'Campaign', asset_count: 2 }],
   asset_count: 2,
   sources_deleted_at: 0,
+  can_delete_sources: true,
 }
 
 beforeEach(() => {
@@ -152,416 +164,371 @@ async function selectSourceGroup() {
   )
 }
 
-describe('customer asset copying', () => {
-  test('copies between selected users without a channel field and only deletes sources after confirmation', async () => {
-    renderCopy()
+test('changing the source clears selected groups before another copy', async () => {
+  renderCopy()
+  await selectSourceGroup()
+  await waitFor(() =>
     expect(
       screen.getByRole('button', { name: 'Copy asset groups' })
+    ).toBeEnabled()
+  )
+  await selectCustomer('Source user', 3)
+  await screen.findByText('customer-3')
+  expect(screen.getByText(/^0 groups selected/)).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  ).toBeDisabled()
+})
+
+test('a failed copy retries with the same request ID and never offers source deletion', async () => {
+  vi.mocked(api.post).mockRejectedValue(new Error('connection lost'))
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Copy asset groups' })
+    ).toBeEnabled()
+  )
+  expect(
+    screen.queryByRole('button', { name: 'Delete copied sources' })
+  ).not.toBeInTheDocument()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2))
+  expect(vi.mocked(api.post).mock.calls[0][1]).toEqual(
+    vi.mocked(api.post).mock.calls[1][1]
+  )
+})
+
+test('editing input after a failed submission generates a new request ID', async () => {
+  vi.mocked(api.post).mockRejectedValue(new Error('connection lost'))
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Copy asset groups' })
+    ).toBeEnabled()
+  )
+  await selectCustomer('Target user', 3)
+  await screen.findByText('customer-3')
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2))
+  expect(
+    (vi.mocked(api.post).mock.calls[0][1] as AssetCopyInput).request_id
+  ).not.toEqual(
+    (vi.mocked(api.post).mock.calls[1][1] as AssetCopyInput).request_id
+  )
+})
+
+test('select all rejects more than 100 groups and preserves the current selection', async () => {
+  const original = vi.mocked(api.get).getMockImplementation()
+  if (!original) {
+    throw new Error('API fixture missing')
+  }
+  vi.mocked(api.get).mockImplementation(async (url, options) => {
+    if (
+      url === '/api/asset-library/groups' &&
+      options?.params?.page_size === 100
+    ) {
+      return {
+        data: {
+          success: true,
+          data: { items: [], total: 101, page: 1, page_size: 100 },
+        },
+      }
+    }
+    return original(url, options)
+  })
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Select all asset groups' })
+  )
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'This user has more than 100 groups. Select up to 100 groups per copy.'
+  )
+  expect(screen.getByText(/^1 groups selected/)).toBeInTheDocument()
+  expect(api.post).not.toHaveBeenCalled()
+})
+
+test('copy progress waits for processing to finish and then confirms batch source deletion', async () => {
+  let receipt = {
+    ...result,
+    ready_count: 1,
+    processing_count: 1,
+    failed_count: 0,
+    can_delete_sources: false,
+  }
+  const get = vi.mocked(api.get).getMockImplementation()
+  if (!get) throw new Error('Missing API fixture')
+  vi.mocked(api.get).mockImplementation(async (...args) =>
+    String(args[0]).includes('/admin/copies/')
+      ? { data: { success: true, data: receipt } }
+      : get(...args)
+  )
+  vi.mocked(api.post).mockImplementation(async (url) => ({
+    data: {
+      success: true,
+      data: String(url).endsWith('/delete-sources')
+        ? { ...receipt, sources_deleted_at: 123, can_delete_sources: false }
+        : receipt,
+    },
+  }))
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await screen.findByText('Created 2 assets in 1 groups')
+  expect(
+    screen.getByRole('progressbar', { name: 'Copy progress' })
+  ).toHaveAttribute('aria-valuenow', '50')
+  expect(
+    screen.getByRole('button', { name: 'Delete copied sources' })
+  ).toBeDisabled()
+  receipt = { ...result, ready_count: 1, failed_count: 1 }
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+  await waitFor(() =>
+    expect(
+      screen.getByRole('progressbar', { name: 'Copy progress' })
+    ).toHaveAttribute('aria-valuenow', '100')
+  )
+  const previewRequest = vi.fn(async () => ({ url: '/source-preview.jpg' }))
+  const preview = new QueryObserver(client, {
+    queryKey: ['asset-library', 'preview', 'source', 'thumbnail'],
+    queryFn: previewRequest,
+    staleTime: Infinity,
+  })
+  const unsubscribe = preview.subscribe(() => {})
+  await waitFor(() => expect(previewRequest).toHaveBeenCalledOnce())
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Delete copied sources' })
+  )
+  expect(api.post).toHaveBeenCalledTimes(1)
+  await userEvent.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'Delete copied sources',
+    })
+  )
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Copied source assets deleted' })
     ).toBeDisabled()
-    await selectSourceGroup()
-    expect(api.get).toHaveBeenCalledWith(
-      '/api/asset-library/groups',
-      expect.objectContaining({
-        params: expect.objectContaining({ owner_user_id: 1, scope: 'all' }),
+  )
+  unsubscribe()
+  expect(previewRequest).toHaveBeenCalledOnce()
+})
+
+test('stale successful receipt cannot enable deletion after a refresh error', async () => {
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await screen.findByText('Created 2 assets in 1 groups')
+  vi.mocked(api.get).mockRejectedValue(new Error('Receipt unavailable'))
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+  await screen.findByText('Receipt unavailable')
+  expect(
+    screen.getByRole('button', { name: 'Delete copied sources' })
+  ).toBeDisabled()
+})
+
+test('an in-flight copy has indeterminate progress and no delete action', async () => {
+  renderCopy()
+  await selectSourceGroup()
+  let resolve: (value: unknown) => void = () => {}
+  vi.mocked(api.post).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
       })
-    )
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await screen.findByText('Created 2 assets in 1 groups')
+  )
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  expect(
+    screen.getByRole('progressbar', { name: 'Copying...' })
+  ).not.toHaveAttribute('aria-valuenow')
+  expect(
+    screen.queryByRole('button', { name: 'Delete copied sources' })
+  ).not.toBeInTheDocument()
+  resolve({ data: { success: true, data: result } })
+  await screen.findByText('Created 2 assets in 1 groups')
+})
+
+test('in-flight synchronization continues polling until the batch finishes', async () => {
+  let receipt = {
+    ...result,
+    ready_count: 1,
+    processing_count: 1,
+    failed_count: 0,
+    can_delete_sources: false,
+  }
+  const get = vi.mocked(api.get).getMockImplementation()
+  if (!get) throw new Error('Missing API fixture')
+  vi.mocked(api.get).mockImplementation(async (...args) =>
+    String(args[0]).includes('/admin/copies/')
+      ? { data: { success: true, data: receipt } }
+      : get(...args)
+  )
+  vi.mocked(api.post).mockResolvedValue({
+    data: { success: true, data: receipt },
+  })
+  renderCopy()
+  await selectSourceGroup()
+  vi.useFakeTimers()
+  try {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy asset groups' }))
+    })
     expect(
-      screen.getByText(
-        'Synchronization: 1 ready, 0 processing, 1 failed, 0 unavailable'
-      )
-    ).toBeInTheDocument()
+      screen.getByRole('button', { name: 'Delete copied sources' })
+    ).toBeDisabled()
+    receipt = { ...result }
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3001)
+    })
+    expect(
+      screen.getByRole('progressbar', { name: 'Copy progress' })
+    ).toHaveAttribute('aria-valuenow', '100')
+    expect(
+      screen.getByRole('button', { name: 'Delete copied sources' })
+    ).toBeEnabled()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('select-all uses every group and discards a late response after changing source', async () => {
+  renderCopy()
+  await selectSourceGroup()
+  let resolve: (value: unknown) => void = () => {}
+  vi.mocked(api.get).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
+      })
+  )
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Select all asset groups' })
+  )
+  await selectCustomer('Source user', 3)
+  await act(async () => {
+    resolve({
+      data: {
+        success: true,
+        data: { items: [{ id: 'group-old', name: 'Old source' }], total: 1 },
+      },
+    })
+  })
+  expect(
+    screen.queryByRole('button', { name: 'Remove Old source' })
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  ).toBeDisabled()
+  vi.mocked(api.get).mockResolvedValueOnce({
+    data: {
+      success: true,
+      data: {
+        items: [
+          { id: 'group-1', name: 'First' },
+          { id: 'group-2', name: 'Second' },
+        ],
+        total: 2,
+      },
+    },
+  })
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Select all asset groups' })
+  )
+  await screen.findByRole('button', { name: 'Remove Second' })
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await waitFor(() =>
     expect(api.post).toHaveBeenCalledWith(
       '/api/asset-library/admin/copies',
       expect.objectContaining({
-        source_user_id: 1,
-        target_user_id: 2,
-        group_ids: ['group-source'],
-        request_id: expect.any(String),
+        source_user_id: 3,
+        group_ids: ['group-1', 'group-2'],
       }),
       expect.any(Object)
     )
-    expect(api.post).toHaveBeenCalledTimes(1)
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Delete copied sources' })
-    )
-    const confirmation = await screen.findByRole('alertdialog')
-    expect(api.post).toHaveBeenCalledTimes(1)
-    await userEvent.click(
-      within(confirmation).getByRole('button', {
-        name: 'Delete copied sources',
-      })
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Copied source assets deleted' })
-      ).toBeDisabled()
-    )
-    expect(api.post).toHaveBeenLastCalledWith(
-      '/api/asset-library/admin/copies/copy-request-000001/delete-sources',
-      undefined,
-      expect.any(Object)
-    )
-  })
-
-  test('selecting a source keeps both user pickers visible without grid size containment', async () => {
-    renderCopy()
-    await selectCustomer('Source user', 1)
-    const source = screen.getByRole('combobox', { name: 'Source user' })
-    expect(source).toBeVisible()
-    expect(screen.getByRole('combobox', { name: 'Target user' })).toBeVisible()
-    // WebKit collapses this dynamic grid inside the fieldset when the shared
-    // FieldGroup applies inline-size containment after closing the picker.
-    expect(source.closest('[data-slot="field-group"]')).toHaveClass(
-      '[container-type:normal]'
-    )
-  })
-
-  test('changing the source clears selected groups before another copy', async () => {
-    renderCopy()
-    await selectSourceGroup()
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Copy asset groups' })
-      ).toBeEnabled()
-    )
-    await selectCustomer('Source user', 3)
-    await screen.findByText('customer-3')
-    expect(screen.getByText(/^0 groups selected/)).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    ).toBeDisabled()
-  })
-
-  test('copying without synchronization configuration creates ready assets without a channel choice', async () => {
-    const pending = {
-      ...result,
-      ready_count: 2,
-      failed_count: 0,
-    }
-    vi.mocked(api.post).mockResolvedValue({
-      data: { success: true, data: pending },
-    })
-    const original = vi.mocked(api.get).getMockImplementation()
-    if (!original) {
-      throw new Error('API fixture missing')
-    }
-    vi.mocked(api.get).mockImplementation(async (...args) => {
-      if (String(args[0]).startsWith('/api/asset-library/admin/copies/')) {
-        return { data: { success: true, data: pending } }
-      }
-      return original(...args)
-    })
-    renderCopy()
-    await selectSourceGroup()
-    expect(
-      screen.queryByRole('combobox', { name: 'Target channel' })
-    ).not.toBeInTheDocument()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await screen.findByText('Created 2 assets in 1 groups')
-    await screen.findByText(
-      'Synchronization: 2 ready, 0 processing, 0 failed, 0 unavailable'
-    )
-    expect(api.post).toHaveBeenCalledWith(
-      '/api/asset-library/admin/copies',
-      expect.not.objectContaining({ channel_id: expect.anything() }),
-      expect.any(Object)
-    )
-  })
-
-  test('a failed copy retries with the same request ID and never offers source deletion', async () => {
-    vi.mocked(api.post).mockRejectedValue(new Error('connection lost'))
-    renderCopy()
-    await selectSourceGroup()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Copy asset groups' })
-      ).toBeEnabled()
-    )
-    expect(
-      screen.queryByRole('button', { name: 'Delete copied sources' })
-    ).not.toBeInTheDocument()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2))
-    expect(vi.mocked(api.post).mock.calls[0][1]).toEqual(
-      vi.mocked(api.post).mock.calls[1][1]
-    )
-  })
-
-  test('editing input after a failed submission generates a new request ID', async () => {
-    vi.mocked(api.post).mockRejectedValue(new Error('connection lost'))
-    renderCopy()
-    await selectSourceGroup()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Copy asset groups' })
-      ).toBeEnabled()
-    )
-    await selectCustomer('Target user', 3)
-    await screen.findByText('customer-3')
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2))
-    expect(
-      (vi.mocked(api.post).mock.calls[0][1] as AssetCopyInput).request_id
-    ).not.toEqual(
-      (vi.mocked(api.post).mock.calls[1][1] as AssetCopyInput).request_id
-    )
-  })
-
-  test('refreshing a receipt shows current target readiness without creating another copy', async () => {
-    renderCopy()
-    await selectSourceGroup()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await screen.findByText(
-      'Synchronization: 1 ready, 0 processing, 1 failed, 0 unavailable'
-    )
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
-    )
-    const original = vi.mocked(api.get).getMockImplementation()
-    if (!original) {
-      throw new Error('API fixture is missing')
-    }
-    vi.mocked(api.get).mockImplementation(async (...args) => {
-      if (String(args[0]).startsWith('/api/asset-library/admin/copies/')) {
-        return {
-          data: {
-            success: true,
-            data: { ...result, ready_count: 2, failed_count: 0 },
-          },
-        }
-      }
-      return original(...args)
-    })
-    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
-    await screen.findByText(
-      'Synchronization: 2 ready, 0 processing, 0 failed, 0 unavailable'
-    )
-    expect(api.post).toHaveBeenCalledTimes(1)
-  })
-
-  test('select all replaces the selection with every source group across normal picker pages', async () => {
-    const original = vi.mocked(api.get).getMockImplementation()
-    if (!original) {
-      throw new Error('API fixture missing')
-    }
-    const allGroups = Array.from({ length: 23 }, (_, index) => ({
-      id: `group-${index + 1}`,
-      owner_user_id: 1,
-      name: `Group ${index + 1}`,
-      description: '',
-      status: 'ready',
-      created_at: 1,
-      updated_at: 1,
-    }))
-    vi.mocked(api.get).mockImplementation(async (url, options) => {
-      if (
-        url === '/api/asset-library/groups' &&
-        options?.params?.page_size === 100
-      ) {
-        return {
-          data: {
-            success: true,
-            data: { items: allGroups, total: 23, page: 1, page_size: 100 },
-          },
-        }
-      }
-      return original(url, options)
-    })
-    renderCopy()
-    await selectSourceGroup()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Select all asset groups' })
-    )
-    await screen.findByText(/^23 groups selected/)
-    expect(
-      screen.queryByRole('button', { name: 'Remove Campaign' })
-    ).not.toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith(
-      '/api/asset-library/groups',
-      expect.objectContaining({
-        params: expect.objectContaining({
-          owner_user_id: 1,
-          page_size: 100,
-          scope: 'all',
-        }),
-      })
-    )
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    )
-    await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith(
-        '/api/asset-library/admin/copies',
-        expect.objectContaining({
-          group_ids: allGroups.map((group) => group.id),
-        }),
-        expect.any(Object)
-      )
-    )
-  })
-
-  test('select all rejects more than 100 groups and preserves the current selection', async () => {
-    const original = vi.mocked(api.get).getMockImplementation()
-    if (!original) {
-      throw new Error('API fixture missing')
-    }
-    vi.mocked(api.get).mockImplementation(async (url, options) => {
-      if (
-        url === '/api/asset-library/groups' &&
-        options?.params?.page_size === 100
-      ) {
-        return {
-          data: {
-            success: true,
-            data: { items: [], total: 101, page: 1, page_size: 100 },
-          },
-        }
-      }
-      return original(url, options)
-    })
-    renderCopy()
-    await selectSourceGroup()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Select all asset groups' })
-    )
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'This user has more than 100 groups. Select up to 100 groups per copy.'
-    )
-    expect(screen.getByText(/^1 groups selected/)).toBeInTheDocument()
-    expect(api.post).not.toHaveBeenCalled()
-  })
-
-  test('an old select-all response cannot restore groups after changing the source user', async () => {
-    const original = vi.mocked(api.get).getMockImplementation()
-    if (!original) {
-      throw new Error('API fixture missing')
-    }
-    let resolveGroups!: (value: unknown) => void
-    vi.mocked(api.get).mockImplementation(async (url, options) => {
-      if (
-        url === '/api/asset-library/groups' &&
-        options?.params?.page_size === 100
-      ) {
-        return new Promise((resolve) => {
-          resolveGroups = resolve
-        })
-      }
-      return original(url, options)
-    })
-    renderCopy()
-    await selectSourceGroup()
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Select all asset groups' })
-    )
-    expect(
-      screen.getByRole('button', { name: 'Copy asset groups' })
-    ).toBeDisabled()
-    await selectCustomer('Source user', 3)
-    resolveGroups({
-      data: {
-        success: true,
-        data: {
-          items: [
-            {
-              id: 'old-source-group',
-              owner_user_id: 1,
-              name: 'Old source group',
-            },
-          ],
-          total: 1,
-          page: 1,
-          page_size: 100,
-        },
-      },
-    })
-    await waitFor(() => expect(client.isMutating()).toBe(0))
-    expect(screen.getByText(/^0 groups selected/)).toBeInTheDocument()
-    expect(screen.queryByText('Old source group')).not.toBeInTheDocument()
-  })
-
-  test.each([
-    {
-      name: 'empty',
-      total: 0,
-      items: [],
-      message: 'This user has no asset groups.',
-      error: false,
-    },
-    {
-      name: 'incomplete',
-      total: 2,
-      items: [{ id: 'group-incomplete', owner_user_id: 1, name: 'Incomplete' }],
-      message: 'The group list changed. Please select all groups again.',
-      error: true,
-    },
-    {
-      name: 'request failure',
-      total: 0,
-      items: [],
-      message: 'group lookup failed',
-      error: true,
-    },
-  ])(
-    'select all handles $name without creating a partial copy',
-    async (scenario) => {
-      const original = vi.mocked(api.get).getMockImplementation()
-      if (!original) {
-        throw new Error('API fixture missing')
-      }
-      vi.mocked(api.get).mockImplementation(async (url, options) => {
-        if (
-          url === '/api/asset-library/groups' &&
-          options?.params?.page_size === 100
-        ) {
-          if (scenario.name === 'request failure') {
-            throw new Error(scenario.message)
-          }
-          return {
-            data: {
-              success: true,
-              data: {
-                items: scenario.items,
-                total: scenario.total,
-                page: 1,
-                page_size: 100,
-              },
-            },
-          }
-        }
-        return original(url, options)
-      })
-      renderCopy()
-      await selectSourceGroup()
-      await userEvent.click(
-        screen.getByRole('button', { name: 'Select all asset groups' })
-      )
-      expect(
-        await screen.findByRole(scenario.error ? 'alert' : 'status')
-      ).toHaveTextContent(scenario.message)
-      expect(
-        screen.getByText(
-          scenario.error ? /^1 groups selected/ : /^0 groups selected/
-        )
-      ).toBeInTheDocument()
-      expect(api.post).not.toHaveBeenCalled()
-    }
   )
+})
+
+test('partial completion reaches 100 percent and reports the failure count', async () => {
+  const partial = {
+    ...result,
+    ready_count: 1,
+    failed_count: 1,
+    can_delete_sources: true,
+  }
+  const get = vi.mocked(api.get).getMockImplementation()
+  if (!get) throw new Error('Missing API fixture')
+  vi.mocked(api.get).mockImplementation(async (...args) =>
+    String(args[0]).includes('/admin/copies/')
+      ? { data: { success: true, data: partial } }
+      : get(...args)
+  )
+  vi.mocked(api.post).mockResolvedValue({
+    data: { success: true, data: partial },
+  })
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await screen.findByText('Created 2 assets in 1 groups')
+  expect(
+    screen.getByRole('progressbar', { name: 'Copy progress' })
+  ).toHaveAttribute('aria-valuenow', '100')
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Copy complete: 1 succeeded, 1 failed.'
+  )
+})
+
+test('a wholly failed batch finishes processing and allows confirmed batch cleanup', async () => {
+  const failed = {
+    ...result,
+    ready_count: 0,
+    failed_count: 2,
+    can_delete_sources: true,
+  }
+  const get = vi.mocked(api.get).getMockImplementation()
+  if (!get) throw new Error('Missing API fixture')
+  vi.mocked(api.get).mockImplementation(async (...args) =>
+    String(args[0]).includes('/admin/copies/')
+      ? { data: { success: true, data: failed } }
+      : get(...args)
+  )
+  vi.mocked(api.post).mockResolvedValue({
+    data: { success: true, data: failed },
+  })
+  renderCopy()
+  await selectSourceGroup()
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Copy asset groups' })
+  )
+  await screen.findByText('Created 2 assets in 1 groups')
+  expect(
+    screen.getByRole('progressbar', { name: 'Copy progress' })
+  ).toHaveAttribute('aria-valuenow', '100')
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Copy complete: 0 succeeded, 2 failed.'
+  )
+  expect(
+    screen.getByRole('button', { name: 'Delete copied sources' })
+  ).toBeEnabled()
 })

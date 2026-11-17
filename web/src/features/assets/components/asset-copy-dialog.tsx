@@ -45,6 +45,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from '@/components/ui/progress'
 import { getUser } from '@/features/users/api'
 
 import {
@@ -94,8 +99,12 @@ export function AssetCopyDialog(props: {
     },
     enabled: props.open && submitted !== null,
     initialData: submitted ?? undefined,
-    refetchInterval: (query) =>
-      query.state.data?.processing_count ? 3000 : false,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      return data && !data.sources_deleted_at && data.processing_count > 0
+        ? 3000
+        : false
+    },
   })
   const result = receipt.data ?? submitted
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -165,7 +174,14 @@ export function AssetCopyDialog(props: {
     },
     onSuccess: async (data) => {
       setResult(data)
-      await queryClient.invalidateQueries({ queryKey: ['asset-library'] })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['asset-library', 'groups'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['asset-library', 'assets'],
+        }),
+      ])
       toast.success(t('Asset groups copied'))
     },
     onError: (error) => toast.error(assetErrorMessage(error)),
@@ -177,12 +193,28 @@ export function AssetCopyDialog(props: {
       queryClient.setQueryData(['asset-copy-receipt', data.id], data)
       setResult(data)
       setConfirmDelete(false)
-      await queryClient.invalidateQueries({ queryKey: ['asset-library'] })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['asset-library', 'groups'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['asset-library', 'assets'],
+        }),
+      ])
       toast.success(t('Copied source assets deleted'))
     },
     onError: (error) => toast.error(assetErrorMessage(error)),
   })
   const pending = copy.isPending || remove.isPending
+  const canDelete = result?.can_delete_sources && !receipt.isError
+  const progress =
+    result && result.asset_count > 0
+      ? Math.floor(
+          ((result.asset_count - result.processing_count) /
+            result.asset_count) *
+            100
+        )
+      : 100
   const canCopy =
     copySchema.safeParse(values).success &&
     !selectAll.isPending &&
@@ -218,16 +250,28 @@ export function AssetCopyDialog(props: {
                   })}
                 </AlertDescription>
               </Alert>
+              <Progress value={progress}>
+                <ProgressLabel>{t('Copy progress')}</ProgressLabel>
+                <ProgressValue />
+              </Progress>
               <p role='status' className='text-sm'>
-                {t(
-                  'Synchronization: {{ready}} ready, {{processing}} processing, {{failed}} failed, {{unavailable}} unavailable',
-                  {
-                    ready: result.ready_count,
-                    processing: result.processing_count,
-                    failed: result.failed_count,
-                    unavailable: result.unavailable_count,
-                  }
-                )}
+                {result.processing_count === 0
+                  ? t(
+                      'Copy complete: {{ready}} succeeded, {{failed}} failed.',
+                      {
+                        ready: result.ready_count,
+                        failed: result.failed_count + result.unavailable_count,
+                      }
+                    )
+                  : t(
+                      'Synchronization: {{ready}} ready, {{processing}} processing, {{failed}} failed, {{unavailable}} unavailable',
+                      {
+                        ready: result.ready_count,
+                        processing: result.processing_count,
+                        failed: result.failed_count,
+                        unavailable: result.unavailable_count,
+                      }
+                    )}
               </p>
               {receipt.isError && (
                 <p role='alert' className='text-destructive text-sm'>
@@ -254,7 +298,7 @@ export function AssetCopyDialog(props: {
               </ul>
               <p className='text-muted-foreground text-sm'>
                 {t(
-                  'Deleting the copied sources keeps the destination copies, the source account and later uploads.'
+                  'Once processing finishes, all sources in this batch can be deleted, even if copies failed or were deleted. Files still referenced by other assets are kept.'
                 )}
               </p>
               <DialogFooter className='flex-wrap'>
@@ -272,7 +316,9 @@ export function AssetCopyDialog(props: {
                 </Button>
                 <Button
                   variant='destructive'
-                  disabled={pending || result.sources_deleted_at > 0}
+                  disabled={
+                    pending || !canDelete || result.sources_deleted_at > 0
+                  }
                   onClick={() => setConfirmDelete(true)}
                 >
                   {result.sources_deleted_at > 0
@@ -439,6 +485,12 @@ export function AssetCopyDialog(props: {
                 )}
               </fieldset>
 
+              {copy.isPending && (
+                <Progress value={null}>
+                  <ProgressLabel>{t('Copying...')}</ProgressLabel>
+                </Progress>
+              )}
+
               <DialogFooter>
                 <Button type='submit' disabled={!canCopy || pending}>
                   {pending ? t('Copying...') : t('Copy asset groups')}
@@ -457,7 +509,7 @@ export function AssetCopyDialog(props: {
             <AlertDialogTitle>{t('Delete copied sources?')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t(
-                'Delete the source assets saved in this copy. Copies are kept, and so are sources whose copy was deleted, sources moved to other groups, and later uploads. This cannot be undone.'
+                'Delete all sources in this batch, including sources whose destination copy failed or was deleted. Moved sources and later uploads are kept. Unused files are reclaimed after upstream cleanup. This cannot be undone.'
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -466,10 +518,10 @@ export function AssetCopyDialog(props: {
               {t('Cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={remove.isPending}
+              disabled={remove.isPending || !canDelete}
               onClick={(event) => {
                 event.preventDefault()
-                if (result) remove.mutate(result.id)
+                if (result && canDelete) remove.mutate(result.id)
               }}
             >
               {t('Delete copied sources')}

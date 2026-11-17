@@ -27,13 +27,10 @@ type AssetCopyGroupView struct {
 }
 
 type AssetCopyResult struct {
-	ID               string               `json:"id"`
-	SourceUserID     int                  `json:"source_user_id"`
-	TargetUserID     int                  `json:"target_user_id"`
-	ReadyCount       int                  `json:"ready_count"`
-	ProcessingCount  int                  `json:"processing_count"`
-	FailedCount      int                  `json:"failed_count"`
-	UnavailableCount int                  `json:"unavailable_count"`
+	ID           string `json:"id"`
+	SourceUserID int    `json:"source_user_id"`
+	TargetUserID int    `json:"target_user_id"`
+	model.AssetCopyProgress
 	Groups           []AssetCopyGroupView `json:"groups"`
 	AssetCount       int                  `json:"asset_count"`
 	SourcesDeletedAt int64                `json:"sources_deleted_at"`
@@ -140,34 +137,15 @@ func assetCopyResult(batch *model.AssetCopyBatch) (*AssetCopyResult, error) {
 		return nil, err
 	}
 	result := &AssetCopyResult{ID: batch.ID, SourceUserID: batch.SourceUserID, TargetUserID: batch.TargetUserID, SourcesDeletedAt: batch.SourcesDeletedAt, Groups: []AssetCopyGroupView{}}
-	var targetIDs []int64
 	for _, group := range manifest {
-		for _, pair := range group.Assets {
-			targetIDs = append(targetIDs, pair.TargetID)
-		}
 		result.Groups = append(result.Groups, AssetCopyGroupView{ID: group.TargetPublicID, Name: group.Name, AssetCount: len(group.Assets)})
 		result.AssetCount += len(group.Assets)
 	}
-	var copies []model.MediaAsset
-	if len(targetIDs) > 0 {
-		if err := model.DB.Select("status").Where("id IN ? AND owner_user_id = ?", targetIDs, batch.TargetUserID).Find(&copies).Error; err != nil {
-			return nil, err
-		}
+	progress, err := model.GetAssetCopyProgress(model.DB, batch.TargetUserID, manifest)
+	if err != nil {
+		return nil, err
 	}
-	// Rejected, deleted and missing copies all count as unavailable.
-	result.UnavailableCount = result.AssetCount
-	for _, copy := range copies {
-		switch copy.Status {
-		case model.AssetStatusReady:
-			result.ReadyCount++
-		case model.AssetStatusProcessing:
-			result.ProcessingCount++
-		case model.AssetStatusSyncFailed:
-			result.FailedCount++
-		default:
-			continue
-		}
-		result.UnavailableCount--
-	}
+	result.AssetCopyProgress = progress
+	result.CanDeleteSources = progress.CanDeleteSources && batch.SourcesDeletedAt == 0
 	return result, nil
 }
