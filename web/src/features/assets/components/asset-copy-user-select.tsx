@@ -55,20 +55,14 @@ export function AssetCopyUserSelect(props: {
   const isRoot = useAuthStore((state) => state.auth.user?.role === 100)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
   const keyword = useDeferredValue(search.trim())
+  // Search narrows the list; the first page of matches is enough here.
   const users = useQuery({
-    queryKey: [
-      'asset-copy-users',
-      isRoot,
-      Boolean(props.enabledOnly),
-      keyword,
-      page,
-    ],
+    queryKey: ['asset-copy-users', isRoot, Boolean(props.enabledOnly), keyword],
     queryFn: async () => {
       const response = await searchUsers({
         keyword,
-        p: page,
+        p: 1,
         page_size: PAGE_SIZE,
         role: isRoot ? '' : '1',
         status: props.enabledOnly ? '1' : '',
@@ -87,10 +81,6 @@ export function AssetCopyUserSelect(props: {
       !user.DeletedAt &&
       (isRoot || user.role === 1) &&
       (!props.enabledOnly || user.status === 1)
-  )
-  const totalPages = Math.max(
-    1,
-    Math.ceil((users.data?.total ?? 0) / PAGE_SIZE)
   )
 
   return (
@@ -134,10 +124,7 @@ export function AssetCopyUserSelect(props: {
             aria-label={t('Search users by name or ID')}
             placeholder={t('Search users by name or ID')}
             value={search}
-            onValueChange={(value) => {
-              setSearch(value)
-              setPage(1)
-            }}
+            onValueChange={setSearch}
           />
           <CommandList label={props.label}>
             {loading && (
@@ -146,23 +133,13 @@ export function AssetCopyUserSelect(props: {
               </p>
             )}
             {!loading && users.isError && (
-              <div className='space-y-2 p-3'>
-                <p role='alert' className='text-destructive text-sm'>
-                  {assetErrorMessage(users.error)}
-                </p>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={() => void users.refetch()}
-                >
-                  {t('Retry')}
-                </Button>
-              </div>
+              <p role='alert' className='text-destructive p-3 text-sm'>
+                {assetErrorMessage(users.error)}
+              </p>
             )}
             {!loading && users.isSuccess && items.length === 0 && (
               <p role='status' className='text-muted-foreground p-3 text-sm'>
-                {t('No selectable users on this page')}
+                {t('No matching results')}
               </p>
             )}
             {!loading && !users.isError && (
@@ -177,7 +154,6 @@ export function AssetCopyUserSelect(props: {
                       if (user.id !== props.value?.id) props.onValueChange(user)
                       setOpen(false)
                       setSearch('')
-                      setPage(1)
                     }}
                   >
                     <span className='min-w-0 flex-1'>
@@ -193,31 +169,6 @@ export function AssetCopyUserSelect(props: {
             )}
           </CommandList>
         </Command>
-        {totalPages > 1 && (
-          <div className='flex items-center justify-between gap-2 p-2'>
-            <Button
-              type='button'
-              variant='outline'
-              size='sm'
-              disabled={page <= 1 || loading}
-              onClick={() => setPage((current) => current - 1)}
-            >
-              {t('Previous')}
-            </Button>
-            <span className='text-muted-foreground text-xs tabular-nums'>
-              {t('Page {{page}} of {{total}}', { page, total: totalPages })}
-            </span>
-            <Button
-              type='button'
-              variant='outline'
-              size='sm'
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage((current) => current + 1)}
-            >
-              {t('Next')}
-            </Button>
-          </div>
-        )}
       </PopoverContent>
     </Popover>
   )

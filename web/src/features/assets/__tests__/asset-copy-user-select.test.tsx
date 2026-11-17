@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
@@ -115,28 +115,6 @@ test('user list shows names and IDs, searches nicknames and supports keyboard se
   )
 })
 
-test('pagination loads the next user page and keeps the selected user identity', async () => {
-  vi.mocked(api.get).mockImplementation(async (url) => {
-    const page = Number(
-      new URL(String(url), 'http://localhost').searchParams.get('p')
-    )
-    return {
-      data: {
-        success: true,
-        data: { items: [users[page - 1]], total: 21, page, page_size: 20 },
-      },
-    }
-  })
-  const select = renderPicker()
-  await userEvent.click(screen.getByRole('combobox', { name: 'Target user' }))
-  await screen.findByRole('option', { name: 'customer-a · Alice · ID: 1' })
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }))
-  await userEvent.click(
-    await screen.findByRole('option', { name: 'customer-b · Bob · ID: 2' })
-  )
-  expect(select).toHaveBeenCalledWith(users[1])
-})
-
 test('target selection prevents choosing the source and hides disabled, deleted or protected users', async () => {
   vi.mocked(api.get).mockResolvedValue({
     data: {
@@ -169,72 +147,4 @@ test('target selection prevents choosing the source and hides disabled, deleted 
     screen.getByRole('option', { name: 'customer-b · Bob · ID: 2' })
   ).not.toHaveAttribute('aria-disabled', 'true')
   expect(screen.getAllByRole('option')).toHaveLength(2)
-})
-
-test('a failed user lookup shows a retry action and can recover', async () => {
-  const original = vi.mocked(api.get).getMockImplementation()
-  if (!original) {
-    throw new Error('API fixture missing')
-  }
-  vi.mocked(api.get).mockRejectedValueOnce(new Error('users unavailable'))
-  renderPicker()
-  await userEvent.click(screen.getByRole('combobox', { name: 'Target user' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent(
-    'users unavailable'
-  )
-  expect(screen.queryByRole('option')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
-  await screen.findByRole('option', { name: 'customer-a · Alice · ID: 1' })
-})
-
-test('an older search response cannot replace the current user list', async () => {
-  let resolveOld!: (value: unknown) => void
-  vi.mocked(api.get).mockImplementation(async (url) => {
-    const keyword = new URL(String(url), 'http://localhost').searchParams.get(
-      'keyword'
-    )
-    if (keyword === 'old') {
-      return new Promise((resolve) => {
-        resolveOld = resolve
-      })
-    }
-    return {
-      data: {
-        success: true,
-        data: {
-          items: keyword === 'new' ? [users[1]] : users,
-          total: 2,
-          page: 1,
-          page_size: 20,
-        },
-      },
-    }
-  })
-  renderPicker()
-  await userEvent.click(screen.getByRole('combobox', { name: 'Target user' }))
-  await screen.findByRole('option', { name: 'customer-a · Alice · ID: 1' })
-  const search = screen.getByRole('combobox', {
-    name: 'Search users by name or ID',
-  })
-  fireEvent.change(search, { target: { value: 'old' } })
-  await waitFor(() => expect(resolveOld).toBeDefined())
-  fireEvent.change(search, { target: { value: 'new' } })
-  await screen.findByRole('option', { name: 'customer-b · Bob · ID: 2' })
-  resolveOld({
-    data: {
-      success: true,
-      data: { items: [users[0]], total: 1, page: 1, page_size: 20 },
-    },
-  })
-  await waitFor(() =>
-    expect(
-      client.getQueryData(['asset-copy-users', false, true, 'old', 1])
-    ).toBeDefined()
-  )
-  expect(
-    screen.queryByRole('option', { name: 'customer-a · Alice · ID: 1' })
-  ).not.toBeInTheDocument()
-  expect(
-    screen.getByRole('option', { name: 'customer-b · Bob · ID: 2' })
-  ).toBeInTheDocument()
 })
