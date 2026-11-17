@@ -85,6 +85,7 @@ import {
 import { assertAssetSuccess, assetErrorMessage } from './asset-utils'
 import { AssetApiAccessDialog } from './components/asset-api-access-dialog'
 import { AssetCard } from './components/asset-card'
+import { AssetCopyDialog } from './components/asset-copy-dialog'
 import {
   AssetGroupDialog,
   type AssetGroupFormValues,
@@ -101,6 +102,7 @@ const ASSET_PAGE_SIZE = 40
 export function AssetLibrary() {
   const { t } = useTranslation()
   const isAdmin = useIsAdmin()
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false)
   const currentUserId = useAuthStore((state) => state.auth.user?.id ?? 0)
   const queryClient = useQueryClient()
   const [selectedGroup, setSelectedGroup] = useState('')
@@ -268,6 +270,15 @@ export function AssetLibrary() {
       <SectionPageLayout>
         <SectionPageLayout.Title>{t('Asset Library')}</SectionPageLayout.Title>
         <SectionPageLayout.Actions>
+          {isAdmin && (
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => setCopyDialogOpen(true)}
+            >
+              {t('Copy asset groups')}
+            </Button>
+          )}
           {canDeleteSelectedGroup && (
             <Button
               size='sm'
@@ -499,6 +510,12 @@ export function AssetLibrary() {
         onSubmit={(values) => groupMutation.mutate(values)}
         pending={groupMutation.isPending}
       />
+      {isAdmin && (
+        <AssetCopyDialog
+          open={copyDialogOpen}
+          onOpenChange={setCopyDialogOpen}
+        />
+      )}
       <AssetUploadDialog
         open={uploadDialogOpen}
         onOpenChange={(open) => {

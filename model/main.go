@@ -367,6 +367,7 @@ func migrateDB() error {
 		&StorageObject{},
 		&AssetGroup{},
 		&MediaAsset{},
+		&AssetCopyBatch{},
 		&AssetChannelConfig{},
 		&AssetLibraryConnection{},
 		&AssetAccessKey{},
@@ -378,6 +379,9 @@ func migrateDB() error {
 		&AuthzRole{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := MigrateAssetCopyReferences(DB); err != nil {
 		return err
 	}
 	if err := MigrateAssetLibraryConnections(DB); err != nil {
@@ -467,6 +471,7 @@ func migrateDBFast() error {
 		{&StorageObject{}, "StorageObject"},
 		{&AssetGroup{}, "AssetGroup"},
 		{&MediaAsset{}, "MediaAsset"},
+		{&AssetCopyBatch{}, "AssetCopyBatch"},
 		{&AssetChannelConfig{}, "AssetChannelConfig"},
 		{&AssetLibraryConnection{}, "AssetLibraryConnection"},
 		{&AssetGroupReplica{}, "AssetGroupReplica"},
@@ -494,6 +499,9 @@ func migrateDBFast() error {
 		if err != nil {
 			return err
 		}
+	}
+	if err := MigrateAssetCopyReferences(DB); err != nil {
+		return err
 	}
 	if err := MigrateAssetLibraryConnections(DB); err != nil {
 		return err

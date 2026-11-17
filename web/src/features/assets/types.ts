@@ -158,3 +158,23 @@ export type AssetLibraryResponse<T = undefined> = {
   message?: string
   data: T
 }
+
+export type AssetCopyInput = {
+  request_id: string
+  source_user_id: number
+  target_user_id: number
+  group_ids: string[]
+}
+
+export type AssetCopyResult = {
+  id: string
+  source_user_id: number
+  target_user_id: number
+  ready_count: number
+  processing_count: number
+  failed_count: number
+  unavailable_count: number
+  groups: { id: string; name: string; asset_count: number }[]
+  asset_count: number
+  sources_deleted_at: number
+}

@@ -36,6 +36,9 @@ var auditContentTemplates = map[string]string{
 	"storage.policy_update":  "Updated storage policy ${key}",
 	"asset.upload_aksk":      "Uploaded asset ${name} via AK/SK access key ${accessKeyName} (ID: ${id})",
 
+	"asset_library.copy":                "Copied ${asset_count} assets from user ${source_user_id} to user ${target_user_id} (batch: ${batch_id})",
+	"asset_library.copy_sources_delete": "Deleted copied source assets for user ${source_user_id} (batch: ${batch_id})",
+
 	"channel.create":             "Created channel ${name} (type ${type}, count ${count})",
 	"channel.update":             "Updated channel ${name} (ID: ${id})",
 	"channel.delete":             "Deleted channel ${name} (ID: ${id})",

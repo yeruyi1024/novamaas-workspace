@@ -20,6 +20,8 @@ import { api } from '@/lib/api'
 
 import type {
   AssetAccessKey,
+  AssetCopyInput,
+  AssetCopyResult,
   AssetGroup,
   AssetGroupList,
   AssetLibraryResponse,
@@ -65,6 +67,7 @@ export async function listAssetGroups(includeAllOwners = false) {
 
 export async function listAssetGroupsPage(params: {
   includeAllOwners: boolean
+  ownerUserId?: number
   page: number
   pageSize: number
   search: string
@@ -77,8 +80,35 @@ export async function listAssetGroupsPage(params: {
         page_size: params.pageSize,
         search: params.search || undefined,
         scope: params.includeAllOwners ? 'all' : undefined,
+        owner_user_id: params.ownerUserId,
       },
     }
+  )
+  return response.data
+}
+
+export async function copyAssetGroups(input: AssetCopyInput) {
+  const response = await api.post<AssetLibraryResponse<AssetCopyResult>>(
+    '/api/asset-library/admin/copies',
+    input,
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
+export async function getAssetCopy(id: string) {
+  const response = await api.get<AssetLibraryResponse<AssetCopyResult>>(
+    `/api/asset-library/admin/copies/${encodeURIComponent(id)}`,
+    { skipErrorHandler: true }
+  )
+  return response.data
+}
+
+export async function deleteAssetCopySources(id: string) {
+  const response = await api.post<AssetLibraryResponse<AssetCopyResult>>(
+    `/api/asset-library/admin/copies/${encodeURIComponent(id)}/delete-sources`,
+    undefined,
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }

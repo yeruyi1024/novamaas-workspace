@@ -53,6 +53,22 @@ func queueDeletedAssetStorage(tx *gorm.DB, asset *MediaAsset, now int64) error {
 			return nil
 		}
 	}
+	// Copied assets share the file. The file row serializes this check with
+	// copying and other final deletions. Reading the sharing assets without
+	// locks avoids deadlocks; a stale snapshot can only show an asset as still
+	// live, because a copy needs a live source and deletion is never undone.
+	var object StorageObject
+	if err := lockForUpdate(tx).Select("id").Where("id = ?", asset.StorageObjectID).Limit(1).Find(&object).Error; err != nil || object.ID == 0 {
+		return err
+	}
+	var sharing []MediaAsset
+	if err := tx.Select("id").Where("storage_object_id = ? AND id <> ? AND status <> ?", asset.StorageObjectID, asset.ID, AssetStatusDeleted).
+		Limit(1).Find(&sharing).Error; err != nil {
+		return err
+	}
+	if len(sharing) > 0 {
+		return nil
+	}
 	return tx.Model(&StorageObject{}).Where("id = ? AND status NOT IN ?", asset.StorageObjectID,
 		[]string{StorageObjectStatusDeletePending, StorageObjectStatusDeleting, StorageObjectStatusDeleted}).
 		Updates(map[string]any{"status": StorageObjectStatusDeletePending, "delete_after": now, "last_error": "", "updated_at": now}).Error

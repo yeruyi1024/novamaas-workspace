@@ -42,6 +42,8 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 	connection.SetMaxOpenConns(1)
 	require.NoError(t, db.AutoMigrate(
 		&model.User{},
+		&model.Ability{},
+		&model.AssetCopyBatch{},
 		&model.Channel{},
 		&model.AssetChannelConfig{},
 		&model.AssetLibraryConnection{},
