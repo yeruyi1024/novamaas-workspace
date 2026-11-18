@@ -52,6 +52,17 @@ vi.mock('../api', () => ({
   uploadMediaAsset: vi.fn(),
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/features/webhooks/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/webhooks/api')>()),
+  getWebhookCapabilities: vi.fn(async () => ({
+    success: true,
+    data: {
+      asset_library_enabled: false,
+      media_tasks_enabled: false,
+      manual_enabled: false,
+    },
+  })),
+}))
 
 let queryClient: QueryClient
 
@@ -153,6 +164,30 @@ afterEach(() => {
 })
 
 describe('asset library business layout', () => {
+  test.each([
+    { role: 1, visible: false },
+    { role: 10, visible: true },
+    { role: 100, visible: true },
+  ])('role $role has copy access: $visible', async (entry) => {
+    useAuthStore
+      .getState()
+      .auth.setUser({ id: 99, username: 'operator', role: entry.role })
+    renderLibrary()
+    const button = screen.queryByRole('button', { name: 'Copy asset groups' })
+    if (!entry.visible) {
+      expect(button).not.toBeInTheDocument()
+      return
+    }
+    expect(button).toBeVisible()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Copy asset groups' })
+    )
+    expect(
+      await screen.findByRole('dialog', { name: 'Copy asset groups' })
+    ).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Source user' })).toBeVisible()
+  })
+
   test('admin asset cards show group name and ID without creator metadata', async () => {
     useAuthStore
       .getState()

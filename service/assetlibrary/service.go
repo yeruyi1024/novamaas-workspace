@@ -238,14 +238,20 @@ func DeleteGroup(publicID string, ownerUserID int, isAdmin bool) error {
 	if err != nil {
 		return err
 	}
-	var count int64
-	if err = model.DB.Model(&model.MediaAsset{}).Where("group_id = ? AND status <> ?", group.ID, model.AssetStatusDeleted).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("delete all assets in the group before deleting the group")}
-	}
-	return model.DB.Model(group).Updates(map[string]any{"status": model.AssetStatusDeleted, "updated_at": common.GetTimestamp()}).Error
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		group, err := model.LockAssetGroup(tx, group.ID)
+		if err != nil {
+			return err
+		}
+		var count int64
+		if err := tx.Model(&model.MediaAsset{}).Where("group_id = ? AND status <> ?", group.ID, model.AssetStatusDeleted).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("delete all assets in the group before deleting the group")}
+		}
+		return tx.Model(group).Updates(map[string]any{"status": model.AssetStatusDeleted, "updated_at": common.GetTimestamp()}).Error
+	})
 }
 
 func ListGroups(ownerUserID int, includeAllOwners bool) ([]GroupView, error) {
@@ -327,6 +333,20 @@ func CreateAsset(ctx context.Context, ownerUserID int, input AssetInput) (*Asset
 		Status:          model.AssetStatusProcessing,
 	}
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		currentGroup, err := model.LockAssetGroup(tx, group.ID)
+		if err != nil {
+			return err
+		}
+		if currentGroup.Status == model.AssetStatusDeleted || currentGroup.OwnerUserID != ownerUserID {
+			return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("asset group is no longer available")}
+		}
+		var currentCount int64
+		if err := tx.Model(&model.MediaAsset{}).Where("group_id = ? AND status <> ?", group.ID, model.AssetStatusDeleted).Count(&currentCount).Error; err != nil {
+			return err
+		}
+		if currentCount >= int64(policy.MaxFiles) {
+			return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("asset group is full")}
+		}
 		channelIDs, err := enabledChannelIDs(tx)
 		if err != nil {
 			return err

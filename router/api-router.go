@@ -369,6 +369,13 @@ func SetApiRouter(router *gin.Engine) {
 			webhookRoute.DELETE("/:id", middleware.CriticalRateLimit(), controller.DeleteAssetWebhookEndpoint)
 			webhookRoute.POST("/:id/test", middleware.CriticalRateLimit(), controller.TestAssetWebhookEndpoint)
 		}
+		assetCopyRoute := apiRouter.Group("/asset-library/admin")
+		assetCopyRoute.Use(middleware.AdminAuth(), middleware.DisableCache())
+		{
+			assetCopyRoute.POST("/copies", middleware.CriticalRateLimit(), controller.CopyAssetGroups)
+			assetCopyRoute.GET("/copies/:id", controller.GetAssetCopy)
+			assetCopyRoute.POST("/copies/:id/delete-sources", middleware.CriticalRateLimit(), controller.DeleteAssetCopySources)
+		}
 		assetLibraryAdminRoute := apiRouter.Group("/asset-library/admin")
 		assetLibraryAdminRoute.Use(middleware.RootAuth(), middleware.DisableCache())
 		{

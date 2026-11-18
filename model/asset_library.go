@@ -64,12 +64,13 @@ type AssetGroup struct {
 // MediaAsset owns a permanent StorageObject. PublicID is the only identifier
 // accepted from clients; upstream identifiers never leave replica records.
 type MediaAsset struct {
-	ID                int64  `json:"-" gorm:"primaryKey"`
-	PublicID          string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
-	OwnerUserID       int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1"`
-	GroupID           int64  `json:"-" gorm:"index"`
-	GroupPublicID     string `json:"group_id" gorm:"-"`
-	StorageObjectID   int64  `json:"-" gorm:"uniqueIndex"`
+	ID            int64  `json:"-" gorm:"primaryKey"`
+	PublicID      string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
+	OwnerUserID   int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1"`
+	GroupID       int64  `json:"-" gorm:"index"`
+	GroupPublicID string `json:"group_id" gorm:"-"`
+	// Copied assets share the permanent file; it is reclaimed with the last one.
+	StorageObjectID   int64  `json:"-" gorm:"index:idx_media_assets_storage_ref"`
 	Name              string `json:"name" gorm:"type:varchar(255)"`
 	AssetType         string `json:"type" gorm:"type:varchar(16);index"`
 	ContentType       string `json:"content_type" gorm:"type:varchar(128)"`

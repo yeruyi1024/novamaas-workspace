@@ -40,6 +40,9 @@ type AssetGroupSelectProps = {
   value: string
   selectedGroup?: AssetGroup
   isAdmin: boolean
+  ownerUserId?: number
+  selectOnly?: boolean
+  disabled?: boolean
   onValueChange: (value: string, group?: AssetGroup) => void
 }
 
@@ -97,17 +100,25 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
   const deferredSearch = useDeferredValue(search.trim())
   const searchPending = search.trim() !== deferredSearch
   const groupsQuery = useQuery({
-    queryKey: ['asset-library', 'groups', props.isAdmin, page, deferredSearch],
+    queryKey: [
+      'asset-library',
+      'groups',
+      props.isAdmin,
+      props.ownerUserId,
+      page,
+      deferredSearch,
+    ],
     queryFn: async () =>
       assertAssetSuccess(
         await listAssetGroupsPage({
           includeAllOwners: props.isAdmin,
+          ownerUserId: props.ownerUserId,
           page,
           pageSize: GROUP_PAGE_SIZE,
           search: deferredSearch,
         })
       ),
-    enabled: open,
+    enabled: open && !props.disabled,
   })
   const groups = groupsQuery.data?.items ?? []
   const totalPages = Math.max(
@@ -121,6 +132,7 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
         render={
           <Button
             type='button'
+            disabled={props.disabled}
             variant='outline'
             role='combobox'
             aria-label={t('Asset group')}
@@ -136,7 +148,9 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
             selected
           />
         ) : (
-          <span className='truncate'>{t('All groups')}</span>
+          <span className='truncate'>
+            {props.selectOnly ? t('Select asset groups') : t('All groups')}
+          </span>
         )}
         <ChevronsUpDown
           className='size-4 shrink-0 opacity-50'
@@ -162,18 +176,20 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
           aria-label={t('Asset group')}
           className='max-h-72 space-y-0.5 overflow-y-auto'
         >
-          <button
-            type='button'
-            role='option'
-            aria-selected={!props.value}
-            className='hover:bg-accent w-full rounded-md px-2 py-2 text-left text-sm'
-            onClick={() => {
-              props.onValueChange('')
-              setOpen(false)
-            }}
-          >
-            {t('All groups')}
-          </button>
+          {!props.selectOnly && (
+            <button
+              type='button'
+              role='option'
+              aria-selected={!props.value}
+              className='hover:bg-accent w-full rounded-md px-2 py-2 text-left text-sm'
+              onClick={() => {
+                props.onValueChange('')
+                setOpen(false)
+              }}
+            >
+              {t('All groups')}
+            </button>
+          )}
           {(groupsQuery.isLoading || searchPending) && (
             <p className='text-muted-foreground px-2 py-3 text-sm'>
               {t('Loading...')}

@@ -21,11 +21,16 @@ import (
 )
 
 func ListAssetGroups(c *gin.Context) {
+	ownerID := c.GetInt("id")
+	includeAll := c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all"
+	if requestedOwner, _ := strconv.Atoi(c.Query("owner_user_id")); includeAll && requestedOwner > 0 {
+		ownerID, includeAll = requestedOwner, false
+	}
 	if c.Query("p") != "" || c.Query("page_size") != "" || c.Query("search") != "" {
 		pageInfo := common.GetPageQuery(c)
 		groups, err := assetService.ListGroupsPage(assetService.GroupListInput{
-			OwnerUserID:      c.GetInt("id"),
-			IncludeAllOwners: c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all",
+			OwnerUserID:      ownerID,
+			IncludeAllOwners: includeAll,
 			Search:           c.Query("search"), Page: pageInfo.GetPage(), PageSize: pageInfo.GetPageSize(),
 			SortBy: "Name", SortOrder: "Asc",
 		})
@@ -55,7 +60,7 @@ func ListAssetGroups(c *gin.Context) {
 		}})
 		return
 	}
-	groups, err := assetService.ListGroups(c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all")
+	groups, err := assetService.ListGroups(ownerID, includeAll)
 	if err != nil {
 		assetLibraryError(c, err)
 		return
@@ -429,7 +434,14 @@ func assetChannelID(c *gin.Context) (int, bool) {
 }
 
 func assetLibraryError(c *gin.Context, err error) {
+	if errors.Is(err, model.ErrAssetCopyConflict) {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 	statusCode := http.StatusInternalServerError
+	if errors.Is(err, model.ErrAssetCopyPermissionDenied) {
+		statusCode = http.StatusForbidden
+	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		statusCode = http.StatusNotFound
 	}

@@ -1,11 +1,21 @@
 package model
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 )
+
+// File-lock waiters must see the previous holder's committed cleanup without
+// locking sibling assets or replicas. SQLite keeps its default isolation.
+func assetDeletionTxOptions() *sql.TxOptions {
+	if DB.Dialector.Name() == "sqlite" {
+		return nil
+	}
+	return &sql.TxOptions{Isolation: sql.LevelReadCommitted}
+}
 
 func lockAssetReplica(tx *gorm.DB, id int64) (*MediaAsset, *AssetReplica, error) {
 	var reference AssetReplica
@@ -52,6 +62,33 @@ func queueDeletedAssetStorage(tx *gorm.DB, asset *MediaAsset, now int64) error {
 		if replica.Status != AssetReplicaStatusDeleted {
 			return nil
 		}
+	}
+	// Copied assets share the file. The file row serializes this check with
+	// copying and other final deletions. Reading the sharing assets without
+	// locks avoids deadlocks; a stale snapshot can only show an asset as still
+	// live, because a copy needs a live source and deletion is never undone.
+	var object StorageObject
+	if err := lockForUpdate(tx).Select("id").Where("id = ?", asset.StorageObjectID).Limit(1).Find(&object).Error; err != nil || object.ID == 0 {
+		return err
+	}
+	var sharing []MediaAsset
+	if err := tx.Select("id").Where("storage_object_id = ? AND id <> ? AND status <> ?", asset.StorageObjectID, asset.ID, AssetStatusDeleted).
+		Limit(1).Find(&sharing).Error; err != nil {
+		return err
+	}
+	if len(sharing) > 0 {
+		return nil
+	}
+	// Other deleted assets may still be cleaning their upstream copies. Read
+	// without sibling row locks so cleanup retains the existing lock order.
+	var unfinished []AssetReplica
+	sharedIDs := tx.Model(&MediaAsset{}).Select("id").Where("storage_object_id = ?", asset.StorageObjectID)
+	if err := tx.Select("id").Where("asset_id IN (?) AND status <> ?", sharedIDs, AssetReplicaStatusDeleted).
+		Limit(1).Find(&unfinished).Error; err != nil {
+		return err
+	}
+	if len(unfinished) > 0 {
+		return nil
 	}
 	return tx.Model(&StorageObject{}).Where("id = ? AND status NOT IN ?", asset.StorageObjectID,
 		[]string{StorageObjectStatusDeletePending, StorageObjectStatusDeleting, StorageObjectStatusDeleted}).
@@ -166,7 +203,7 @@ func AcknowledgeAssetReplicaDeletion(id int64, owner, upstreamID string) error {
 			return err
 		}
 		return queueDeletedAssetStorage(tx, asset, now)
-	})
+	}, assetDeletionTxOptions())
 }
 
 func RetryAssetReplicaSynchronization(id int64) (retried bool, err error) {
