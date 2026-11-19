@@ -318,6 +318,8 @@ const (
 	AssetReplicaWorkloadReview      AssetReplicaWorkload = "review"
 )
 
+const assetReplicaReviewWindow = 30 * 24 * time.Hour
+
 func dueAssetReplicas(query *gorm.DB, now int64) *gorm.DB {
 	return query.Where(
 		"((status IN ? AND next_sync_at <= ?) OR (status = ? AND next_sync_at <= ? AND lease_until <= ?) OR (status = ? AND lease_until <= ?))",
@@ -325,7 +327,9 @@ func dueAssetReplicas(query *gorm.DB, now int64) *gorm.DB {
 		AssetReplicaStatusActive, now, now,
 		AssetReplicaStatusSyncing, now,
 	).Where("locked_by = ? OR locked_by IS NULL OR lease_until <= ?", "", now).
-		Where("status <> ? OR next_sync_at > 0 OR operation = ?", AssetReplicaStatusFailed, AssetReplicaOperationDelete)
+		Where("status <> ? OR next_sync_at > 0 OR operation = ?", AssetReplicaStatusFailed, AssetReplicaOperationDelete).
+		Where("operation = ? OR (status <> ? AND COALESCE(progress, 0) < 100) OR created_at > ?",
+			AssetReplicaOperationDelete, AssetReplicaStatusActive, now-int64(assetReplicaReviewWindow/time.Second))
 }
 
 // ListDueAssetReplicas reads due work without leasing it. Callers lease only

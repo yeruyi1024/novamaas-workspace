@@ -24,9 +24,9 @@ const (
 	assetSyncCandidateLimit      = 5
 	assetFirstPollDelay          = 8 * time.Second
 	assetActiveReviewWindow      = 48 * time.Hour
-	assetActiveReviewInterval    = 30 * time.Minute
+	assetActiveReviewInterval    = time.Hour
 	assetActiveReconcileInterval = 24 * time.Hour
-	assetActiveRetryInterval     = 5 * time.Minute
+	assetActiveRetryInterval     = time.Hour
 )
 
 // assetSyncTurns is the weighted rotation used when several kinds of work are
@@ -42,6 +42,12 @@ var assetSyncTurns = [...]model.AssetReplicaWorkload{
 }
 
 var assetSyncOnce sync.Once
+
+var assetCredentialWarningLimiter = sync.OnceValue(func() *common.InMemoryRateLimiter {
+	limiter := &common.InMemoryRateLimiter{}
+	limiter.Init(time.Hour)
+	return limiter
+})
 
 // Eligible API nodes compete for one shared database lease. An explicit
 // ASSET_SYNC_ENABLED=false excludes a node without changing NODE_TYPE.
@@ -498,10 +504,12 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, 0, message)
 	default:
 		progress := 75
-		if replica.ClaimedFromStatus == model.AssetReplicaStatusActive || replica.Progress >= 100 {
+		delay := processingPollDelay(replica, common.GetTimestamp())
+		if replicaWorkload(replica) == model.AssetReplicaWorkloadReview {
 			progress = 100 // Review processing must not restart initial synchronization.
+			delay = activeReviewDelay(replica)
 		}
-		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, progress, replica.UpstreamAssetID, processingPollDelay(replica, common.GetTimestamp()), "")
+		finishReplicaLater(runnerID, replica, model.AssetReplicaStatusProcessing, progress, replica.UpstreamAssetID, delay, "")
 	}
 }
 
@@ -514,7 +522,8 @@ func rejectReplica(runnerID string, replica *model.AssetReplica, reason string) 
 }
 
 func activateReplicaAndQueueWebhook(runnerID string, replica *model.AssetReplica) error {
-	next := common.GetTimestamp() + int64(activeReviewDelay(replica)/time.Second)
+	delay := activeReviewDelay(replica)
+	next := common.GetTimestamp() + int64(delay/time.Second)
 	return model.DB.Transaction(func(tx *gorm.DB) error {
 		asset, changed, err := model.ActivateAssetReplicaWithTx(tx, replica.ID, runnerID, replica.UpstreamAssetID, next)
 		if err != nil {
@@ -599,13 +608,13 @@ func failReplica(runnerID string, replica *model.AssetReplica, err error) {
 		_ = model.FinishAssetReplica(replica.ID, runnerID, replica.ClaimedFromStatus, replica.Progress, replica.UpstreamAssetID, common.GetTimestamp(), replica.LastError, replica.Operation)
 		return
 	}
-	if replica.ClaimedFromStatus == model.AssetReplicaStatusActive || replica.Progress >= 100 {
+	if replicaWorkload(replica) == model.AssetReplicaWorkloadReview {
 		status := model.AssetReplicaStatusProcessing
 		if replica.ClaimedFromStatus == model.AssetReplicaStatusActive {
 			status = model.AssetReplicaStatusActive
 		}
 		finishReplicaLater(runnerID, replica, status, 100, replica.UpstreamAssetID, assetActiveRetryInterval, truncateError(err))
-		logger.LogWarn(context.Background(), fmt.Sprintf("active asset review failed and will retry: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
+		logReplicaFailure(replica, err, fmt.Sprintf("active asset review failed and will retry: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
 		return
 	}
 	next := common.GetTimestamp() + int64(model.AssetReplicaBackoff(replica.Attempts)/time.Second)
@@ -615,7 +624,21 @@ func failReplica(runnerID string, replica *model.AssetReplica, err error) {
 	if finishErr := model.FinishAssetReplica(replica.ID, runnerID, model.AssetReplicaStatusFailed, replica.Progress, replica.UpstreamAssetID, next, truncateError(err), replica.Operation); finishErr != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("record asset replica failure: replica_id=%d error=%v", replica.ID, finishErr))
 	}
-	logger.LogWarn(context.Background(), fmt.Sprintf("asset replica synchronization failed: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
+	logReplicaFailure(replica, err, fmt.Sprintf("asset replica synchronization failed: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
+}
+
+func logReplicaFailure(replica *model.AssetReplica, err error, message string) {
+	if errors.Is(err, errAssetCredentialDecryption) {
+		account := fmt.Sprintf("channel:%d", replica.ChannelID)
+		if replica.LibraryID != nil && *replica.LibraryID > 0 {
+			account = fmt.Sprintf("library:%d", *replica.LibraryID)
+		}
+		if !assetCredentialWarningLimiter().Request(account, 1, int64(time.Hour/time.Second)) {
+			return
+		}
+		message = fmt.Sprintf("%s account=%s (repeated credential errors for this account are logged at most once per hour)", message, account)
+	}
+	logger.LogWarn(context.Background(), message)
 }
 
 func finishReplicaLater(runnerID string, replica *model.AssetReplica, status string, progress int, upstreamID string, delay time.Duration, message string) {
