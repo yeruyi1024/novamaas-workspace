@@ -131,6 +131,10 @@ func DeleteCopiedSources(batchID string, operatorID int) (*AssetCopyResult, erro
 	return assetCopyResult(batch)
 }
 
+func PurgeUserAssets(targetUserID, operatorID int) (*model.UserAssetPurgeResult, error) {
+	return model.PurgeUserAssets(targetUserID, operatorID)
+}
+
 func assetCopyResult(batch *model.AssetCopyBatch) (*AssetCopyResult, error) {
 	var manifest []model.AssetCopiedGroup
 	if err := common.UnmarshalJsonStr(batch.Manifest, &manifest); err != nil {

@@ -375,6 +375,7 @@ func SetApiRouter(router *gin.Engine) {
 			assetCopyRoute.POST("/copies", middleware.CriticalRateLimit(), controller.CopyAssetGroups)
 			assetCopyRoute.GET("/copies/:id", controller.GetAssetCopy)
 			assetCopyRoute.POST("/copies/:id/delete-sources", middleware.CriticalRateLimit(), controller.DeleteAssetCopySources)
+			assetCopyRoute.POST("/users/:id/purge", middleware.CriticalRateLimit(), controller.PurgeUserAssets)
 		}
 		assetLibraryAdminRoute := apiRouter.Group("/asset-library/admin")
 		assetLibraryAdminRoute.Use(middleware.RootAuth(), middleware.DisableCache())

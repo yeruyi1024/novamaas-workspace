@@ -179,3 +179,9 @@ export type AssetCopyResult = {
   asset_count: number
   sources_deleted_at: number
 }
+
+export type UserAssetPurgeResult = {
+  owner_user_id: number
+  deleted_asset_count: number
+  deleted_group_count: number
+}

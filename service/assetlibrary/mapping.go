@@ -48,17 +48,21 @@ func ResolveRequestAssetIDs(body []byte, ownerUserID int, channelID int) ([]byte
 			continue
 		}
 		var asset model.MediaAsset
-		err := model.DB.Where("public_id = ?", publicID).First(&asset).Error
+		err := model.DB.Where("owner_user_id = ? AND public_id = ? AND status <> ?", ownerUserID, publicID, model.AssetStatusDeleted).First(&asset).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
+				var managed []model.MediaAsset
+				if err := model.DB.Select("id").Where("public_id = ?", publicID).Limit(1).Find(&managed).Error; err != nil {
+					return nil, 0, err
+				}
+				if len(managed) > 0 {
+					return nil, 0, &RequestError{StatusCode: http.StatusNotFound, Err: fmt.Errorf("asset %s does not exist or is not accessible", publicID)}
+				}
 				// Native upstream asset IDs remain valid. Only identifiers found
 				// in the local ownership ledger participate in gateway mapping.
 				continue
 			}
 			return nil, 0, err
-		}
-		if asset.OwnerUserID != ownerUserID || asset.Status == model.AssetStatusDeleted {
-			return nil, 0, &RequestError{StatusCode: http.StatusNotFound, Err: fmt.Errorf("asset %s does not exist or is not accessible", publicID)}
 		}
 		if asset.Status == model.AssetStatusSyncFailed {
 			return nil, 0, &RequestError{StatusCode: http.StatusUnprocessableEntity, Code: "asset_sync_failed", Err: fmt.Errorf("asset %s synchronization failed; retry synchronization or upload the material again", publicID)}

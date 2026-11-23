@@ -86,6 +86,7 @@ import { assertAssetSuccess, assetErrorMessage } from './asset-utils'
 import { AssetApiAccessDialog } from './components/asset-api-access-dialog'
 import { AssetCard } from './components/asset-card'
 import { AssetCopyDialog } from './components/asset-copy-dialog'
+import { AssetUserPurgeDialog } from './components/asset-user-purge-dialog'
 import {
   AssetGroupDialog,
   type AssetGroupFormValues,
@@ -103,6 +104,7 @@ export function AssetLibrary() {
   const { t } = useTranslation()
   const isAdmin = useIsAdmin()
   const [copyDialogOpen, setCopyDialogOpen] = useState(false)
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false)
   const currentUserId = useAuthStore((state) => state.auth.user?.id ?? 0)
   const queryClient = useQueryClient()
   const [selectedGroup, setSelectedGroup] = useState('')
@@ -144,10 +146,13 @@ export function AssetLibrary() {
         })
       ),
   })
+  const selectedGroupOwnerId =
+    isAdmin && selectedGroup ? selectedGroupInfo?.owner_user_id : undefined
   const assetsQuery = useQuery({
     queryKey: [
       ...ASSETS_QUERY_KEY,
       selectedGroup,
+      selectedGroupOwnerId,
       deferredSearch,
       page,
       isAdmin,
@@ -156,6 +161,7 @@ export function AssetLibrary() {
       assertAssetSuccess(
         await listMediaAssets({
           groupId: selectedGroup || undefined,
+          ownerUserId: selectedGroupOwnerId,
           search: deferredSearch || undefined,
           page,
           pageSize: ASSET_PAGE_SIZE,
@@ -220,7 +226,11 @@ export function AssetLibrary() {
   })
   const downloadMutation = useMutation({
     mutationFn: async (asset: MediaAsset) =>
-      assertAssetSuccess(await getMediaAssetPreview(asset.id, 'download')),
+      assertAssetSuccess(
+        isAdmin
+          ? await getMediaAssetPreview(asset.id, 'download', asset.owner_user_id)
+          : await getMediaAssetPreview(asset.id, 'download')
+      ),
     onSuccess: (signedURL) => {
       const link = document.createElement('a')
       link.href = signedURL.url
@@ -232,8 +242,12 @@ export function AssetLibrary() {
     onError: (error) => toast.error(assetErrorMessage(error)),
   })
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) =>
-      assertAssetSuccess(await deleteMediaAsset(id)),
+    mutationFn: async (asset: MediaAsset) =>
+      assertAssetSuccess(
+        isAdmin
+          ? await deleteMediaAsset(asset.id, asset.owner_user_id)
+          : await deleteMediaAsset(asset.id)
+      ),
     onSuccess: async () => {
       await invalidateAssets()
       if (assets.length === 1 && page > 1) setPage(page - 1)
@@ -243,8 +257,12 @@ export function AssetLibrary() {
     onError: (error) => toast.error(assetErrorMessage(error)),
   })
   const deleteGroupMutation = useMutation({
-    mutationFn: async (id: string) =>
-      assertAssetSuccess(await deleteAssetGroup(id)),
+    mutationFn: async (params: { id: string; ownerUserId?: number }) =>
+      assertAssetSuccess(
+        isAdmin && params.ownerUserId
+          ? await deleteAssetGroup(params.id, params.ownerUserId)
+          : await deleteAssetGroup(params.id)
+      ),
     onSuccess: async () => {
       setSelectedGroup('')
       setSelectedGroupInfo(undefined)
@@ -271,13 +289,22 @@ export function AssetLibrary() {
         <SectionPageLayout.Title>{t('Asset Library')}</SectionPageLayout.Title>
         <SectionPageLayout.Actions>
           {isAdmin && (
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() => setCopyDialogOpen(true)}
-            >
-              {t('Copy asset groups')}
-            </Button>
+            <>
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={() => setCopyDialogOpen(true)}
+              >
+                {t('Copy asset groups')}
+              </Button>
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={() => setPurgeDialogOpen(true)}
+              >
+                {t('Clear user assets')}
+              </Button>
+            </>
           )}
           {canDeleteSelectedGroup && (
             <Button
@@ -419,15 +446,18 @@ export function AssetLibrary() {
               >
                 {assets.map((asset) => (
                   <AssetCard
-                    key={asset.id}
+                    key={`${asset.owner_user_id}:${asset.id}`}
                     asset={asset}
+                    isAdmin={isAdmin}
                     groupName={`${asset.group_name || t('Unknown group')} · ${t('ID')}: ${asset.group_id}`}
                     onDelete={setDeleteTarget}
                     onPreview={setPreviewTarget}
                     onDownload={(target) => downloadMutation.mutate(target)}
                     downloading={
                       downloadMutation.isPending &&
-                      downloadMutation.variables?.id === asset.id
+                      downloadMutation.variables?.id === asset.id &&
+                      downloadMutation.variables?.owner_user_id ===
+                        asset.owner_user_id
                     }
                     onReupload={
                       asset.owner_user_id === currentUserId
@@ -491,6 +521,7 @@ export function AssetLibrary() {
       {previewTarget && (
         <AssetPreviewDialog
           asset={previewTarget}
+          isAdmin={isAdmin}
           onOpenChange={(open) => !open && setPreviewTarget(null)}
           onDownload={(target) => downloadMutation.mutate(target)}
           onReupload={
@@ -500,7 +531,9 @@ export function AssetLibrary() {
           }
           downloading={
             downloadMutation.isPending &&
-            downloadMutation.variables?.id === previewTarget.id
+            downloadMutation.variables?.id === previewTarget.id &&
+            downloadMutation.variables?.owner_user_id ===
+              previewTarget.owner_user_id
           }
         />
       )}
@@ -511,10 +544,21 @@ export function AssetLibrary() {
         pending={groupMutation.isPending}
       />
       {isAdmin && (
-        <AssetCopyDialog
-          open={copyDialogOpen}
-          onOpenChange={setCopyDialogOpen}
-        />
+        <>
+          <AssetCopyDialog
+            open={copyDialogOpen}
+            onOpenChange={setCopyDialogOpen}
+          />
+          <AssetUserPurgeDialog
+            open={purgeDialogOpen}
+            onOpenChange={setPurgeDialogOpen}
+            onPurged={() => {
+              setSelectedGroup('')
+              setSelectedGroupInfo(undefined)
+              setPage(1)
+            }}
+          />
+        </>
       )}
       <AssetUploadDialog
         open={uploadDialogOpen}
@@ -552,7 +596,11 @@ export function AssetLibrary() {
               variant='destructive'
               disabled={deleteGroupMutation.isPending}
               onClick={() =>
-                selectedGroup && deleteGroupMutation.mutate(selectedGroup)
+                selectedGroup &&
+                deleteGroupMutation.mutate({
+                  id: selectedGroup,
+                  ownerUserId: selectedGroupInfo?.owner_user_id,
+                })
               }
             >
               {t('Delete')}
@@ -578,7 +626,7 @@ export function AssetLibrary() {
             <AlertDialogAction
               variant='destructive'
               onClick={() =>
-                deleteTarget && deleteMutation.mutate(deleteTarget.id)
+                deleteTarget && deleteMutation.mutate(deleteTarget)
               }
             >
               {t('Delete')}

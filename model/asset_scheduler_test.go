@@ -288,3 +288,36 @@ func TestMergeAssetLibraryGroupSwapsCopiesWithoutLosingUpstreamState(t *testing.
 		})
 	}
 }
+
+func TestDueAssetReplicasEnforces30DayReviewWindowAndKeepsDeletes(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "mysql"} {
+		t.Run(dialect, func(t *testing.T) {
+			db := setupAssetSchedulerDB(t, dialect)
+			now := int64(1_800_000_000)
+			windowSec := int64(assetReplicaReviewWindow / time.Second)
+			replicas := []AssetReplica{
+				{AssetID: 1, ChannelID: 91, Operation: AssetReplicaOperationSync, Status: AssetReplicaStatusActive, Progress: 100, UpstreamAssetID: "u1", CreatedAt: now - windowSec + 1, NextSyncAt: now - 10},
+				{AssetID: 2, ChannelID: 91, Operation: AssetReplicaOperationSync, Status: AssetReplicaStatusActive, Progress: 100, UpstreamAssetID: "u2", CreatedAt: now - windowSec, NextSyncAt: now - 10},
+				{AssetID: 3, ChannelID: 91, Operation: AssetReplicaOperationSync, Status: AssetReplicaStatusProcessing, Progress: 100, UpstreamAssetID: "u3", CreatedAt: now - windowSec - 3600, NextSyncAt: now - 10},
+				{AssetID: 4, ChannelID: 91, Operation: AssetReplicaOperationDelete, Status: AssetReplicaStatusDeleting, Progress: 100, UpstreamAssetID: "u4", CreatedAt: now - windowSec - 86400, NextSyncAt: now - 10},
+				{AssetID: 5, ChannelID: 91, Operation: AssetReplicaOperationSync, Status: AssetReplicaStatusPending, Progress: 0, CreatedAt: now - windowSec - 86400, NextSyncAt: now - 10},
+			}
+			require.NoError(t, db.Create(&replicas).Error)
+
+			reviewDue, err := ListDueAssetReplicas(now, 91, AssetReplicaWorkloadReview, 10)
+			require.NoError(t, err)
+			require.Len(t, reviewDue, 1)
+			assert.Equal(t, int64(1), reviewDue[0].AssetID, "only replicas younger than 30 days remain eligible for review")
+
+			deleteDue, err := ListDueAssetReplicas(now, 91, AssetReplicaWorkloadMaintenance, 10)
+			require.NoError(t, err)
+			require.Len(t, deleteDue, 1)
+			assert.Equal(t, int64(4), deleteDue[0].AssetID, "deletions past 30 days must still run")
+
+			submitDue, err := ListDueAssetReplicas(now, 91, AssetReplicaWorkloadSubmit, 10)
+			require.NoError(t, err)
+			require.Len(t, submitDue, 1)
+			assert.Equal(t, int64(5), submitDue[0].AssetID, "initial sync must remain eligible")
+		})
+	}
+}

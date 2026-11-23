@@ -109,5 +109,14 @@ func TestAssetCopyRoutesAllowAdministratorsForCustomersOnly(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, request(common.RoleAdminUser, "POST", path+"/delete-sources", "").Code)
 		response := request(common.RoleRootUser, "GET", path, "")
 		assert.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		purgeProtectedPath := fmt.Sprintf("/api/asset-library/admin/users/%d/purge", protectedUser.Id)
+		assert.Equal(t, http.StatusForbidden, request(common.RoleAdminUser, "POST", purgeProtectedPath, "").Code)
 	}
+	purgeTargetPath := fmt.Sprintf("/api/asset-library/admin/users/%d/purge", target.Id)
+	assert.Equal(t, http.StatusUnauthorized, request(0, "POST", purgeTargetPath, "").Code)
+	assert.Equal(t, http.StatusForbidden, request(common.RoleCommonUser, "POST", purgeTargetPath, "").Code)
+	purgeResp := request(common.RoleAdminUser, "POST", purgeTargetPath, "")
+	require.Equal(t, http.StatusOK, purgeResp.Code, purgeResp.Body.String())
+	assert.Contains(t, purgeResp.Body.String(), `"deleted_asset_count":1`)
+	assert.Contains(t, purgeResp.Body.String(), `"deleted_group_count":1`)
 }

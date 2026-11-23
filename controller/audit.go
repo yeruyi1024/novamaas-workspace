@@ -38,6 +38,7 @@ var auditContentTemplates = map[string]string{
 
 	"asset_library.copy":                "Copied ${asset_count} assets from user ${source_user_id} to user ${target_user_id} (batch: ${batch_id})",
 	"asset_library.copy_sources_delete": "Deleted copied source assets for user ${source_user_id} (batch: ${batch_id})",
+	"asset_library.user_purge":          "Purged ${deleted_asset_count} assets and ${deleted_group_count} groups for user ${owner_user_id}",
 
 	"channel.create":             "Created channel ${name} (type ${type}, count ${count})",
 	"channel.update":             "Updated channel ${name} (ID: ${id})",

@@ -81,14 +81,14 @@ func TestAssetCopyCreatesIndependentAssetsSynchronizedLikeUploads(t *testing.T) 
 	assert.Equal(t, 3, result.ProcessingCount)
 	assert.Equal(t, 1, result.UnavailableCount)
 	require.Len(t, result.Groups, 1)
-	assert.NotEqual(t, input.GroupIDs[0], result.Groups[0].ID)
+	assert.Equal(t, input.GroupIDs[0], result.Groups[0].ID)
 	var library model.AssetLibraryConnection
 	require.NoError(t, db.First(&library).Error)
 	copies := targetCopies(t, db)
 	require.Len(t, copies, len(originals), "only the selected group is copied")
 	for index, copy := range copies {
 		source := originals[index]
-		assert.NotEqual(t, source.PublicID, copy.PublicID)
+		assert.Equal(t, source.PublicID, copy.PublicID)
 		assert.Equal(t, source.StorageObjectID, copy.StorageObjectID)
 		assert.Equal(t, source.Name, copy.Name)
 		var replicas []model.AssetReplica
@@ -414,7 +414,7 @@ func TestAssetCopyRacingSourceDeletionNeverKeepsACopyOfAReclaimedFile(t *testing
 	start := make(chan struct{})
 	copyResult, deletionResult := make(chan error, 1), make(chan error, 1)
 	go func() { <-start; _, err := CopyAssetGroups(100, input); copyResult <- err }()
-	go func() { <-start; deletionResult <- DeleteAsset(originals[0].PublicID, 1, false) }()
+	go func() { <-start; deletionResult <- DeleteAsset(originals[0].PublicID, 1, false, 0) }()
 	close(start)
 	require.NoError(t, <-deletionResult)
 	require.NoError(t, <-copyResult)
@@ -628,4 +628,67 @@ func TestAssetCopyPartialCompletionDeletesTheSourceBatch(t *testing.T) {
 		require.NoError(t, db.First(&object, copy.StorageObjectID).Error)
 		assert.Equal(t, model.StorageObjectStatusUploaded, object.Status)
 	}
+}
+
+func TestAssetCopyPreservesPublicIDsAcrossTenantsAndRejectsActiveDuplicates(t *testing.T) {
+	db, input, originals := setupAssetCopy(t, model.AssetStatusReady)
+	require.NoError(t, db.Create(&model.User{Id: 3, Username: "customer-c", AffCode: "customer-c", Status: common.UserStatusEnabled}).Error)
+
+	result, err := CopyAssetGroups(100, input)
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.Equal(t, input.GroupIDs[0], result.Groups[0].ID)
+
+	copies := targetCopies(t, db)
+	require.Len(t, copies, 1)
+	assert.Equal(t, originals[0].PublicID, copies[0].PublicID)
+
+	// Activate target copy with its own upstream ID.
+	require.NoError(t, db.Model(&copies[0]).Update("status", model.AssetStatusReady).Error)
+	require.NoError(t, db.Model(&model.AssetReplica{}).Where("asset_id = ?", copies[0].ID).
+		Updates(map[string]any{"status": model.AssetReplicaStatusActive, "upstream_asset_id": "target-preserved-upstream"}).Error)
+
+	// Both source and target resolve the exact same asset:// reference to their own upstream copies.
+	requestBody := []byte(fmt.Sprintf(`{"content":[{"image_url":{"url":"asset://%s"}}]}`, originals[0].PublicID))
+	sourceMapped, _, err := ResolveRequestAssetIDs(requestBody, 1, 91)
+	require.NoError(t, err)
+	assert.Equal(t, "asset://asset-upstream-0", gjson.GetBytes(sourceMapped, "content.0.image_url.url").String())
+
+	targetMapped, _, err := ResolveRequestAssetIDs(requestBody, 2, 91)
+	require.NoError(t, err)
+	assert.Equal(t, "asset://target-preserved-upstream", gjson.GetBytes(targetMapped, "content.0.image_url.url").String())
+
+	// An unrelated customer still gets 404 and never passes through the managed asset ID.
+	_, _, err = ResolveRequestAssetIDs(requestBody, 3, 91)
+	var reqErr *RequestError
+	require.ErrorAs(t, err, &reqErr)
+	assert.Equal(t, http.StatusNotFound, reqErr.StatusCode)
+
+	// Copying the same group again with a new request_id is rejected while active copies exist.
+	duplicateInput := input
+	duplicateInput.RequestID = "copy-request-test-duplicate"
+	_, err = CopyAssetGroups(100, duplicateInput)
+	require.ErrorIs(t, err, model.ErrAssetCopyConflict)
+
+	// Admin operations without owner_user_id refuse ambiguous shared IDs; with owner_user_id they succeed.
+	err = DeleteAsset(originals[0].PublicID, 100, true, 0)
+	require.ErrorIs(t, err, model.ErrAssetAmbiguousPublicID)
+	err = DeleteGroup(input.GroupIDs[0], 100, true, 0)
+	require.ErrorIs(t, err, model.ErrAssetAmbiguousPublicID)
+
+	// Deleting the target's copy and group frees the active slot so the same group/asset IDs can be copied again.
+	require.NoError(t, DeleteAsset(copies[0].PublicID, 100, true, 2))
+	require.NoError(t, DeleteGroup(input.GroupIDs[0], 100, true, 2))
+
+	// Source remains intact and resolvable; target gets 404 until re-copied.
+	_, _, err = ResolveRequestAssetIDs(requestBody, 2, 91)
+	require.ErrorAs(t, err, &reqErr)
+	assert.Equal(t, http.StatusNotFound, reqErr.StatusCode)
+
+	recopyInput := input
+	recopyInput.RequestID = "copy-request-test-recopy"
+	recopied, err := CopyAssetGroups(100, recopyInput)
+	require.NoError(t, err)
+	require.Len(t, recopied.Groups, 1)
+	assert.Equal(t, input.GroupIDs[0], recopied.Groups[0].ID)
 }

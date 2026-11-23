@@ -178,7 +178,7 @@ export function AssetCopyDialog(props: {
             <DialogTitle>{t('Copy asset groups')}</DialogTitle>
             <DialogDescription>
               {t(
-                'Copy the selected asset groups to another user. Synchronization is handled automatically, and the source assets are kept.'
+                'Copy the selected asset groups to another user while keeping the original asset and group IDs. Synchronization is handled automatically, and the source assets are kept.'
               )}
             </DialogDescription>
           </DialogHeader>

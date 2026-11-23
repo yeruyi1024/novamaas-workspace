@@ -45,7 +45,7 @@ func TestAssetDeletionKeepsLateIDsAndRetriesBeforeCleaningSource(t *testing.T) {
 		{AssetID: asset.ID, ChannelID: 7192, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusSyncing, LockedBy: "creating", LeaseUntil: now + 120},
 	}
 	require.NoError(t, db.Create(&replicas).Error)
-	require.NoError(t, DeleteAsset(asset.PublicID, 42, false))
+	require.NoError(t, DeleteAsset(asset.PublicID, 42, false, 0))
 	require.NoError(t, db.First(&source, source.ID).Error)
 	assert.Equal(t, model.StorageObjectStatusUploaded, source.Status, "live creation still needs its source")
 	require.NoError(t, model.FinishAssetReplicaSubmission(replicas[1].ID, "creating", "late-id", now+8))
@@ -79,4 +79,35 @@ func TestAssetDeletionKeepsLateIDsAndRetriesBeforeCleaningSource(t *testing.T) {
 	claimed, err := model.ClaimAssetReplica(&replicas[1], now, now+120, "stale-candidate")
 	require.NoError(t, err)
 	assert.False(t, claimed, "a prefetched candidate must not overwrite completed deletion")
+}
+
+func TestDeleteReplicaAtProgress100UsesBackoffOnFailure(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, `{"error":{"code":"InternalError","message":"temporary failure"}}`)
+	}))
+	t.Cleanup(upstream.Close)
+	seedSyncChannel(t, 7199, 1000000, model.AssetChannelProtocolYoufangREST, upstream.URL)
+	source := model.StorageObject{ObjectID: "del-backoff-obj", Purpose: model.StorageObjectPurposeAssetLibrary, Status: model.StorageObjectStatusUploaded}
+	require.NoError(t, db.Create(&source).Error)
+	asset := model.MediaAsset{PublicID: "del-backoff-asset", OwnerUserID: 42, StorageObjectID: source.ID, Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&asset).Error)
+	replica := model.AssetReplica{AssetID: asset.ID, ChannelID: 7199, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusActive, Progress: 100, UpstreamAssetID: "up-100"}
+	require.NoError(t, db.Create(&replica).Error)
+	require.NoError(t, DeleteAsset(asset.PublicID, 42, false, 0))
+
+	now := common.GetTimestamp()
+	candidates, err := model.ListDueAssetReplicas(now, 7199, model.AssetReplicaWorkloadMaintenance, 5)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	claimed, err := model.ClaimAssetReplica(candidates[0], now, now+120, "delete-backoff-worker")
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	syncReplica(context.Background(), "delete-backoff-worker", candidates[0])
+	require.NoError(t, db.First(&replica, replica.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusDeleting, replica.Status)
+	assert.Equal(t, 1, replica.Attempts)
+	assert.GreaterOrEqual(t, replica.NextSyncAt, now+60, "failed deletion at progress 100 must back off at least 1 minute")
 }

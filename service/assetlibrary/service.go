@@ -92,16 +92,17 @@ type AssetView struct {
 }
 
 type AssetListInput struct {
-	OwnerUserID      int
-	IncludeAllOwners bool
-	GroupPublicID    string
-	GroupPublicIDs   []string
-	Statuses         []string
-	Search           string
-	Page             int
-	PageSize         int
-	SortBy           string
-	SortOrder        string
+	OwnerUserID       int
+	IncludeAllOwners  bool
+	TargetOwnerUserID int
+	GroupPublicID     string
+	GroupPublicIDs    []string
+	Statuses          []string
+	Search            string
+	Page              int
+	PageSize          int
+	SortBy            string
+	SortOrder         string
 }
 
 type AssetListView struct {
@@ -214,8 +215,8 @@ func CreateGroup(ownerUserID int, input GroupInput) (*model.AssetGroup, error) {
 	return group, nil
 }
 
-func UpdateGroup(publicID string, ownerUserID int, isAdmin bool, input GroupInput) (*model.AssetGroup, error) {
-	group, err := model.FindAssetGroup(publicID, ownerUserID, isAdmin)
+func UpdateGroup(publicID string, ownerUserID int, isAdmin bool, input GroupInput, targetOwnerUserID int) (*model.AssetGroup, error) {
+	group, err := model.FindAssetGroupForOwner(publicID, ownerUserID, isAdmin, targetOwnerUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -233,8 +234,8 @@ func UpdateGroup(publicID string, ownerUserID int, isAdmin bool, input GroupInpu
 	return group, nil
 }
 
-func DeleteGroup(publicID string, ownerUserID int, isAdmin bool) error {
-	group, err := model.FindAssetGroup(publicID, ownerUserID, isAdmin)
+func DeleteGroup(publicID string, ownerUserID int, isAdmin bool, targetOwnerUserID int) error {
+	group, err := model.FindAssetGroupForOwner(publicID, ownerUserID, isAdmin, targetOwnerUserID)
 	if err != nil {
 		return err
 	}
@@ -250,7 +251,7 @@ func DeleteGroup(publicID string, ownerUserID int, isAdmin bool) error {
 		if count > 0 {
 			return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("delete all assets in the group before deleting the group")}
 		}
-		return tx.Model(group).Updates(map[string]any{"status": model.AssetStatusDeleted, "updated_at": common.GetTimestamp()}).Error
+		return tx.Model(group).Updates(map[string]any{"status": model.AssetStatusDeleted, "deleted_slot": group.ID, "updated_at": common.GetTimestamp()}).Error
 	})
 }
 
@@ -390,9 +391,11 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 	}
 	if !input.IncludeAllOwners {
 		query = query.Where("owner_user_id = ?", input.OwnerUserID)
+	} else if input.TargetOwnerUserID > 0 {
+		query = query.Where("owner_user_id = ?", input.TargetOwnerUserID)
 	}
 	if input.GroupPublicID != "" {
-		group, err := model.FindAssetGroup(input.GroupPublicID, input.OwnerUserID, input.IncludeAllOwners)
+		group, err := model.FindAssetGroupForOwner(input.GroupPublicID, input.OwnerUserID, input.IncludeAllOwners, input.TargetOwnerUserID)
 		if err != nil {
 			return nil, err
 		}
@@ -469,10 +472,10 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 }
 
 func PreviewURL(ctx context.Context, publicID string, ownerUserID int, isAdmin bool) (string, int64, error) {
-	return PreviewURLVariant(ctx, publicID, ownerUserID, isAdmin, "original")
+	return PreviewURLVariant(ctx, publicID, ownerUserID, isAdmin, "original", 0)
 }
 
-func PreviewURLVariant(ctx context.Context, publicID string, ownerUserID int, isAdmin bool, variant string) (string, int64, error) {
+func PreviewURLVariant(ctx context.Context, publicID string, ownerUserID int, isAdmin bool, variant string, targetOwnerUserID int) (string, int64, error) {
 	mode := storageService.AssetObjectURLOriginal
 	switch variant {
 	case "original":
@@ -483,7 +486,7 @@ func PreviewURLVariant(ctx context.Context, publicID string, ownerUserID int, is
 	default:
 		return "", 0, &RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset preview variant")}
 	}
-	asset, err := model.FindMediaAsset(publicID, ownerUserID, isAdmin)
+	asset, err := model.FindMediaAssetForOwner(publicID, ownerUserID, isAdmin, targetOwnerUserID)
 	if err != nil {
 		return "", 0, err
 	}
@@ -496,14 +499,14 @@ func PreviewURLVariant(ctx context.Context, publicID string, ownerUserID int, is
 	return value, common.GetTimestamp() + policy.SignedURLTTLSeconds, err
 }
 
-func DeleteAsset(publicID string, ownerUserID int, isAdmin bool) error {
-	asset, err := model.FindMediaAsset(publicID, ownerUserID, isAdmin)
+func DeleteAsset(publicID string, ownerUserID int, isAdmin bool, targetOwnerUserID int) error {
+	asset, err := model.FindMediaAssetForOwner(publicID, ownerUserID, isAdmin, targetOwnerUserID)
 	if err != nil {
 		return err
 	}
 	return model.DB.Transaction(func(tx *gorm.DB) error {
 		return model.RequestAssetDeletion(tx, asset.ID)
-	})
+	}, model.AssetDeletionTxOptions())
 }
 
 func ListChannelConfigs() ([]ChannelConfigView, error) {

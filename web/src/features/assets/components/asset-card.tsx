@@ -53,6 +53,7 @@ import type { MediaAsset } from '../types'
 
 function AssetPreview(props: {
   asset: MediaAsset
+  isAdmin?: boolean
   onPreview: (asset: MediaAsset) => void
 }) {
   const { t } = useTranslation()
@@ -79,11 +80,24 @@ function AssetPreview(props: {
     return () => observer.disconnect()
   }, [visible])
   const previewVariant = useOriginalPreview ? 'original' : 'thumbnail'
+  const ownerParam = props.isAdmin ? props.asset.owner_user_id : undefined
   const previewQuery = useQuery({
-    queryKey: ['asset-library', 'preview', props.asset.id, previewVariant],
+    queryKey: [
+      'asset-library',
+      'preview',
+      props.asset.owner_user_id,
+      props.asset.id,
+      previewVariant,
+    ],
     queryFn: async () =>
       assertAssetSuccess(
-        await getMediaAssetPreview(props.asset.id, previewVariant)
+        ownerParam
+          ? await getMediaAssetPreview(
+              props.asset.id,
+              previewVariant,
+              ownerParam
+            )
+          : await getMediaAssetPreview(props.asset.id, previewVariant)
       ),
     enabled: visible,
     staleTime: 5 * 60 * 1000,
@@ -166,6 +180,7 @@ function assetTypeLabelKey(type: MediaAsset['type']) {
 export function AssetCard(props: {
   asset: MediaAsset
   groupName: string
+  isAdmin?: boolean
   onDelete: (asset: MediaAsset) => void
   onReupload?: (asset: MediaAsset) => void
   onPreview: (asset: MediaAsset) => void
@@ -196,7 +211,11 @@ export function AssetCard(props: {
       className='overflow-hidden [contain-intrinsic-size:320px] [content-visibility:auto]'
     >
       <div className='relative'>
-        <AssetPreview asset={props.asset} onPreview={props.onPreview} />
+        <AssetPreview
+          asset={props.asset}
+          isAdmin={props.isAdmin}
+          onPreview={props.onPreview}
+        />
         {unavailable && (
           <Badge
             variant='destructive'

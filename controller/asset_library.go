@@ -88,7 +88,8 @@ func UpdateAssetGroup(c *gin.Context) {
 		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset group request")})
 		return
 	}
-	group, err := assetService.UpdateGroup(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, input)
+	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
+	group, err := assetService.UpdateGroup(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, input, targetOwner)
 	if err != nil {
 		assetLibraryError(c, err)
 		return
@@ -97,7 +98,8 @@ func UpdateAssetGroup(c *gin.Context) {
 }
 
 func DeleteAssetGroup(c *gin.Context) {
-	err := assetService.DeleteGroup(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser)
+	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
+	err := assetService.DeleteGroup(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, targetOwner)
 	if err != nil {
 		assetLibraryError(c, err)
 		return
@@ -107,13 +109,15 @@ func DeleteAssetGroup(c *gin.Context) {
 
 func ListMediaAssets(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
+	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
 	assets, err := assetService.ListAssets(assetService.AssetListInput{
-		OwnerUserID:      c.GetInt("id"),
-		IncludeAllOwners: c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all",
-		GroupPublicID:    strings.TrimSpace(c.Query("group_id")),
-		Search:           strings.TrimSpace(c.Query("search")),
-		Page:             pageInfo.GetPage(),
-		PageSize:         pageInfo.GetPageSize(),
+		OwnerUserID:       c.GetInt("id"),
+		IncludeAllOwners:  c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all",
+		TargetOwnerUserID: targetOwner,
+		GroupPublicID:     strings.TrimSpace(c.Query("group_id")),
+		Search:            strings.TrimSpace(c.Query("search")),
+		Page:              pageInfo.GetPage(),
+		PageSize:          pageInfo.GetPageSize(),
 	})
 	if err != nil {
 		assetLibraryError(c, err)
@@ -181,7 +185,8 @@ func UploadMediaAsset(c *gin.Context) {
 }
 
 func GetMediaAssetPreview(c *gin.Context) {
-	value, expiresAt, err := assetService.PreviewURLVariant(c.Request.Context(), c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, c.DefaultQuery("variant", "original"))
+	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
+	value, expiresAt, err := assetService.PreviewURLVariant(c.Request.Context(), c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, c.DefaultQuery("variant", "original"), targetOwner)
 	if err != nil {
 		assetLibraryError(c, err)
 		return
@@ -190,7 +195,8 @@ func GetMediaAssetPreview(c *gin.Context) {
 }
 
 func DeleteMediaAsset(c *gin.Context) {
-	err := assetService.DeleteAsset(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser)
+	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
+	err := assetService.DeleteAsset(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, targetOwner)
 	if err != nil {
 		assetLibraryError(c, err)
 		return
@@ -434,7 +440,7 @@ func assetChannelID(c *gin.Context) (int, bool) {
 }
 
 func assetLibraryError(c *gin.Context, err error) {
-	if errors.Is(err, model.ErrAssetCopyConflict) {
+	if errors.Is(err, model.ErrAssetCopyConflict) || errors.Is(err, model.ErrAssetAmbiguousPublicID) {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
 		return
 	}

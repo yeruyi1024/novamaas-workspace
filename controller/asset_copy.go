@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -55,6 +56,42 @@ func DeleteAssetCopySources(c *gin.Context) {
 		return
 	}
 	recordManageAudit(c, "asset_library.copy_sources_delete", map[string]interface{}{"batch_id": result.ID, "source_user_id": result.SourceUserID, "target_user_id": result.TargetUserID, "asset_count": result.AssetCount})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+func PurgeUserAssets(c *gin.Context) {
+	targetUserID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || targetUserID <= 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid user ID")})
+		return
+	}
+	if c.GetInt("role") != common.RoleRootUser {
+		var user model.User
+		if err := model.DB.Select("id", "role").First(&user, targetUserID).Error; err != nil {
+			assetLibraryError(c, err)
+			return
+		}
+		if !canManageTargetRole(c.GetInt("role"), user.Role) {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "cannot manage assets of users with an equal or higher role"})
+			return
+		}
+	}
+	result, err := assetService.PurgeUserAssets(targetUserID, c.GetInt("id"))
+	if result != nil && (err == nil || result.DeletedAssetCount > 0 || result.DeletedGroupCount > 0) {
+		auditData := map[string]interface{}{
+			"owner_user_id":       result.OwnerUserID,
+			"deleted_asset_count": result.DeletedAssetCount,
+			"deleted_group_count": result.DeletedGroupCount,
+		}
+		if err != nil {
+			auditData["partial"] = true
+		}
+		recordManageAudit(c, "asset_library.user_purge", auditData)
+	}
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 

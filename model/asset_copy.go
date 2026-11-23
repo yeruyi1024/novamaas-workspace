@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -128,11 +129,72 @@ func GetAssetCopyProgress(tx *gorm.DB, ownerID int, groups []AssetCopiedGroup) (
 	return progress, nil
 }
 
-// MigrateAssetCopyReferences drops the former one-asset-per-file uniqueness:
-// a copied asset is independent but reuses the source's permanent file.
+// MigrateAssetCopyReferences relaxes legacy one-asset-per-file and global
+// public_id uniqueness so copied groups and assets can preserve their original
+// public IDs under the target owner while sharing the permanent file.
 func MigrateAssetCopyReferences(db *gorm.DB) error {
-	if db.Migrator().HasIndex(&MediaAsset{}, "idx_media_assets_storage_object_id") {
-		return db.Migrator().DropIndex(&MediaAsset{}, "idx_media_assets_storage_object_id")
+	if db.Migrator().HasTable(&MediaAsset{}) && db.Migrator().HasIndex(&MediaAsset{}, "idx_media_assets_storage_object_id") {
+		if err := db.Migrator().DropIndex(&MediaAsset{}, "idx_media_assets_storage_object_id"); err != nil {
+			return err
+		}
+	}
+	for _, target := range []struct {
+		model any
+		name  string
+	}{
+		{model: &AssetGroup{}, name: "AssetGroup"},
+		{model: &MediaAsset{}, name: "MediaAsset"},
+	} {
+		if !db.Migrator().HasTable(target.model) {
+			continue
+		}
+		if err := db.Model(target.model).
+			Where("status = ? AND deleted_slot = 0", AssetStatusDeleted).
+			Update("deleted_slot", gorm.Expr("id")).Error; err != nil {
+			return err
+		}
+		if db.Dialector.Name() == "sqlite" {
+			table := db.NamingStrategy.TableName(target.name)
+			var list []struct {
+				Name   string `gorm:"column:name"`
+				Unique int    `gorm:"column:unique"`
+				Origin string `gorm:"column:origin"`
+			}
+			if err := db.Raw("PRAGMA index_list(`" + table + "`)").Scan(&list).Error; err != nil {
+				return err
+			}
+			for _, item := range list {
+				if item.Unique != 1 || item.Origin != "c" {
+					continue
+				}
+				var cols []struct {
+					Name string `gorm:"column:name"`
+				}
+				if err := db.Raw("PRAGMA index_info(`" + item.Name + "`)").Scan(&cols).Error; err != nil {
+					return err
+				}
+				if len(cols) == 1 && strings.EqualFold(cols[0].Name, "public_id") {
+					if err := db.Migrator().DropIndex(target.model, item.Name); err != nil {
+						return err
+					}
+				}
+			}
+			continue
+		}
+		indexes, err := db.Migrator().GetIndexes(target.model)
+		if err != nil {
+			return err
+		}
+		for _, index := range indexes {
+			unique, ok := index.Unique()
+			cols := index.Columns()
+			if !ok || !unique || len(cols) != 1 || !strings.EqualFold(cols[0], "public_id") {
+				continue
+			}
+			if err := db.Migrator().DropIndex(target.model, index.Name()); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -256,13 +318,32 @@ func CopyAssetGroupsWithTx(tx *gorm.DB, batch *AssetCopyBatch, publicIDs []strin
 		}
 	}
 
-	targets := make([]AssetGroup, 0, len(groups))
-	for _, group := range groups {
-		publicID, err := NewAssetPublicID("group-")
-		if err != nil {
+	var existingGroups []AssetGroup
+	if err := tx.Select("id").Where("owner_user_id = ? AND public_id IN ? AND status <> ?", batch.TargetUserID, publicIDs, AssetStatusDeleted).
+		Limit(1).Find(&existingGroups).Error; err != nil {
+		return nil, err
+	}
+	if len(existingGroups) > 0 {
+		return nil, fmt.Errorf("%w: target user already has one or more of the selected asset groups", ErrAssetCopyConflict)
+	}
+	if len(sources) > 0 {
+		sourcePublicIDs := make([]string, 0, len(sources))
+		for _, source := range sources {
+			sourcePublicIDs = append(sourcePublicIDs, source.PublicID)
+		}
+		var existingAssets []MediaAsset
+		if err := tx.Select("id").Where("owner_user_id = ? AND public_id IN ? AND status <> ?", batch.TargetUserID, sourcePublicIDs, AssetStatusDeleted).
+			Limit(1).Find(&existingAssets).Error; err != nil {
 			return nil, err
 		}
-		targets = append(targets, AssetGroup{PublicID: publicID, OwnerUserID: batch.TargetUserID, Name: group.Name, Description: group.Description, Status: group.Status})
+		if len(existingAssets) > 0 {
+			return nil, fmt.Errorf("%w: target user already has one or more assets with the same asset ID", ErrAssetCopyConflict)
+		}
+	}
+
+	targets := make([]AssetGroup, 0, len(groups))
+	for _, group := range groups {
+		targets = append(targets, AssetGroup{PublicID: group.PublicID, OwnerUserID: batch.TargetUserID, Name: group.Name, Description: group.Description, Status: group.Status})
 	}
 	if err := tx.CreateInBatches(&targets, assetCopyInsertBatchSize).Error; err != nil {
 		return nil, err
@@ -274,7 +355,7 @@ func CopyAssetGroupsWithTx(tx *gorm.DB, batch *AssetCopyBatch, publicIDs []strin
 	copies := make([]MediaAsset, 0, len(sources))
 	for _, source := range sources {
 		copy := source
-		copy.ID, copy.CreatedAt, copy.UpdatedAt = 0, 0, 0
+		copy.ID, copy.DeletedSlot, copy.CreatedAt, copy.UpdatedAt = 0, 0, 0, 0
 		copy.OwnerUserID, copy.GroupID = batch.TargetUserID, targetGroups[source.GroupID]
 		copy.Status, copy.UnavailableReason = AssetStatusProcessing, ""
 		if len(destinations) == 0 {
@@ -283,11 +364,6 @@ func CopyAssetGroupsWithTx(tx *gorm.DB, batch *AssetCopyBatch, publicIDs []strin
 		if source.Status == AssetStatusUnavailable {
 			copy.Status, copy.UnavailableReason = AssetStatusUnavailable, source.UnavailableReason
 		}
-		publicID, err := NewAssetPublicID("asset-")
-		if err != nil {
-			return nil, err
-		}
-		copy.PublicID = publicID
 		copies = append(copies, copy)
 	}
 	if len(copies) > 0 {
@@ -400,13 +476,13 @@ func DeleteAssetCopySources(batchID string, operatorID int) (*AssetCopyBatch, er
 				return err
 			}
 			if len(remaining) == 0 {
-				if err := tx.Model(&group).Updates(map[string]any{"status": AssetStatusDeleted, "updated_at": common.GetTimestamp()}).Error; err != nil {
+				if err := tx.Model(&group).Updates(map[string]any{"status": AssetStatusDeleted, "deleted_slot": group.ID, "updated_at": common.GetTimestamp()}).Error; err != nil {
 					return err
 				}
 			}
 		}
 		batch.SourcesDeletedAt = common.GetTimestamp()
 		return tx.Model(&batch).Update("sources_deleted_at", batch.SourcesDeletedAt).Error
-	}, assetDeletionTxOptions())
+	}, AssetDeletionTxOptions())
 	return &batch, err
 }

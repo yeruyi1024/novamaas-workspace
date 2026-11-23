@@ -134,12 +134,12 @@ func HandleVolcAssetAction(c *gin.Context) {
 		}
 	case "UpdateAssetGroup":
 		var group *model.AssetGroup
-		group, err = assetService.UpdateGroup(input.ID, ownerUserID, false, assetService.GroupInput{Name: input.Name, Description: input.Description})
+		group, err = assetService.UpdateGroup(input.ID, ownerUserID, false, assetService.GroupInput{Name: input.Name, Description: input.Description}, 0)
 		if err == nil {
 			result = gin.H{"Id": group.PublicID}
 		}
 	case "DeleteAssetGroup":
-		err = assetService.DeleteGroup(input.ID, ownerUserID, false)
+		err = assetService.DeleteGroup(input.ID, ownerUserID, false, 0)
 		result = gin.H{}
 	case "CreateAsset":
 		var asset *assetService.AssetView
@@ -163,7 +163,7 @@ func HandleVolcAssetAction(c *gin.Context) {
 			result = gin.H{"Id": asset.ID}
 		}
 	case "DeleteAsset":
-		err = assetService.DeleteAsset(input.ID, ownerUserID, false)
+		err = assetService.DeleteAsset(input.ID, ownerUserID, false, 0)
 		result = gin.H{}
 	default:
 		volcAssetError(c, http.StatusBadRequest, action, version, "InvalidAction", "unsupported asset Action")
