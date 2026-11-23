@@ -377,7 +377,10 @@ func syncReplica(parent context.Context, runnerID string, replica *model.AssetRe
 		}
 	}
 	if !deleting && replica.ClaimedFromStatus != model.AssetReplicaStatusActive && replica.Progress < 100 {
-		if replica.CreatedAt == 0 {
+		// Queue wait before the first submission attempt is bounded by channel
+		// QPM, not upstream latency. Start the 5-minute sync timeout clock when
+		// a pending, never-attempted submission actually leaves the queue.
+		if replica.CreatedAt == 0 || (replica.ClaimedFromStatus == model.AssetReplicaStatusPending && replica.UpstreamAssetID == "" && replica.Attempts == 0) {
 			replica.CreatedAt = common.GetTimestamp()
 			if err := model.DB.Model(replica).Where("locked_by = ?", runnerID).Update("created_at", replica.CreatedAt).Error; err != nil {
 				failReplica(runnerID, replica, err)

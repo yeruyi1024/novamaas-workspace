@@ -294,7 +294,7 @@ func queueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int, retryFaile
 	if err := lockForUpdate(tx).Select("id", "status").First(&asset, assetID).Error; err != nil {
 		return err
 	}
-	if asset.Status != AssetStatusProcessing && asset.Status != AssetStatusReady {
+	if asset.Status != AssetStatusProcessing && asset.Status != AssetStatusReady && !(retryFailed && asset.Status == AssetStatusSyncFailed) {
 		return nil
 	}
 	libraries := make(map[int]int, len(bindings))
@@ -302,6 +302,7 @@ func queueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int, retryFaile
 		libraries[binding.ChannelID] = binding.LibraryID
 	}
 	queued := make(map[string]bool)
+	activated := false
 	for _, channelID := range channelIDs {
 		replica := AssetReplica{
 			AssetID:    assetID,
@@ -322,8 +323,12 @@ func queueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int, retryFaile
 			continue
 		}
 		queued[scope] = true
-		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&replica).Error; err != nil {
-			return err
+		createResult := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&replica)
+		if createResult.Error != nil {
+			return createResult.Error
+		}
+		if createResult.RowsAffected > 0 {
+			activated = true
 		}
 		if !retryFailed {
 			continue
@@ -337,14 +342,23 @@ func queueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int, retryFaile
 		} else {
 			query = query.Where("channel_id = ? AND library_id IS NULL", channelID)
 		}
-		if err := query.
+		retryResult := query.
 			Where("locked_by = ? OR locked_by IS NULL OR lease_until <= ?", "", now).
 			Updates(map[string]any{
 				"status":     gorm.Expr("CASE WHEN upstream_asset_id <> ? THEN ? ELSE ? END", "", AssetReplicaStatusProcessing, AssetReplicaStatusPending),
 				"progress":   gorm.Expr("CASE WHEN upstream_asset_id <> ? THEN ? ELSE ? END", "", 50, 0),
 				"created_at": now, "next_sync_at": now, "attempts": 0, "last_error": "",
 				"locked_by": "", "lease_until": 0, "updated_at": now,
-			}).Error; err != nil {
+			})
+		if retryResult.Error != nil {
+			return retryResult.Error
+		}
+		if retryResult.RowsAffected > 0 {
+			activated = true
+		}
+	}
+	if activated && asset.Status == AssetStatusSyncFailed {
+		if err := tx.Model(&asset).Updates(map[string]any{"status": AssetStatusProcessing, "updated_at": now}).Error; err != nil {
 			return err
 		}
 	}

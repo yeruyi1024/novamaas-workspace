@@ -398,3 +398,63 @@ func FinalizeAssetLibraryDeletion(libraryID int) (finished bool, err error) {
 	})
 	return finished, err
 }
+
+// RebuildAssetLibraryReplicas clears upstream group and asset IDs for a shared
+// resource account so every live platform asset is uploaded again from OSS
+// without unlinking channels or changing customer asset IDs.
+func RebuildAssetLibraryReplicas(libraryID int) error {
+	liveAssets := DB.Model(&MediaAsset{}).Select("id").Where("status IN ?", []string{
+		AssetStatusReady, AssetStatusProcessing, AssetStatusSyncFailed,
+	})
+	var replicaIDs []int64
+	if err := DB.Model(&AssetReplica{}).
+		Where("library_id = ? AND operation = ? AND status NOT IN ?", libraryID, AssetReplicaOperationSync, []string{
+			AssetReplicaStatusDeleted, AssetReplicaStatusRejected, AssetReplicaStatusDeleting,
+		}).
+		Where("asset_id IN (?)", liveAssets).
+		Order("id asc").
+		Pluck("id", &replicaIDs).Error; err != nil {
+		return err
+	}
+	const batchSize = 100
+	for start := 0; start < len(replicaIDs); start += batchSize {
+		batch := replicaIDs[start:min(start+batchSize, len(replicaIDs))]
+		if err := DB.Transaction(func(tx *gorm.DB) error {
+			now := common.GetTimestamp()
+			for _, id := range batch {
+				asset, replica, err := lockAssetReplica(tx, id)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						continue
+					}
+					return err
+				}
+				if assetDeletionRequested(asset, replica) ||
+					asset.Status == AssetStatusDeleted || asset.Status == AssetStatusUnavailable ||
+					replica.Status == AssetReplicaStatusDeleted || replica.Status == AssetReplicaStatusRejected || replica.Status == AssetReplicaStatusDeleting ||
+					(replica.LockedBy != "" && replica.LeaseUntil > now) {
+					continue
+				}
+				if err := tx.Model(replica).Updates(map[string]any{
+					"upstream_asset_id": "", "status": AssetReplicaStatusPending, "progress": 0,
+					"attempts": 0, "last_error": "", "next_sync_at": now,
+					"locked_by": "", "lease_until": 0, "created_at": now, "updated_at": now,
+				}).Error; err != nil {
+					return err
+				}
+				if asset.Status == AssetStatusSyncFailed {
+					if err := tx.Model(asset).Updates(map[string]any{"status": AssetStatusProcessing, "updated_at": now}).Error; err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	now := common.GetTimestamp()
+	return DB.Model(&AssetGroupReplica{}).Where("library_id = ?", libraryID).Updates(map[string]any{
+		"upstream_group_id": "", "status": AssetReplicaStatusPending, "progress": 0, "last_error": "", "updated_at": now,
+	}).Error
+}
