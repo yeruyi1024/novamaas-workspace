@@ -89,21 +89,16 @@ function AssetPreview(props: {
       props.asset.id,
       previewVariant,
     ],
-    queryFn: async () => {
-      try {
-        return assertAssetSuccess(
-          ownerParam
-            ? await getMediaAssetPreview(
-                props.asset.id,
-                previewVariant,
-                ownerParam
-              )
-            : await getMediaAssetPreview(props.asset.id, previewVariant)
-        )
-      } catch {
-        return null
-      }
-    },
+    queryFn: async () =>
+      assertAssetSuccess(
+        ownerParam
+          ? await getMediaAssetPreview(
+              props.asset.id,
+              previewVariant,
+              ownerParam
+            )
+          : await getMediaAssetPreview(props.asset.id, previewVariant)
+      ),
     enabled: visible,
     staleTime: 5 * 60 * 1000,
   })

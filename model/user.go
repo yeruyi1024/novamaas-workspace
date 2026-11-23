@@ -1036,11 +1036,8 @@ func (user *User) Delete() error {
 		if err != nil {
 			return err
 		}
-		if _, err := DeleteUserAssetsWithTx(tx, user.Id); err != nil {
-			return err
-		}
 		return tx.Delete(user).Error
-	}, AssetDeletionTxOptions()); err != nil {
+	}); err != nil {
 		return err
 	}
 	if err := publishCommittedUserAuthVersion(user.Id, nextAuthVersion); err != nil {
@@ -1048,6 +1045,9 @@ func (user *User) Delete() error {
 	}
 	if _, err := RevokeAllUserSessions(user.Id, "user_deleted"); err != nil {
 		return err
+	}
+	if _, err := purgeUserAssetsInBatches(user.Id, nil); err != nil {
+		common.SysError(fmt.Sprintf("failed to purge assets after deleting user %d: %v", user.Id, err))
 	}
 	return invalidateUserCache(user.Id)
 }
@@ -1072,13 +1072,13 @@ func (user *User) HardDelete() error {
 		if err := deleteUserAuthenticationData(tx, user.Id); err != nil {
 			return err
 		}
-		if _, err := DeleteUserAssetsWithTx(tx, user.Id); err != nil {
-			return err
-		}
 		return tx.Unscoped().Delete(user).Error
-	}, AssetDeletionTxOptions())
+	})
 	if err != nil {
 		return err
+	}
+	if _, err := purgeUserAssetsInBatches(user.Id, nil); err != nil {
+		common.SysError(fmt.Sprintf("failed to purge assets after hard deleting user %d: %v", user.Id, err))
 	}
 	if err := publishCommittedUserAuthVersion(user.Id, deletedAuthVersion); err != nil {
 		common.SysError(fmt.Sprintf("failed to publish auth tombstone after hard deleting user %d: %v", user.Id, err))

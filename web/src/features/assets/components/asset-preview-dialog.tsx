@@ -32,7 +32,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { getMediaAssetPreview } from '../api'
-import { assertAssetSuccess, formatAssetBytes } from '../asset-utils'
+import {
+  assertAssetSuccess,
+  assetErrorMessage,
+  formatAssetBytes,
+} from '../asset-utils'
 import type { MediaAsset } from '../types'
 
 export function AssetPreviewDialog(props: {
@@ -68,24 +72,24 @@ export function AssetPreviewDialog(props: {
       props.asset.id,
       'original',
     ],
-    queryFn: async () => {
-      try {
-        return assertAssetSuccess(
-          ownerParam
-            ? await getMediaAssetPreview(props.asset.id, 'original', ownerParam)
-            : await getMediaAssetPreview(props.asset.id, 'original')
-        )
-      } catch {
-        return null
-      }
-    },
+    queryFn: async () =>
+      assertAssetSuccess(
+        ownerParam
+          ? await getMediaAssetPreview(props.asset.id, 'original', ownerParam)
+          : await getMediaAssetPreview(props.asset.id, 'original')
+      ),
     staleTime: 5 * 60 * 1000,
   })
   let previewContent = <Skeleton className='h-64 w-full' />
   if (!previewQuery.isLoading && !previewQuery.data?.url) {
     previewContent = (
-      <div className='bg-muted text-muted-foreground flex min-h-64 items-center justify-center rounded-md'>
-        {t('Preview unavailable')}
+      <div className='bg-muted text-muted-foreground flex min-h-64 flex-col items-center justify-center gap-1 rounded-md px-4 text-center'>
+        <span>{t('Preview unavailable')}</span>
+        {previewQuery.isError && (
+          <span role='alert' className='text-destructive text-xs'>
+            {assetErrorMessage(previewQuery.error)}
+          </span>
+        )}
       </div>
     )
   } else if (previewQuery.data?.url && props.asset.type === 'image') {

@@ -77,15 +77,21 @@ func PurgeUserAssets(c *gin.Context) {
 		}
 	}
 	result, err := assetService.PurgeUserAssets(targetUserID, c.GetInt("id"))
+	if result != nil && (err == nil || result.DeletedAssetCount > 0 || result.DeletedGroupCount > 0) {
+		auditData := map[string]interface{}{
+			"owner_user_id":       result.OwnerUserID,
+			"deleted_asset_count": result.DeletedAssetCount,
+			"deleted_group_count": result.DeletedGroupCount,
+		}
+		if err != nil {
+			auditData["partial"] = true
+		}
+		recordManageAudit(c, "asset_library.user_purge", auditData)
+	}
 	if err != nil {
 		assetLibraryError(c, err)
 		return
 	}
-	recordManageAudit(c, "asset_library.user_purge", map[string]interface{}{
-		"owner_user_id":       result.OwnerUserID,
-		"deleted_asset_count": result.DeletedAssetCount,
-		"deleted_group_count": result.DeletedGroupCount,
-	})
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 
