@@ -6051,6 +6051,7 @@
     "Switch to Visual": "Переключиться на визуальный режим",
     "Sync": "Синхронизировать",
     "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.": "Синхронизировать {{count}} недостающих материалов в {{library}}? Существующие материалы и состояния неудачных задач будут сохранены.",
+    "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.": "Досинхронизировать {{missing}} отсутствующих и повторить {{failed}} неудачных ресурсов в {{library}}? Уже синхронизированные ресурсы на стороне провайдера будут сохранены.",
     "Sync all": "Синхронизировать всё",
     "Sync Endpoint": "Конечная точка синхронизации",
     "Sync Endpoints": "Точки синхронизации",

@@ -6051,6 +6051,7 @@
     "Switch to Visual": "ビジュアルに切り替え",
     "Sync": "同期",
     "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.": "{{library}} に不足素材 {{count}} 件を同期しますか？既存素材と失敗タスクの状態は保持されます。",
+    "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.": "{{library}} に未同期の素材 {{missing}} 件を補完同期し、失敗した素材 {{failed}} 件を再試行しますか？同期済みの上流素材はそのまま保持されます。",
     "Sync all": "すべて同期",
     "Sync Endpoint": "同期エンドポイント",
     "Sync Endpoints": "同期エンドポイント",

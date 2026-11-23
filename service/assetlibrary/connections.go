@@ -609,12 +609,15 @@ func TestLibraryConnection(ctx context.Context, libraryID int, input *LibraryCon
 	return client.test(withRequestLogContext(ctx, "test", 0, 0))
 }
 
-// QueueLibrarySync only fills missing replicas. Existing state, upstream IDs and
-// failed attempts remain untouched.
+// QueueLibrarySync fills missing replicas and retries failed synchronization
+// jobs for this account while leaving active copies untouched.
 func QueueLibrarySync(libraryID int) error {
 	var library model.AssetLibraryConnection
-	if err := model.DB.Select("id", "enabled").First(&library, libraryID).Error; err != nil {
+	if err := model.DB.Select("id", "enabled", "delete_requested_at").First(&library, libraryID).Error; err != nil {
 		return err
+	}
+	if library.DeleteRequestedAt > 0 {
+		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted")}
 	}
 	if !library.Enabled {
 		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("asset library is disabled")}
@@ -626,7 +629,7 @@ func QueueLibrarySync(libraryID int) error {
 	if len(channelIDs) == 0 {
 		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("link an enabled channel before synchronizing this asset library")}
 	}
-	return queueMissingAssets(channelIDs[0])
+	return queueLibraryAssets(channelIDs[0], true)
 }
 
 // RebuildLibrarySync clears stale upstream mappings for a shared resource
@@ -655,14 +658,19 @@ func RebuildLibrarySync(libraryID int) error {
 	if err := model.RebuildAssetLibraryReplicas(libraryID); err != nil {
 		return err
 	}
-	return queueMissingAssets(channelIDs[0])
+	return queueLibraryAssets(channelIDs[0], false)
 }
 
-// queueMissingAssets queues a copy of every live asset for the account the
-// channel belongs to. Copies that already exist, failed ones included, are kept.
-func queueMissingAssets(channelID int) error {
+// queueLibraryAssets queues copies of live assets for the account the channel
+// belongs to in short batches. When retryFailed is false, existing failed
+// copies are left untouched; when true, failed sync copies are retried as well.
+func queueLibraryAssets(channelID int, retryFailed bool) error {
+	statuses := []string{model.AssetStatusReady, model.AssetStatusProcessing}
+	if retryFailed {
+		statuses = append(statuses, model.AssetStatusSyncFailed)
+	}
 	var assetIDs []int64
-	if err := model.DB.Model(&model.MediaAsset{}).Where("status IN ?", []string{model.AssetStatusReady, model.AssetStatusProcessing}).Order("id asc").Pluck("id", &assetIDs).Error; err != nil {
+	if err := model.DB.Model(&model.MediaAsset{}).Where("status IN ?", statuses).Order("id asc").Pluck("id", &assetIDs).Error; err != nil {
 		return err
 	}
 	const batchSize = 100
@@ -670,7 +678,13 @@ func queueMissingAssets(channelID int) error {
 		batch := assetIDs[start:min(start+batchSize, len(assetIDs))]
 		if err := model.DB.Transaction(func(tx *gorm.DB) error {
 			for _, assetID := range batch {
-				if err := model.QueueMissingAssetReplicas(tx, assetID, []int{channelID}); err != nil {
+				var err error
+				if retryFailed {
+					err = model.QueueAssetReplicas(tx, assetID, []int{channelID})
+				} else {
+					err = model.QueueMissingAssetReplicas(tx, assetID, []int{channelID})
+				}
+				if err != nil {
 					return err
 				}
 			}
@@ -706,7 +720,7 @@ func backfillMissingAssets(libraryID int, resume bool) {
 			return
 		}
 	}
-	if err := queueMissingAssets(channelIDs[0]); err != nil {
+	if err := queueLibraryAssets(channelIDs[0], false); err != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("backfill of existing assets to asset library %d failed: %v", libraryID, err))
 	}
 }

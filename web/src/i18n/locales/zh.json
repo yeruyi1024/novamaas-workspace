@@ -6051,6 +6051,7 @@
     "Switch to Visual": "切换到可视化",
     "Sync": "同步",
     "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.": "确认向“{{library}}”补同步 {{count}} 个缺失素材？已有上游素材和失败任务状态将保留。",
+    "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.": "确认向 {{library}} 补同步 {{missing}} 条缺失素材并重试 {{failed}} 条失败素材？已同步成功的上游素材将保留不变。",
     "Sync all": "全部同步",
     "Sync Endpoint": "同步端点",
     "Sync Endpoints": "同步端点",

@@ -6051,6 +6051,7 @@
     "Switch to Visual": "Passer à l'affichage visuel",
     "Sync": "Synchroniser",
     "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.": "Synchroniser {{count}} médias manquants vers {{library}} ? Les médias existants et les états des tâches en échec seront conservés.",
+    "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.": "Synchroniser {{missing}} ressources manquantes et relancer {{failed}} ressources en échec sur {{library}} ? Les ressources déjà synchronisées en amont seront conservées.",
     "Sync all": "Tout synchroniser",
     "Sync Endpoint": "Point de terminaison de synchronisation",
     "Sync Endpoints": "Points de synchronisation",

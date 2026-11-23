@@ -186,10 +186,11 @@ export function AssetLibraryAccountCard(props: {
           size='xs'
           variant='outline'
           disabled={
+            deleting ||
             !props.library.enabled ||
             props.library.credential_status === 'unavailable' ||
             !props.library.channels.some((channel) => channel.enabled) ||
-            props.library.missing === 0
+            (props.library.missing === 0 && props.library.summary.failed === 0)
           }
           onClick={() => props.onSyncMissing(props.library)}
         >

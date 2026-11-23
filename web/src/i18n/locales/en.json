@@ -6051,6 +6051,7 @@
     "Switch to Visual": "Switch to Visual",
     "Sync": "Sync",
     "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.": "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.",
+    "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.": "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.",
     "Sync all": "Sync all",
     "Sync Endpoint": "Sync Endpoint",
     "Sync Endpoints": "Sync Endpoints",

@@ -1016,9 +1016,10 @@ export function AssetLibrarySettings() {
             <DialogTitle>{t('Sync missing assets')}</DialogTitle>
             <DialogDescription>
               {t(
-                'Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.',
+                'Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.',
                 {
-                  count: syncTarget?.missing ?? 0,
+                  missing: syncTarget?.missing ?? 0,
+                  failed: syncTarget?.summary.failed ?? 0,
                   library: syncTarget?.name ?? '',
                 }
               )}

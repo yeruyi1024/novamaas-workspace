@@ -607,3 +607,48 @@ func TestRebuildLibrarySyncResetsMappingsAndQueuesMissing(t *testing.T) {
 	require.NoError(t, db.Where("asset_id = ? AND library_id = ?", missingAsset.ID, lib.ID).First(&queued).Error)
 	assert.Equal(t, model.AssetReplicaStatusPending, queued.Status)
 }
+
+func TestQueueLibrarySyncFillsMissingAndRetriesFailedOnly(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	lib := model.AssetLibraryConnection{Name: "provider-sync", Enabled: true}
+	require.NoError(t, db.Create(&lib).Error)
+	require.NoError(t, db.Create(&model.Channel{Id: 42, Name: "ch-sync", Type: constant.ChannelTypeVolcNative}).Error)
+	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 42, LibraryID: lib.ID, Enabled: true}).Error)
+
+	group := model.AssetGroup{PublicID: "grp-sync", OwnerUserID: 7, Name: "SyncGroup", Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&group).Error)
+	activeAsset := model.MediaAsset{PublicID: "s-active", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 1, Status: model.AssetStatusReady}
+	failedAsset := model.MediaAsset{PublicID: "s-failed", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 2, Status: model.AssetStatusSyncFailed}
+	rejectedAsset := model.MediaAsset{PublicID: "s-rejected", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 3, Status: model.AssetStatusUnavailable, UnavailableReason: model.AssetUnavailableRealPerson}
+	missingAsset := model.MediaAsset{PublicID: "s-missing", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 4, Status: model.AssetStatusReady}
+	for _, asset := range []*model.MediaAsset{&activeAsset, &failedAsset, &rejectedAsset, &missingAsset} {
+		require.NoError(t, db.Create(asset).Error)
+	}
+
+	repActive := model.AssetReplica{AssetID: activeAsset.ID, LibraryID: &lib.ID, UpstreamAssetID: "keep-ok", Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusActive, Progress: 100}
+	repFailed := model.AssetReplica{AssetID: failedAsset.ID, LibraryID: &lib.ID, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusFailed, Attempts: 1, LastError: "asset synchronization timed out after 5 minutes"}
+	repRejected := model.AssetReplica{AssetID: rejectedAsset.ID, LibraryID: &lib.ID, Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusRejected}
+	for _, rep := range []*model.AssetReplica{&repActive, &repFailed, &repRejected} {
+		require.NoError(t, db.Create(rep).Error)
+	}
+
+	require.NoError(t, QueueLibrarySync(lib.ID))
+
+	require.NoError(t, db.First(&repActive, repActive.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusActive, repActive.Status)
+	assert.Equal(t, "keep-ok", repActive.UpstreamAssetID)
+
+	require.NoError(t, db.First(&repFailed, repFailed.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusPending, repFailed.Status)
+	assert.Zero(t, repFailed.Attempts)
+	assert.Empty(t, repFailed.LastError)
+	require.NoError(t, db.First(&failedAsset, failedAsset.ID).Error)
+	assert.Equal(t, model.AssetStatusProcessing, failedAsset.Status)
+
+	require.NoError(t, db.First(&repRejected, repRejected.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusRejected, repRejected.Status)
+
+	var queued model.AssetReplica
+	require.NoError(t, db.Where("asset_id = ? AND library_id = ?", missingAsset.ID, lib.ID).First(&queued).Error)
+	assert.Equal(t, model.AssetReplicaStatusPending, queued.Status)
+}

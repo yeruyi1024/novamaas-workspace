@@ -572,10 +572,16 @@ describe('asset channel protocol configuration', () => {
     expect(bindAssetChannelLibrary).not.toHaveBeenCalled()
   })
 
-  test('missing synchronization requires reviewing the count before submitting once', async () => {
+  test('missing synchronization requires reviewing missing and failed counts before submitting once', async () => {
     vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
       success: true,
-      data: [{ ...libraryFixture, missing: 2 }],
+      data: [
+        {
+          ...libraryFixture,
+          missing: 0,
+          summary: { ...libraryFixture.summary, failed: 3 },
+        },
+      ],
     })
     renderSettings()
     fireEvent.click(
@@ -585,7 +591,9 @@ describe('asset channel protocol configuration', () => {
     const dialog = await screen.findByRole('dialog', {
       name: 'Sync missing assets',
     })
-    expect(within(dialog).getByText(/Sync 2 missing assets/)).toBeVisible()
+    expect(
+      within(dialog).getByText(/Sync 0 missing and retry 3 failed assets/)
+    ).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
     await waitFor(() =>
       expect(syncAssetLibraryMissing).toHaveBeenCalledWith(17)

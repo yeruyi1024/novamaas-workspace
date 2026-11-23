@@ -6051,6 +6051,7 @@
     "Switch to Visual": "Chuyển sang Trực quan",
     "Sync": "Đồng bộ",
     "Sync {{count}} missing assets to {{library}}? Existing upstream assets and failed job states will be preserved.": "Đồng bộ {{count}} tài nguyên còn thiếu vào {{library}}? Tài nguyên hiện có và trạng thái tác vụ thất bại sẽ được giữ nguyên.",
+    "Sync {{missing}} missing and retry {{failed}} failed assets on {{library}}? Already synchronized upstream assets will be preserved.": "Đồng bộ bổ sung {{missing}} tài nguyên còn thiếu và thử lại {{failed}} tài nguyên lỗi trên {{library}}? Các tài nguyên đã đồng bộ thành công ở upstream sẽ được giữ nguyên.",
     "Sync all": "Đồng bộ tất cả",
     "Sync Endpoint": "Điểm cuối đồng bộ",
     "Sync Endpoints": "Điểm đồng bộ",
