@@ -40,6 +40,7 @@ export function AssetLibraryAccountCard(props: {
   onManageChannels: (library: AssetLibraryConnection) => void
   onViewLogs: (libraryId: number) => void
   onSyncMissing: (library: AssetLibraryConnection) => void
+  onRebuild?: (library: AssetLibraryConnection) => void
   onDelete: (library: AssetLibraryConnection) => void
 }) {
   const { t } = useTranslation()
@@ -194,6 +195,21 @@ export function AssetLibraryAccountCard(props: {
         >
           {t('Sync missing assets')}
         </Button>
+        {props.onRebuild && (
+          <Button
+            size='xs'
+            variant='outline'
+            disabled={
+              deleting ||
+              !props.library.enabled ||
+              props.library.credential_status === 'unavailable' ||
+              !props.library.channels.some((channel) => channel.enabled)
+            }
+            onClick={() => props.onRebuild?.(props.library)}
+          >
+            {t('Rebuild sync')}
+          </Button>
+        )}
         <Button
           size='xs'
           disabled={deleting}

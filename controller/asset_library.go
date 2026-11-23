@@ -313,6 +313,20 @@ func SyncAssetLibraryConnection(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"success": true})
 }
 
+func RebuildAssetLibraryConnection(c *gin.Context) {
+	libraryID, err := strconv.Atoi(c.Param("library_id"))
+	if err != nil || libraryID <= 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+		return
+	}
+	if err := assetService.RebuildLibrarySync(libraryID); err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	recordManageAudit(c, "asset_library.connection_rebuild", map[string]interface{}{"library_id": libraryID})
+	c.JSON(http.StatusAccepted, gin.H{"success": true})
+}
+
 func UpdateAssetChannelConfig(c *gin.Context) {
 	channelID, ok := assetChannelID(c)
 	if !ok {

@@ -66,6 +66,7 @@ import {
   testAssetLibraryConnection,
   saveAssetLibraryConnection,
   syncAssetLibraryMissing,
+  rebuildAssetLibrary,
   bindAssetChannelLibrary,
   mergeAssetLibraries,
   updateAssetLibraryStoragePolicy,
@@ -678,6 +679,8 @@ export function AssetLibrarySettings() {
   const [syncTarget, setSyncTarget] = useState<AssetLibraryConnection | null>(
     null
   )
+  const [rebuildTarget, setRebuildTarget] =
+    useState<AssetLibraryConnection | null>(null)
   const settingsQuery = useQuery({
     queryKey: SETTINGS_QUERY_KEY,
     queryFn: async () => {
@@ -767,6 +770,16 @@ export function AssetLibrarySettings() {
       await invalidate()
       setSyncTarget(null)
       toast.success(t('Missing asset synchronization queued'))
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
+  const rebuildMutation = useMutation({
+    mutationFn: async (id: number) =>
+      assertSuccess(await rebuildAssetLibrary(id)),
+    onSuccess: async () => {
+      await invalidate()
+      setRebuildTarget(null)
+      toast.success(t('Upstream synchronization rebuild queued'))
     },
     onError: (error) => toast.error(errorMessage(error)),
   })
@@ -921,6 +934,7 @@ export function AssetLibrarySettings() {
                       onManageChannels={manageLibraryChannels}
                       onViewLogs={setLogLibraryId}
                       onSyncMissing={setSyncTarget}
+                      onRebuild={setRebuildTarget}
                       onDelete={setDeleteTarget}
                     />
                   ))}
@@ -1022,6 +1036,42 @@ export function AssetLibrarySettings() {
             <Button
               disabled={syncMutation.isPending || !syncTarget}
               onClick={() => syncTarget && syncMutation.mutate(syncTarget.id)}
+            >
+              {t('Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={rebuildTarget !== null}
+        onOpenChange={(open) =>
+          !open && !rebuildMutation.isPending && setRebuildTarget(null)
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Rebuild upstream synchronization')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'Clear all upstream group and asset mappings for {{library}} and re-upload every live asset from permanent storage? Channels stay linked, customer asset IDs do not change, and other resource accounts are unaffected.',
+                { library: rebuildTarget?.name ?? '' }
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              disabled={rebuildMutation.isPending}
+              onClick={() => setRebuildTarget(null)}
+            >
+              {t('Cancel')}
+            </Button>
+            <Button
+              variant='destructive'
+              disabled={rebuildMutation.isPending || !rebuildTarget}
+              onClick={() =>
+                rebuildTarget && rebuildMutation.mutate(rebuildTarget.id)
+              }
             >
               {t('Confirm')}
             </Button>

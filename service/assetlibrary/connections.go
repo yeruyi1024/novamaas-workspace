@@ -629,6 +629,35 @@ func QueueLibrarySync(libraryID int) error {
 	return queueMissingAssets(channelIDs[0])
 }
 
+// RebuildLibrarySync clears stale upstream mappings for a shared resource
+// account and queues a fresh upload of every live platform asset from OSS.
+func RebuildLibrarySync(libraryID int) error {
+	var library model.AssetLibraryConnection
+	if err := model.DB.First(&library, libraryID).Error; err != nil {
+		return err
+	}
+	if library.DeleteRequestedAt > 0 {
+		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("this resource account is being deleted")}
+	}
+	if !library.Enabled {
+		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("asset library is disabled")}
+	}
+	if _, err := decryptChannelCredential(library.EncryptedCredential); err != nil {
+		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("the stored credential cannot be read on this server; enter the credential again")}
+	}
+	var channelIDs []int
+	if err := linkedAssetLibraryBindings(model.DB).Where("library_id = ? AND enabled = ?", libraryID, true).Pluck("channel_id", &channelIDs).Error; err != nil {
+		return err
+	}
+	if len(channelIDs) == 0 {
+		return &RequestError{StatusCode: http.StatusConflict, Err: errors.New("link an enabled channel before rebuilding this asset library")}
+	}
+	if err := model.RebuildAssetLibraryReplicas(libraryID); err != nil {
+		return err
+	}
+	return queueMissingAssets(channelIDs[0])
+}
+
 // queueMissingAssets queues a copy of every live asset for the account the
 // channel belongs to. Copies that already exist, failed ones included, are kept.
 func queueMissingAssets(channelID int) error {

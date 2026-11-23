@@ -96,6 +96,7 @@ func TestAssetCopyRoutesAllowAdministratorsForCustomersOnly(t *testing.T) {
 	require.NoError(t, db.Model(&replica).Updates(map[string]any{"status": model.AssetReplicaStatusActive, "upstream_asset_id": "target-copy-upstream"}).Error)
 	assert.Equal(t, http.StatusOK, request(common.RoleAdminUser, "POST", batchPath+"/delete-sources", "").Code)
 	assert.Equal(t, http.StatusForbidden, request(common.RoleAdminUser, "GET", "/api/asset-library/admin/libraries", "").Code)
+	assert.Equal(t, http.StatusForbidden, request(common.RoleAdminUser, "POST", fmt.Sprintf("/api/asset-library/admin/libraries/%d/rebuild", library.ID), "").Code)
 	for _, protectedRole := range []int{common.RoleAdminUser, common.RoleRootUser} {
 		protectedUser := users[protectedRole]
 		for _, pair := range [][2]int{{protectedUser.Id, target.Id}, {source.Id, protectedUser.Id}} {

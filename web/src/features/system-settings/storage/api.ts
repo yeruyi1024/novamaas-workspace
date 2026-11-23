@@ -235,6 +235,15 @@ export async function syncAssetLibraryMissing(id: number) {
   return response.data
 }
 
+export async function rebuildAssetLibrary(id: number) {
+  const response = await api.post<StorageAPIResponse>(
+    `/api/asset-library/admin/libraries/${id}/rebuild`,
+    undefined,
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
 export async function mergeAssetLibraries() {
   const response = await api.post<StorageAPIResponse<AssetLibraryMergeReport>>(
     '/api/asset-library/admin/libraries/merge',

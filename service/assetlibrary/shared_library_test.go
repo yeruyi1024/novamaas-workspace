@@ -542,3 +542,68 @@ func TestFirstEnabledChannelResumesPausedWorkButAdditionalChannelsDoNot(t *testi
 	require.NoError(t, db.First(&replica, replica.ID).Error)
 	assert.Equal(t, now-60, replica.CreatedAt, "adding a channel must not extend an account that was already synchronizing")
 }
+
+func TestRebuildLibrarySyncResetsMappingsAndQueuesMissing(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "rebuild-sync-fixture")
+	credential, err := encryptChannelCredential("rebuild-key")
+	require.NoError(t, err)
+	lib := model.AssetLibraryConnection{Name: "provider-a", Enabled: true, Protocol: model.AssetChannelProtocolVolcAction,
+		AuthType: model.AssetChannelAuthBearer, BaseURL: "https://example.com", QPM: 60, EncryptedCredential: credential}
+	other := lib
+	other.Name = "provider-b"
+	require.NoError(t, db.Create(&lib).Error)
+	require.NoError(t, db.Create(&other).Error)
+	require.NoError(t, db.Create(&model.Channel{Id: 41, Name: "ch-a", Type: constant.ChannelTypeVolcNative}).Error)
+	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 41, LibraryID: lib.ID, Enabled: true}).Error)
+
+	group := model.AssetGroup{PublicID: "grp-r", OwnerUserID: 7, Name: "RebuildGroup", Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&group).Error)
+	require.NoError(t, db.Create(&model.AssetGroupReplica{GroupID: group.ID, LibraryID: &lib.ID, UpstreamGroupID: "old-group", Status: model.AssetReplicaStatusActive, Progress: 100}).Error)
+
+	now := common.GetTimestamp()
+	activeAsset := model.MediaAsset{PublicID: "a-active", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 1, Status: model.AssetStatusReady}
+	failedAsset := model.MediaAsset{PublicID: "a-failed", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 2, Status: model.AssetStatusSyncFailed}
+	rejectedAsset := model.MediaAsset{PublicID: "a-rejected", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 3, Status: model.AssetStatusUnavailable, UnavailableReason: model.AssetUnavailableRealPerson}
+	busyAsset := model.MediaAsset{PublicID: "a-busy", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 4, Status: model.AssetStatusReady}
+	missingAsset := model.MediaAsset{PublicID: "a-missing", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 5, Status: model.AssetStatusReady}
+	for _, asset := range []*model.MediaAsset{&activeAsset, &failedAsset, &rejectedAsset, &busyAsset, &missingAsset} {
+		require.NoError(t, db.Create(asset).Error)
+	}
+
+	repActive := model.AssetReplica{AssetID: activeAsset.ID, LibraryID: &lib.ID, UpstreamAssetID: "old-1", Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusActive, Progress: 100}
+	repOther := model.AssetReplica{AssetID: activeAsset.ID, LibraryID: &other.ID, UpstreamAssetID: "other-ok", Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusActive, Progress: 100}
+	repFailed := model.AssetReplica{AssetID: failedAsset.ID, LibraryID: &lib.ID, UpstreamAssetID: "old-2", Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusFailed, Progress: 50, LastError: "404"}
+	repRejected := model.AssetReplica{AssetID: rejectedAsset.ID, LibraryID: &lib.ID, UpstreamAssetID: "old-3", Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusRejected, Progress: 100}
+	repBusy := model.AssetReplica{AssetID: busyAsset.ID, LibraryID: &lib.ID, UpstreamAssetID: "old-4", Operation: model.AssetReplicaOperationSync, Status: model.AssetReplicaStatusSyncing, Progress: 50, LockedBy: "worker", LeaseUntil: now + 60}
+	for _, rep := range []*model.AssetReplica{&repActive, &repOther, &repFailed, &repRejected, &repBusy} {
+		require.NoError(t, db.Create(rep).Error)
+	}
+
+	require.NoError(t, RebuildLibrarySync(lib.ID))
+
+	require.NoError(t, db.First(&repActive, repActive.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusPending, repActive.Status)
+	assert.Empty(t, repActive.UpstreamAssetID)
+
+	require.NoError(t, db.First(&repFailed, repFailed.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusPending, repFailed.Status)
+	assert.Empty(t, repFailed.UpstreamAssetID)
+	require.NoError(t, db.First(&failedAsset, failedAsset.ID).Error)
+	assert.Equal(t, model.AssetStatusProcessing, failedAsset.Status)
+
+	require.NoError(t, db.First(&repOther, repOther.ID).Error)
+	assert.Equal(t, "other-ok", repOther.UpstreamAssetID)
+	require.NoError(t, db.First(&repRejected, repRejected.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusRejected, repRejected.Status)
+	require.NoError(t, db.First(&repBusy, repBusy.ID).Error)
+	assert.Equal(t, "old-4", repBusy.UpstreamAssetID)
+
+	var groupRep model.AssetGroupReplica
+	require.NoError(t, db.Where("group_id = ? AND library_id = ?", group.ID, lib.ID).First(&groupRep).Error)
+	assert.Empty(t, groupRep.UpstreamGroupID)
+
+	var queued model.AssetReplica
+	require.NoError(t, db.Where("asset_id = ? AND library_id = ?", missingAsset.ID, lib.ID).First(&queued).Error)
+	assert.Equal(t, model.AssetReplicaStatusPending, queued.Status)
+}
