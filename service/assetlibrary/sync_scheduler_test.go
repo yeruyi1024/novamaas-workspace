@@ -11,6 +11,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	storageService "github.com/QuantumNous/new-api/service/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -127,6 +128,64 @@ func TestAssetSyncTimeoutStopsUntilExplicitRetry(t *testing.T) {
 			assert.Equal(t, model.AssetStatusProcessing, asset.Status)
 		})
 	}
+}
+
+func TestPendingAssetSyncStartsTimeoutClockWhenClaimed(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	t.Setenv("STORAGE_CREDENTIAL_ENCRYPTION_KEY", "scheduler-fixture")
+	require.NoError(t, db.AutoMigrate(&model.StorageProfile{}, &model.StorageCredential{}))
+	profile, err := storageService.SaveProfile(0, storageService.ProfileInput{
+		Name: "queue-wait-oss", ProviderType: model.StorageProviderAliyunOSS, Status: model.StorageProfileStatusEnabled,
+		Endpoint: "https://oss-cn-hangzhou.aliyuncs.com", Region: "cn-hangzhou", Bucket: "test-assets-bucket",
+		AuthType: model.StorageCredentialAuthStatic, AccessKeyID: "fixture-id", AccessKeySecret: "fixture-secret",
+	})
+	require.NoError(t, err)
+	storageObject := model.StorageObject{
+		ObjectID: "queued-obj", StorageProfileID: profile.ID, ObjectKey: "assets/queued.png",
+		Purpose: model.StorageObjectPurposeAssetLibrary, Status: model.StorageObjectStatusUploaded,
+	}
+	require.NoError(t, db.Create(&storageObject).Error)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("Action") {
+		case "CreateAssetGroup":
+			_, _ = io.WriteString(w, `{"Result":{"Id":"queued-group"}}`)
+		case "CreateAsset":
+			_, _ = io.WriteString(w, `{"Result":{"Id":"queued-upstream-id"}}`)
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+	seedSyncChannel(t, 7183, 1000000, model.AssetChannelProtocolVolcAction, upstream.URL)
+
+	now := common.GetTimestamp()
+	replicas := seedSyncReplicas(t, 7183,
+		model.AssetReplica{Status: model.AssetReplicaStatusPending, CreatedAt: now - 600, NextSyncAt: now - 600},
+		model.AssetReplica{Status: model.AssetReplicaStatusFailed, Attempts: 1, CreatedAt: now - 301, NextSyncAt: now},
+	)
+	require.NoError(t, db.Model(&model.MediaAsset{}).Where("id = ?", replicas[0].AssetID).Update("storage_object_id", storageObject.ID).Error)
+
+	queued := replicas[0]
+	claimed, err := model.ClaimAssetReplica(&queued, now, now+120, "queue-submit")
+	require.NoError(t, err)
+	require.True(t, claimed)
+	syncReplica(context.Background(), "queue-submit", &queued)
+	require.NoError(t, db.First(&queued, queued.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusProcessing, queued.Status)
+	assert.Equal(t, "queued-upstream-id", queued.UpstreamAssetID)
+	assert.Empty(t, queued.LastError)
+	assert.GreaterOrEqual(t, queued.CreatedAt, now)
+
+	retriedFailure := replicas[1]
+	claimed, err = model.ClaimAssetReplica(&retriedFailure, now, now+120, "retry-timeout")
+	require.NoError(t, err)
+	require.True(t, claimed)
+	syncReplica(context.Background(), "retry-timeout", &retriedFailure)
+	require.NoError(t, db.First(&retriedFailure, retriedFailure.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusFailed, retriedFailure.Status)
+	assert.Zero(t, retriedFailure.NextSyncAt)
+	assert.Equal(t, "asset synchronization timed out after 5 minutes", retriedFailure.LastError)
 }
 
 func TestAssetReviewProcessingStaysOutsideInitialTimeout(t *testing.T) {

@@ -662,17 +662,24 @@ func RebuildLibrarySync(libraryID int) error {
 // channel belongs to. Copies that already exist, failed ones included, are kept.
 func queueMissingAssets(channelID int) error {
 	var assetIDs []int64
-	if err := model.DB.Model(&model.MediaAsset{}).Where("status IN ?", []string{model.AssetStatusReady, model.AssetStatusProcessing}).Pluck("id", &assetIDs).Error; err != nil {
+	if err := model.DB.Model(&model.MediaAsset{}).Where("status IN ?", []string{model.AssetStatusReady, model.AssetStatusProcessing}).Order("id asc").Pluck("id", &assetIDs).Error; err != nil {
 		return err
 	}
-	return model.DB.Transaction(func(tx *gorm.DB) error {
-		for _, assetID := range assetIDs {
-			if err := model.QueueMissingAssetReplicas(tx, assetID, []int{channelID}); err != nil {
-				return err
+	const batchSize = 100
+	for start := 0; start < len(assetIDs); start += batchSize {
+		batch := assetIDs[start:min(start+batchSize, len(assetIDs))]
+		if err := model.DB.Transaction(func(tx *gorm.DB) error {
+			for _, assetID := range batch {
+				if err := model.QueueMissingAssetReplicas(tx, assetID, []int{channelID}); err != nil {
+					return err
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // backfillMissingAssets gives an account that has just become active the assets

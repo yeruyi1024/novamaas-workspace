@@ -121,3 +121,47 @@ func TestAssetCopyRoutesAllowAdministratorsForCustomersOnly(t *testing.T) {
 	assert.Contains(t, purgeResp.Body.String(), `"deleted_asset_count":1`)
 	assert.Contains(t, purgeResp.Body.String(), `"deleted_group_count":1`)
 }
+
+func TestRetryAssetSyncJobSkipsAuditLog(t *testing.T) {
+	setupRelayRouterTestDB(t)
+	db := model.DB
+	require.NoError(t, db.AutoMigrate(&model.UserSession{}, &model.Log{}, &model.Channel{}, &model.AssetGroup{}, &model.MediaAsset{}, &model.AssetLibraryConnection{}, &model.AssetChannelConfig{}, &model.AssetReplica{}))
+	savedSecret := common.SessionSecret
+	common.SessionSecret = "asset-retry-audit-fixture"
+	t.Cleanup(func() { common.SessionSecret = savedSecret })
+
+	root := model.User{Username: "asset-retry-root", AffCode: "asset-retry-root", Role: common.RoleRootUser, Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1}
+	require.NoError(t, db.Create(&root).Error)
+	session, err := service.CreateLoginSession(root.Id, "password", "127.0.0.1", "test")
+	require.NoError(t, err)
+	group := model.AssetGroup{PublicID: "group-retry-audit", OwnerUserID: root.Id, Name: "Audit", Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&group).Error)
+	asset := model.MediaAsset{PublicID: "asset-retry-audit", OwnerUserID: root.Id, GroupID: group.ID, StorageObjectID: 1, Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&asset).Error)
+	library := model.AssetLibraryConnection{Name: "upstream", Enabled: true}
+	require.NoError(t, db.Create(&library).Error)
+	replica := model.AssetReplica{
+		AssetID: asset.ID, LibraryID: &library.ID, Operation: model.AssetReplicaOperationSync,
+		Status: model.AssetReplicaStatusFailed, Attempts: 1, LastError: "asset synchronization timed out after 5 minutes",
+	}
+	require.NoError(t, db.Create(&replica).Error)
+
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	SetApiRouter(engine)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/api/asset-library/admin/sync-jobs/%d/retry", replica.ID), nil)
+	req.Header.Set("Authorization", "Bearer "+session.AccessToken)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+
+	var updated model.AssetReplica
+	require.NoError(t, db.First(&updated, replica.ID).Error)
+	assert.Equal(t, model.AssetReplicaStatusPending, updated.Status)
+	assert.Zero(t, updated.Attempts)
+	assert.Empty(t, updated.LastError)
+
+	var auditCount int64
+	require.NoError(t, db.Model(&model.Log{}).Count(&auditCount).Error)
+	assert.Zero(t, auditCount, "single sync job retry must not write admin audit logs")
+}
