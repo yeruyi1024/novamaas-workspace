@@ -20,6 +20,8 @@ const (
 	accessKeySecretVersion   = "aes-gcm-v1"
 )
 
+var errAssetCredentialDecryption = errors.New("asset credential cannot be decrypted")
+
 type channelCredential struct {
 	Secret string `json:"secret"`
 }
@@ -87,7 +89,7 @@ func decryptAssetCredential(payload string, purpose string) (string, error) {
 	}
 	plaintext, err := aead.Open(nil, encoded[:aead.NonceSize()], encoded[aead.NonceSize():], []byte("new-api/asset-"+purpose+"-credential/v1"))
 	if err != nil {
-		return "", errors.New("asset credential cannot be decrypted")
+		return "", errAssetCredentialDecryption
 	}
 	var secret channelCredential
 	if err = common.Unmarshal(plaintext, &secret); err != nil {

@@ -25,6 +25,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import {
   deleteAssetGroup,
+  deleteMediaAsset,
   getMediaAssetPreview,
   listAssetGroups,
   listAssetGroupsPage,
@@ -47,6 +48,7 @@ vi.mock('../api', () => ({
   listAssetGroups: vi.fn(),
   listAssetGroupsPage: vi.fn(),
   listMediaAssets: vi.fn(),
+  purgeUserAssets: vi.fn(),
   rotateAssetWebhookEndpointSecret: vi.fn(),
   testAssetWebhookEndpoint: vi.fn(),
   uploadMediaAsset: vi.fn(),
@@ -528,5 +530,66 @@ describe('asset library business layout', () => {
     const formData = onSubmit.mock.calls[0][0] as FormData
     expect(formData.get('type')).toBe('image')
     expect(formData.get('file')).toBe(file)
+  })
+
+  test('disambiguates identical asset IDs across owners in admin view', async () => {
+    useAuthStore.getState().auth.setUser({ id: 99, username: 'root', role: 100 })
+    vi.mocked(deleteMediaAsset).mockResolvedValue({
+      success: true,
+      data: undefined,
+    })
+    vi.mocked(listMediaAssets).mockResolvedValue({
+      success: true,
+      data: {
+        items: [
+          {
+            id: 'asset-same',
+            owner_user_id: 1,
+            owner_name: 'alice',
+            group_id: 'group-same',
+            group_name: 'Campaign',
+            name: 'Shared photo A',
+            type: 'image',
+            content_type: 'image/png',
+            size: 100,
+            sha256: 'hash-a',
+            status: 'ready',
+            created_at: 1,
+            updated_at: 1,
+          },
+          {
+            id: 'asset-same',
+            owner_user_id: 2,
+            owner_name: 'bob',
+            group_id: 'group-same',
+            group_name: 'Campaign',
+            name: 'Shared photo B',
+            type: 'image',
+            content_type: 'image/png',
+            size: 100,
+            sha256: 'hash-b',
+            status: 'ready',
+            created_at: 2,
+            updated_at: 2,
+          },
+        ],
+        total: 2,
+        page: 1,
+        page_size: 40,
+      },
+    })
+
+    renderLibrary()
+    expect(await screen.findByText('Shared photo A')).toBeVisible()
+    expect(await screen.findByText('Shared photo B')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Clear user assets' })).toBeVisible()
+
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete asset' })
+    expect(deleteButtons).toHaveLength(2)
+    await userEvent.click(deleteButtons[1])
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() =>
+      expect(deleteMediaAsset).toHaveBeenCalledWith('asset-same', 2)
+    )
   })
 })

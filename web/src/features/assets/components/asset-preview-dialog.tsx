@@ -37,6 +37,7 @@ import type { MediaAsset } from '../types'
 
 export function AssetPreviewDialog(props: {
   asset: MediaAsset
+  isAdmin?: boolean
   onOpenChange: (open: boolean) => void
   onDownload: (asset: MediaAsset) => void
   onReupload?: (asset: MediaAsset) => void
@@ -58,12 +59,26 @@ export function AssetPreviewDialog(props: {
       'Sensitive content was rejected by the upstream provider.'
     )
   }
+  const ownerParam = props.isAdmin ? props.asset.owner_user_id : undefined
   const previewQuery = useQuery({
-    queryKey: ['asset-library', 'preview', props.asset.id, 'original'],
-    queryFn: async () =>
-      assertAssetSuccess(
-        await getMediaAssetPreview(props.asset.id, 'original')
-      ),
+    queryKey: [
+      'asset-library',
+      'preview',
+      props.asset.owner_user_id,
+      props.asset.id,
+      'original',
+    ],
+    queryFn: async () => {
+      try {
+        return assertAssetSuccess(
+          ownerParam
+            ? await getMediaAssetPreview(props.asset.id, 'original', ownerParam)
+            : await getMediaAssetPreview(props.asset.id, 'original')
+        )
+      } catch {
+        return null
+      }
+    },
     staleTime: 5 * 60 * 1000,
   })
   let previewContent = <Skeleton className='h-64 w-full' />

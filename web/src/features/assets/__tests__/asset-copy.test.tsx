@@ -28,6 +28,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { api } from '@/lib/api'
 
 import { AssetCopyDialog } from '../components/asset-copy-dialog'
+import { AssetUserPurgeDialog } from '../components/asset-user-purge-dialog'
 import type { AssetCopyInput } from '../types'
 
 vi.mock('@/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }))
@@ -299,4 +300,43 @@ test('a failed refresh disables source deletion', async () => {
   expect(
     screen.getByRole('button', { name: 'Delete copied sources' })
   ).toBeDisabled()
+})
+
+test('clear user assets dialog confirms and purges the selected user', async () => {
+  vi.mocked(api.post).mockResolvedValueOnce({
+    data: {
+      success: true,
+      data: {
+        owner_user_id: 2,
+        deleted_asset_count: 12,
+        deleted_group_count: 3,
+      },
+    },
+  } as never)
+  const onOpenChange = vi.fn()
+  render(
+    <QueryClientProvider client={client}>
+      <AssetUserPurgeDialog open onOpenChange={onOpenChange} />
+    </QueryClientProvider>
+  )
+  await userEvent.click(screen.getByRole('combobox', { name: 'Target user' }))
+  await userEvent.click(
+    await screen.findByRole('option', { name: /customer-2/ })
+  )
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Clear user assets' })
+  )
+  const dialog = await screen.findByRole('alertdialog')
+  expect(within(dialog).getByText(/customer-2/)).toBeInTheDocument()
+  await userEvent.click(
+    within(dialog).getByRole('button', { name: 'Clear user assets' })
+  )
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith(
+      '/api/asset-library/admin/users/2/purge',
+      undefined,
+      { skipBusinessError: true, skipErrorHandler: true }
+    )
+  )
+  expect(onOpenChange).toHaveBeenCalledWith(false)
 })

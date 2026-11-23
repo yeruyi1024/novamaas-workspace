@@ -10,7 +10,7 @@ import (
 
 // File-lock waiters must see the previous holder's committed cleanup without
 // locking sibling assets or replicas. SQLite keeps its default isolation.
-func assetDeletionTxOptions() *sql.TxOptions {
+func AssetDeletionTxOptions() *sql.TxOptions {
 	if DB.Dialector.Name() == "sqlite" {
 		return nil
 	}
@@ -103,10 +103,11 @@ func RequestAssetDeletion(tx *gorm.DB, assetID int64) error {
 		return err
 	}
 	now := common.GetTimestamp()
-	if err := tx.Model(&asset).Updates(map[string]any{"status": AssetStatusDeleted, "updated_at": now}).Error; err != nil {
+	if err := tx.Model(&asset).Updates(map[string]any{"status": AssetStatusDeleted, "deleted_slot": asset.ID, "updated_at": now}).Error; err != nil {
 		return err
 	}
 	asset.Status = AssetStatusDeleted
+	asset.DeletedSlot = asset.ID
 	var replicas []AssetReplica
 	if err := lockForUpdate(tx).Where("asset_id = ?", assetID).Order("id asc").Find(&replicas).Error; err != nil {
 		return err
@@ -127,6 +128,186 @@ func RequestAssetDeletion(tx *gorm.DB, assetID int64) error {
 		}
 	}
 	return queueDeletedAssetStorage(tx, &asset, now)
+}
+
+type UserAssetPurgeResult struct {
+	OwnerUserID       int `json:"owner_user_id"`
+	DeletedAssetCount int `json:"deleted_asset_count"`
+	DeletedGroupCount int `json:"deleted_group_count"`
+}
+
+const assetPurgeBatchSize = 100
+
+// DeleteUserAssetsWithTx queues deletion for every active asset and soft-deletes
+// every active group owned by ownerUserID inside the caller's transaction.
+// Lock order matches copying and single-asset deletion: groups, assets, replicas, files.
+func DeleteUserAssetsWithTx(tx *gorm.DB, ownerUserID int) (*UserAssetPurgeResult, error) {
+	result := &UserAssetPurgeResult{OwnerUserID: ownerUserID}
+	if ownerUserID <= 0 {
+		return result, nil
+	}
+	var groups []AssetGroup
+	hasGroups := tx.Migrator().HasTable(&AssetGroup{})
+	if hasGroups {
+		if err := lockForUpdate(tx).Select("id").Where("owner_user_id = ? AND status <> ?", ownerUserID, AssetStatusDeleted).
+			Order("id asc").Find(&groups).Error; err != nil {
+			return nil, err
+		}
+	}
+	if tx.Migrator().HasTable(&MediaAsset{}) {
+		var assets []MediaAsset
+		if err := lockForUpdate(tx).Select("id").Where("owner_user_id = ? AND status <> ?", ownerUserID, AssetStatusDeleted).
+			Order("id asc").Find(&assets).Error; err != nil {
+			return nil, err
+		}
+		for _, asset := range assets {
+			if err := RequestAssetDeletion(tx, asset.ID); err != nil {
+				return nil, err
+			}
+		}
+		result.DeletedAssetCount = len(assets)
+	}
+	if hasGroups && len(groups) > 0 {
+		groupIDs := make([]int64, 0, len(groups))
+		for _, group := range groups {
+			groupIDs = append(groupIDs, group.ID)
+		}
+		now := common.GetTimestamp()
+		if err := tx.Model(&AssetGroup{}).Where("id IN ?", groupIDs).Updates(map[string]any{
+			"status":       AssetStatusDeleted,
+			"deleted_slot": gorm.Expr("id"),
+			"updated_at":   now,
+		}).Error; err != nil {
+			return nil, err
+		}
+		result.DeletedGroupCount = len(groupIDs)
+	}
+	return result, nil
+}
+
+func checkUserAssetPurgePermission(tx *gorm.DB, targetUserID, operatorID int) error {
+	var users []User
+	if err := tx.Select("id", "status", "role").Where("id IN ?", []int{targetUserID, operatorID}).Find(&users).Error; err != nil {
+		return err
+	}
+	var operator, target User
+	for _, user := range users {
+		if user.Id == operatorID {
+			operator = user
+		}
+		if user.Id == targetUserID {
+			target = user
+		}
+	}
+	if operator.Id == 0 || operator.Status != common.UserStatusEnabled || operator.Role < common.RoleAdminUser {
+		return ErrAssetCopyPermissionDenied
+	}
+	if target.Id == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	if operator.Role != common.RoleRootUser && operator.Role <= target.Role {
+		return ErrAssetCopyPermissionDenied
+	}
+	return nil
+}
+
+// PurgeUserAssets clears all active asset groups and assets owned by targetUserID
+// in short bounded transactions (100 assets per batch) to avoid long locks on
+// large accounts, while keeping the account, AK/SK keys, and webhook settings intact.
+func PurgeUserAssets(targetUserID, operatorID int) (*UserAssetPurgeResult, error) {
+	if targetUserID <= 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	if err := checkUserAssetPurgePermission(DB, targetUserID, operatorID); err != nil {
+		return nil, err
+	}
+	result := &UserAssetPurgeResult{OwnerUserID: targetUserID}
+	if DB.Migrator().HasTable(&MediaAsset{}) {
+		for {
+			batchDeleted := 0
+			err := DB.Transaction(func(tx *gorm.DB) error {
+				if err := checkUserAssetPurgePermission(tx, targetUserID, operatorID); err != nil {
+					return err
+				}
+				var assets []MediaAsset
+				if err := lockForUpdate(tx).Select("id").
+					Where("owner_user_id = ? AND status <> ?", targetUserID, AssetStatusDeleted).
+					Order("id asc").Limit(assetPurgeBatchSize).Find(&assets).Error; err != nil {
+					return err
+				}
+				for _, asset := range assets {
+					if err := RequestAssetDeletion(tx, asset.ID); err != nil {
+						return err
+					}
+				}
+				batchDeleted = len(assets)
+				return nil
+			}, AssetDeletionTxOptions())
+			if err != nil {
+				return nil, err
+			}
+			result.DeletedAssetCount += batchDeleted
+			if batchDeleted < assetPurgeBatchSize {
+				break
+			}
+		}
+	}
+	if DB.Migrator().HasTable(&AssetGroup{}) {
+		err := DB.Transaction(func(tx *gorm.DB) error {
+			if err := checkUserAssetPurgePermission(tx, targetUserID, operatorID); err != nil {
+				return err
+			}
+			var groups []AssetGroup
+			if err := lockForUpdate(tx).Select("id").
+				Where("owner_user_id = ? AND status <> ?", targetUserID, AssetStatusDeleted).
+				Order("id asc").Find(&groups).Error; err != nil {
+				return err
+			}
+			if len(groups) == 0 {
+				return nil
+			}
+			groupIDs := make([]int64, 0, len(groups))
+			for _, group := range groups {
+				groupIDs = append(groupIDs, group.ID)
+			}
+			// Keep any group that received a concurrent upload while assets were being purged.
+			var nonEmptyGroupIDs []int64
+			if tx.Migrator().HasTable(&MediaAsset{}) {
+				if err := tx.Model(&MediaAsset{}).Distinct("group_id").
+					Where("group_id IN ? AND status <> ?", groupIDs, AssetStatusDeleted).
+					Pluck("group_id", &nonEmptyGroupIDs).Error; err != nil {
+					return err
+				}
+			}
+			nonEmpty := make(map[int64]bool, len(nonEmptyGroupIDs))
+			for _, id := range nonEmptyGroupIDs {
+				nonEmpty[id] = true
+			}
+			emptyGroupIDs := make([]int64, 0, len(groupIDs))
+			for _, id := range groupIDs {
+				if !nonEmpty[id] {
+					emptyGroupIDs = append(emptyGroupIDs, id)
+				}
+			}
+			if len(emptyGroupIDs) == 0 {
+				return nil
+			}
+			now := common.GetTimestamp()
+			if err := tx.Model(&AssetGroup{}).Where("id IN ?", emptyGroupIDs).Updates(map[string]any{
+				"status":       AssetStatusDeleted,
+				"deleted_slot": gorm.Expr("id"),
+				"updated_at":   now,
+			}).Error; err != nil {
+				return err
+			}
+			result.DeletedGroupCount = len(emptyGroupIDs)
+			return nil
+		}, AssetDeletionTxOptions())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func CanSubmitAssetReplica(id int64, owner string) (allowed bool, err error) {
@@ -203,7 +384,7 @@ func AcknowledgeAssetReplicaDeletion(id int64, owner, upstreamID string) error {
 			return err
 		}
 		return queueDeletedAssetStorage(tx, asset, now)
-	}, assetDeletionTxOptions())
+	}, AssetDeletionTxOptions())
 }
 
 func RetryAssetReplicaSynchronization(id int64) (retried bool, err error) {

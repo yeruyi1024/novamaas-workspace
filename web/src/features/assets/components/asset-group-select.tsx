@@ -211,10 +211,15 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
           {!searchPending &&
             groups.map((group) => (
               <button
-                key={group.id}
+                key={`${group.owner_user_id}:${group.id}`}
                 type='button'
                 role='option'
-                aria-selected={props.value === group.id}
+                aria-selected={
+                  props.selectedGroup
+                    ? props.selectedGroup.id === group.id &&
+                      props.selectedGroup.owner_user_id === group.owner_user_id
+                    : props.value === group.id
+                }
                 aria-label={`${group.name} · ${t('ID')}: ${group.id}${props.isAdmin ? ` · ${t('Creator')}: ${group.owner_name || `#${group.owner_user_id}`}` : ''}`}
                 className='hover:bg-accent w-full rounded-md px-2 py-2'
                 onClick={() => {

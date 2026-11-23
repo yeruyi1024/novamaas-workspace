@@ -31,6 +31,7 @@ import type {
   CreatedAssetAccessKey,
   MediaAsset,
   MediaAssetList,
+  UserAssetPurgeResult,
 } from './types'
 
 export async function listAssetAccessKeys() {
@@ -99,7 +100,7 @@ export async function copyAssetGroups(input: AssetCopyInput) {
 export async function getAssetCopy(id: string) {
   const response = await api.get<AssetLibraryResponse<AssetCopyResult>>(
     `/api/asset-library/admin/copies/${encodeURIComponent(id)}`,
-    { skipErrorHandler: true }
+    { skipBusinessError: true, skipErrorHandler: true }
   )
   return response.data
 }
@@ -107,6 +108,15 @@ export async function getAssetCopy(id: string) {
 export async function deleteAssetCopySources(id: string) {
   const response = await api.post<AssetLibraryResponse<AssetCopyResult>>(
     `/api/asset-library/admin/copies/${encodeURIComponent(id)}/delete-sources`,
+    undefined,
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
+export async function purgeUserAssets(userId: number) {
+  const response = await api.post<AssetLibraryResponse<UserAssetPurgeResult>>(
+    `/api/asset-library/admin/users/${userId}/purge`,
     undefined,
     { skipBusinessError: true, skipErrorHandler: true }
   )
@@ -125,16 +135,21 @@ export async function createAssetGroup(input: {
   return response.data
 }
 
-export async function deleteAssetGroup(id: string) {
+export async function deleteAssetGroup(id: string, ownerUserId?: number) {
   const response = await api.delete<AssetLibraryResponse>(
     `/api/asset-library/groups/${encodeURIComponent(id)}`,
-    { skipBusinessError: true, skipErrorHandler: true }
+    {
+      params: ownerUserId ? { owner_user_id: ownerUserId } : undefined,
+      skipBusinessError: true,
+      skipErrorHandler: true,
+    }
   )
   return response.data
 }
 
 export async function listMediaAssets(params: {
   groupId?: string
+  ownerUserId?: number
   search?: string
   page: number
   pageSize: number
@@ -145,6 +160,7 @@ export async function listMediaAssets(params: {
     {
       params: {
         group_id: params.groupId || undefined,
+        owner_user_id: params.ownerUserId || undefined,
         search: params.search || undefined,
         p: params.page,
         page_size: params.pageSize,
@@ -178,20 +194,30 @@ export async function uploadMediaAsset(
 
 export async function getMediaAssetPreview(
   id: string,
-  variant: 'thumbnail' | 'original' | 'download' = 'original'
+  variant: 'thumbnail' | 'original' | 'download' = 'original',
+  ownerUserId?: number
 ) {
   const response = await api.get<
     AssetLibraryResponse<{ url: string; expires_at: number }>
   >(`/api/asset-library/assets/${encodeURIComponent(id)}/preview`, {
-    params: { variant },
+    params: {
+      variant,
+      owner_user_id: ownerUserId || undefined,
+    },
+    skipBusinessError: true,
+    skipErrorHandler: true,
   })
   return response.data
 }
 
-export async function deleteMediaAsset(id: string) {
+export async function deleteMediaAsset(id: string, ownerUserId?: number) {
   const response = await api.delete<AssetLibraryResponse>(
     `/api/asset-library/assets/${encodeURIComponent(id)}`,
-    { skipBusinessError: true, skipErrorHandler: true }
+    {
+      params: ownerUserId ? { owner_user_id: ownerUserId } : undefined,
+      skipBusinessError: true,
+      skipErrorHandler: true,
+    }
   )
   return response.data
 }

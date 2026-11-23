@@ -50,10 +50,13 @@ const (
 
 // AssetGroup is the tenant-owned namespace exposed by this gateway. Upstream
 // group identifiers are deliberately kept in AssetGroupReplica.
+// Active PublicIDs are unique per owner so customer copies can preserve them;
+// DeletedSlot is 0 while active and set to ID when soft-deleted.
 type AssetGroup struct {
 	ID          int64  `json:"-" gorm:"primaryKey"`
-	PublicID    string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
-	OwnerUserID int    `json:"owner_user_id" gorm:"index:idx_asset_groups_owner_status,priority:1"`
+	PublicID    string `json:"id" gorm:"type:varchar(64);index:idx_asset_groups_public_ref;uniqueIndex:idx_asset_groups_owner_public_slot,priority:2"`
+	OwnerUserID int    `json:"owner_user_id" gorm:"index:idx_asset_groups_owner_status,priority:1;uniqueIndex:idx_asset_groups_owner_public_slot,priority:1"`
+	DeletedSlot int64  `json:"-" gorm:"default:0;uniqueIndex:idx_asset_groups_owner_public_slot,priority:3"`
 	Name        string `json:"name" gorm:"type:varchar(128)"`
 	Description string `json:"description" gorm:"type:varchar(512)"`
 	Status      string `json:"status" gorm:"type:varchar(32);index:idx_asset_groups_owner_status,priority:2"`
@@ -63,10 +66,13 @@ type AssetGroup struct {
 
 // MediaAsset owns a permanent StorageObject. PublicID is the only identifier
 // accepted from clients; upstream identifiers never leave replica records.
+// Active PublicIDs are unique per owner so customer copies can preserve them;
+// DeletedSlot is 0 while active and set to ID when soft-deleted.
 type MediaAsset struct {
 	ID            int64  `json:"-" gorm:"primaryKey"`
-	PublicID      string `json:"id" gorm:"type:varchar(64);uniqueIndex"`
-	OwnerUserID   int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1"`
+	PublicID      string `json:"id" gorm:"type:varchar(64);index:idx_media_assets_public_ref;uniqueIndex:idx_media_assets_owner_public_slot,priority:2"`
+	OwnerUserID   int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1;uniqueIndex:idx_media_assets_owner_public_slot,priority:1"`
+	DeletedSlot   int64  `json:"-" gorm:"default:0;uniqueIndex:idx_media_assets_owner_public_slot,priority:3"`
 	GroupID       int64  `json:"-" gorm:"index"`
 	GroupPublicID string `json:"group_id" gorm:"-"`
 	// Copied assets share the permanent file; it is reclaimed with the last one.
@@ -197,9 +203,27 @@ func (value *AssetReplica) BeforeCreate(_ *gorm.DB) error {
 }
 
 func FindAssetGroup(publicID string, ownerUserID int, includeAllOwners bool) (*AssetGroup, error) {
+	return FindAssetGroupForOwner(publicID, ownerUserID, includeAllOwners, 0)
+}
+
+func FindAssetGroupForOwner(publicID string, ownerUserID int, includeAllOwners bool, targetOwnerUserID int) (*AssetGroup, error) {
 	query := DB.Where("public_id = ? AND status <> ?", publicID, AssetStatusDeleted)
 	if !includeAllOwners {
 		query = query.Where("owner_user_id = ?", ownerUserID)
+	} else if targetOwnerUserID > 0 {
+		query = query.Where("owner_user_id = ?", targetOwnerUserID)
+	} else {
+		var groups []AssetGroup
+		if err := query.Limit(2).Find(&groups).Error; err != nil {
+			return nil, err
+		}
+		if len(groups) == 0 {
+			return nil, gorm.ErrRecordNotFound
+		}
+		if len(groups) > 1 {
+			return nil, ErrAssetAmbiguousPublicID
+		}
+		return &groups[0], nil
 	}
 	var group AssetGroup
 	if err := query.First(&group).Error; err != nil {
@@ -216,10 +240,30 @@ func FindAssetGroupByID(id int64) (*AssetGroup, error) {
 	return &group, nil
 }
 
+var ErrAssetAmbiguousPublicID = errors.New("multiple users own this asset ID; specify owner_user_id")
+
 func FindMediaAsset(publicID string, ownerUserID int, includeAllOwners bool) (*MediaAsset, error) {
+	return FindMediaAssetForOwner(publicID, ownerUserID, includeAllOwners, 0)
+}
+
+func FindMediaAssetForOwner(publicID string, ownerUserID int, includeAllOwners bool, targetOwnerUserID int) (*MediaAsset, error) {
 	query := DB.Where("public_id = ? AND status <> ?", publicID, AssetStatusDeleted)
 	if !includeAllOwners {
 		query = query.Where("owner_user_id = ?", ownerUserID)
+	} else if targetOwnerUserID > 0 {
+		query = query.Where("owner_user_id = ?", targetOwnerUserID)
+	} else {
+		var assets []MediaAsset
+		if err := query.Limit(2).Find(&assets).Error; err != nil {
+			return nil, err
+		}
+		if len(assets) == 0 {
+			return nil, gorm.ErrRecordNotFound
+		}
+		if len(assets) > 1 {
+			return nil, ErrAssetAmbiguousPublicID
+		}
+		return &assets[0], nil
 	}
 	var asset MediaAsset
 	if err := query.First(&asset).Error; err != nil {
@@ -318,6 +362,8 @@ const (
 	AssetReplicaWorkloadReview      AssetReplicaWorkload = "review"
 )
 
+const assetReplicaReviewWindow = 30 * 24 * time.Hour
+
 func dueAssetReplicas(query *gorm.DB, now int64) *gorm.DB {
 	return query.Where(
 		"((status IN ? AND next_sync_at <= ?) OR (status = ? AND next_sync_at <= ? AND lease_until <= ?) OR (status = ? AND lease_until <= ?))",
@@ -325,7 +371,9 @@ func dueAssetReplicas(query *gorm.DB, now int64) *gorm.DB {
 		AssetReplicaStatusActive, now, now,
 		AssetReplicaStatusSyncing, now,
 	).Where("locked_by = ? OR locked_by IS NULL OR lease_until <= ?", "", now).
-		Where("status <> ? OR next_sync_at > 0 OR operation = ?", AssetReplicaStatusFailed, AssetReplicaOperationDelete)
+		Where("status <> ? OR next_sync_at > 0 OR operation = ?", AssetReplicaStatusFailed, AssetReplicaOperationDelete).
+		Where("operation = ? OR (status <> ? AND COALESCE(progress, 0) < 100) OR created_at > ?",
+			AssetReplicaOperationDelete, AssetReplicaStatusActive, now-int64(assetReplicaReviewWindow/time.Second))
 }
 
 // ListDueAssetReplicas reads due work without leasing it. Callers lease only
