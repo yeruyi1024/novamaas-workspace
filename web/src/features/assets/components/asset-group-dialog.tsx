@@ -50,6 +50,8 @@ export function AssetGroupDialog(props: {
   onOpenChange: (open: boolean) => void
   onSubmit: (values: AssetGroupFormValues) => void
   pending: boolean
+  /** Editing an existing group pre-fills its values. */
+  initialValues?: AssetGroupFormValues
 }) {
   const { t } = useTranslation()
   const schema = z.object({
@@ -60,15 +62,20 @@ export function AssetGroupDialog(props: {
     resolver: zodResolver(schema),
     defaultValues: { name: '', description: '' },
   })
+  const initialName = props.initialValues?.name ?? ''
+  const initialDescription = props.initialValues?.description ?? ''
   useEffect(() => {
-    if (!props.open) form.reset()
-  }, [form, props.open])
+    form.reset({ name: initialName, description: initialDescription })
+  }, [form, props.open, initialName, initialDescription])
+  const editing = props.initialValues !== undefined
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('Create asset group')}</DialogTitle>
+          <DialogTitle>
+            {editing ? t('Rename group') : t('Create asset group')}
+          </DialogTitle>
           <DialogDescription>
             {t('Use groups to organize assets by product, campaign, or team.')}
           </DialogDescription>
@@ -107,7 +114,7 @@ export function AssetGroupDialog(props: {
             <DialogFooter>
               <Button type='submit' disabled={props.pending}>
                 {props.pending && <Spinner data-icon='inline-start' />}
-                {t('Create')}
+                {editing ? t('Save') : t('Create')}
               </Button>
             </DialogFooter>
           </form>

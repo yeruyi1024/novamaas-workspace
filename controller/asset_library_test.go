@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -159,7 +160,7 @@ func TestListAssetGroupsEnforcesOwnerScopeUnlessRequesterIsAdmin(t *testing.T) {
 
 func TestListAssetGroupsPagePreservesAdminScopeAndReturnsPaginationMetadata(t *testing.T) {
 	db := setupManageUserTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AssetGroup{}))
+	require.NoError(t, db.AutoMigrate(&model.AssetGroup{}, &model.MediaAsset{}))
 	owner := model.User{Username: "paged-owner", Password: "password", Status: common.UserStatusEnabled, Group: "default", AffCode: "paged-owner"}
 	other := model.User{Username: "paged-other", Password: "password", Status: common.UserStatusEnabled, Group: "default", AffCode: "paged-other"}
 	require.NoError(t, db.Create(&owner).Error)
@@ -167,6 +168,13 @@ func TestListAssetGroupsPagePreservesAdminScopeAndReturnsPaginationMetadata(t *t
 	require.NoError(t, db.Create(&[]model.AssetGroup{
 		{PublicID: "group-zeta", OwnerUserID: owner.Id, Name: "Zeta", Status: model.AssetStatusReady},
 		{PublicID: "group-alpha", OwnerUserID: other.Id, Name: "Alpha", Status: model.AssetStatusReady},
+	}).Error)
+	var alpha model.AssetGroup
+	require.NoError(t, db.Where("public_id = ?", "group-alpha").First(&alpha).Error)
+	require.NoError(t, db.Create(&[]model.MediaAsset{
+		{PublicID: "asset-alpha-1", OwnerUserID: other.Id, GroupID: alpha.ID, Status: model.AssetStatusReady},
+		{PublicID: "asset-alpha-2", OwnerUserID: other.Id, GroupID: alpha.ID, Status: model.AssetStatusProcessing},
+		{PublicID: "asset-alpha-3", OwnerUserID: other.Id, GroupID: alpha.ID, Status: model.AssetStatusDeleted, DeletedSlot: 3},
 	}).Error)
 
 	recorder := httptest.NewRecorder()
@@ -193,4 +201,40 @@ func TestListAssetGroupsPagePreservesAdminScopeAndReturnsPaginationMetadata(t *t
 	require.Len(t, response.Data.Items, 1)
 	assert.Equal(t, "group-alpha", response.Data.Items[0].ID)
 	assert.Equal(t, "paged-other", response.Data.Items[0].OwnerName)
+	require.NotNil(t, response.Data.Items[0].AssetCount)
+	assert.EqualValues(t, 2, *response.Data.Items[0].AssetCount, "deleted assets are not counted")
+
+	detailRecorder := httptest.NewRecorder()
+	detailCtx, _ := gin.CreateTestContext(detailRecorder)
+	detailCtx.Set("id", owner.Id)
+	detailCtx.Set("role", common.RoleAdminUser)
+	detailCtx.Request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/asset-library/groups?scope=all&owner_user_id=%d&group_id=group-alpha", other.Id), nil)
+	ListAssetGroups(detailCtx)
+	require.Equal(t, http.StatusOK, detailRecorder.Code)
+	require.NoError(t, common.Unmarshal(detailRecorder.Body.Bytes(), &response))
+	require.Len(t, response.Data.Items, 1, "group_id narrows the page to one group")
+	assert.Equal(t, "group-alpha", response.Data.Items[0].ID)
+}
+
+func TestNormalizeUploadedAssetContentTypeHandlesAudioAndVideoContainers(t *testing.T) {
+	cases := []struct {
+		name     string
+		detected string
+		declared string
+		want     string
+	}{
+		{name: "wav sniffed as audio/wave", detected: "audio/wave", declared: "audio/wav", want: "audio/wav"},
+		{name: "m4a sniffed as video/mp4 with audio/mp4", detected: "video/mp4", declared: "audio/mp4", want: "audio/mp4"},
+		{name: "m4a sniffed as video/mp4 with audio/x-m4a", detected: "video/mp4", declared: "audio/x-m4a", want: "audio/mp4"},
+		{name: "mp4 video stays video/mp4", detected: "video/mp4", declared: "video/mp4", want: "video/mp4"},
+		{name: "ogg sniffed as application/ogg", detected: "application/ogg", declared: "audio/ogg", want: "audio/ogg"},
+		{name: "mp3 octet-stream with audio/mp3 alias", detected: "application/octet-stream", declared: "audio/mp3", want: "audio/mpeg"},
+		{name: "mov octet-stream with video/quicktime", detected: "application/octet-stream", declared: "video/quicktime", want: "video/quicktime"},
+		{name: "html cannot spoof audio/mp4", detected: "text/html; charset=utf-8", declared: "audio/mp4", want: "text/html"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, normalizeUploadedAssetContentType(tc.detected, tc.declared))
+		})
+	}
 }

@@ -20,6 +20,7 @@ export type AssetGroup = {
   id: string
   owner_user_id: number
   owner_name?: string
+  asset_count?: number
   name: string
   description: string
   status: string
@@ -47,6 +48,9 @@ export type MediaAsset = {
   sha256: string
   status: string
   unavailable_reason?: 'real_person' | 'sensitive_content' | 'policy_rejected'
+  thumbnail_url?: string
+  poster_url?: string
+  thumbnail_expires_at?: number
   created_at: number
   updated_at: number
 }
@@ -56,6 +60,72 @@ export type MediaAssetList = {
   total: number
   page: number
   page_size: number
+}
+
+export type MediaAssetType = MediaAsset['type']
+
+export type AssetStatusFilter = 'ready' | 'processing' | 'unavailable'
+
+export type AssetSortOrder = 'newest' | 'oldest'
+
+export type AssetLibraryFilters = {
+  group?: string
+  owner?: number
+  /** Owner of the chosen group; group IDs are only unique per owner. */
+  groupOwner?: number
+  type?: MediaAssetType
+  status?: AssetStatusFilter
+  q?: string
+  sort?: AssetSortOrder
+  page?: number
+}
+
+export type AssetSummary = {
+  total: number
+  by_type: Record<MediaAssetType, number>
+  by_status: Record<AssetStatusFilter, number>
+}
+
+export type AssetRef = { id: string; owner_user_id: number }
+
+export type AssetOwner = {
+  user_id: number
+  username: string
+  group_count: number
+  asset_count: number
+}
+
+export type AssetOwnerList = {
+  items: AssetOwner[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export type AssetPreviewMap = Record<
+  string,
+  { url: string; poster_url?: string; expires_at: number }
+>
+
+export type AssetFilterDeleteInput = {
+  scope?: 'all'
+  owner_user_id?: number
+  group_id?: string
+  type?: MediaAssetType
+  status?: AssetStatusFilter
+  search?: string
+  exclude?: AssetRef[]
+}
+
+export type AssetFilterDeleteResult = {
+  deleted_count: number
+  owner_user_ids: number[]
+}
+
+export type AssetGroupPurgeResult = {
+  owner_user_id: number
+  deleted_asset_count: number
+  deleted_group_count: number
 }
 
 export type AssetAccessKey = {

@@ -57,6 +57,7 @@ type GroupView struct {
 	ID          string `json:"id"`
 	OwnerUserID int    `json:"owner_user_id"`
 	OwnerName   string `json:"owner_name"`
+	AssetCount  *int64 `json:"asset_count,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
@@ -75,34 +76,40 @@ type AssetInput struct {
 }
 
 type AssetView struct {
-	ID                string `json:"id"`
-	GroupID           string `json:"group_id"`
-	GroupName         string `json:"group_name"`
-	OwnerUserID       int    `json:"owner_user_id"`
-	OwnerName         string `json:"owner_name"`
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	ContentType       string `json:"content_type"`
-	Size              int64  `json:"size"`
-	SHA256            string `json:"sha256"`
-	Status            string `json:"status"`
-	UnavailableReason string `json:"unavailable_reason,omitempty"`
-	CreatedAt         int64  `json:"created_at"`
-	UpdatedAt         int64  `json:"updated_at"`
+	ID                 string `json:"id"`
+	GroupID            string `json:"group_id"`
+	GroupName          string `json:"group_name"`
+	OwnerUserID        int    `json:"owner_user_id"`
+	OwnerName          string `json:"owner_name"`
+	Name               string `json:"name"`
+	Type               string `json:"type"`
+	ContentType        string `json:"content_type"`
+	Size               int64  `json:"size"`
+	SHA256             string `json:"sha256"`
+	Status             string `json:"status"`
+	UnavailableReason  string `json:"unavailable_reason,omitempty"`
+	ThumbnailURL       string `json:"thumbnail_url,omitempty"`
+	PosterURL          string `json:"poster_url,omitempty"`
+	ThumbnailExpiresAt int64  `json:"thumbnail_expires_at,omitempty"`
+	CreatedAt          int64  `json:"created_at"`
+	UpdatedAt          int64  `json:"updated_at"`
 }
 
 type AssetListInput struct {
+	Context           context.Context
 	OwnerUserID       int
 	IncludeAllOwners  bool
 	TargetOwnerUserID int
 	GroupPublicID     string
 	GroupPublicIDs    []string
 	Statuses          []string
+	AssetTypes        []string
 	Search            string
 	Page              int
 	PageSize          int
 	SortBy            string
 	SortOrder         string
+	IncludePreviews   bool
 }
 
 type AssetListView struct {
@@ -239,10 +246,20 @@ func DeleteGroup(publicID string, ownerUserID int, isAdmin bool, targetOwnerUser
 	if err != nil {
 		return err
 	}
+	if group.OwnerUserID != ownerUserID {
+		if err := model.CheckUserAssetPurgePermission(model.DB, group.OwnerUserID, ownerUserID); err != nil {
+			return err
+		}
+	}
 	return model.DB.Transaction(func(tx *gorm.DB) error {
 		group, err := model.LockAssetGroup(tx, group.ID)
 		if err != nil {
 			return err
+		}
+		if group.OwnerUserID != ownerUserID {
+			if err := model.CheckUserAssetPurgePermission(tx, group.OwnerUserID, ownerUserID); err != nil {
+				return err
+			}
 		}
 		var count int64
 		if err := tx.Model(&model.MediaAsset{}).Where("group_id = ? AND status <> ?", group.ID, model.AssetStatusDeleted).Count(&count).Error; err != nil {
@@ -253,6 +270,24 @@ func DeleteGroup(publicID string, ownerUserID int, isAdmin bool, targetOwnerUser
 		}
 		return tx.Model(group).Updates(map[string]any{"status": model.AssetStatusDeleted, "deleted_slot": group.ID, "updated_at": common.GetTimestamp()}).Error
 	})
+}
+
+// DeleteGroupWithAssets deletes a group together with every active asset in
+// it. A group that receives an upload while being cleared is kept and
+// reported as a conflict, alongside the number of assets already deleted.
+func DeleteGroupWithAssets(publicID string, ownerUserID int, isAdmin bool, targetOwnerUserID int) (*model.UserAssetPurgeResult, error) {
+	group, err := model.FindAssetGroupForOwner(publicID, ownerUserID, isAdmin, targetOwnerUserID)
+	if err != nil {
+		return nil, err
+	}
+	result, err := model.PurgeAssetGroup(group.ID, group.OwnerUserID, ownerUserID)
+	if err != nil {
+		return result, err
+	}
+	if result.DeletedGroupCount == 0 {
+		return result, &RequestError{StatusCode: http.StatusConflict, Err: errors.New("new assets were uploaded to the group while it was being deleted")}
+	}
+	return result, nil
 }
 
 func ListGroups(ownerUserID int, includeAllOwners bool) ([]GroupView, error) {
@@ -385,43 +420,9 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 	if input.PageSize > 100 {
 		input.PageSize = 100
 	}
-	query := model.DB.Model(&model.MediaAsset{}).Where("status <> ?", model.AssetStatusDeleted)
-	if len(input.Statuses) > 0 {
-		query = query.Where("status IN ?", input.Statuses)
-	}
-	if !input.IncludeAllOwners {
-		query = query.Where("owner_user_id = ?", input.OwnerUserID)
-	} else if input.TargetOwnerUserID > 0 {
-		query = query.Where("owner_user_id = ?", input.TargetOwnerUserID)
-	}
-	if input.GroupPublicID != "" {
-		group, err := model.FindAssetGroupForOwner(input.GroupPublicID, input.OwnerUserID, input.IncludeAllOwners, input.TargetOwnerUserID)
-		if err != nil {
-			return nil, err
-		}
-		query = query.Where("group_id = ?", group.ID)
-	}
-	if len(input.GroupPublicIDs) > 0 {
-		groupQuery := model.DB.Model(&model.AssetGroup{}).
-			Select("id").
-			Where("public_id IN ? AND status <> ?", input.GroupPublicIDs, model.AssetStatusDeleted)
-		if !input.IncludeAllOwners {
-			groupQuery = groupQuery.Where("owner_user_id = ?", input.OwnerUserID)
-		}
-		query = query.Where("group_id IN (?)", groupQuery)
-	}
-	if keyword := strings.ToLower(strings.TrimSpace(input.Search)); keyword != "" {
-		keyword = strings.ReplaceAll(keyword, "!", "!!")
-		keyword = strings.ReplaceAll(keyword, "%", "!%")
-		keyword = strings.ReplaceAll(keyword, "_", "!_")
-		pattern := "%" + keyword + "%"
-		ownerIDs := model.DB.Model(&model.User{}).
-			Select("id").
-			Where("LOWER(username) LIKE ? ESCAPE '!' OR LOWER(display_name) LIKE ? ESCAPE '!'", pattern, pattern)
-		query = query.Where(
-			"LOWER(name) LIKE ? ESCAPE '!' OR LOWER(public_id) LIKE ? ESCAPE '!' OR LOWER(content_type) LIKE ? ESCAPE '!' OR owner_user_id IN (?)",
-			pattern, pattern, pattern, ownerIDs,
-		)
+	query, err := assetScopeQuery(input)
+	if err != nil {
+		return nil, err
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -438,7 +439,7 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 	if strings.EqualFold(input.SortOrder, "Asc") {
 		orderDirection = "asc"
 	}
-	if err := query.Order(orderColumn + " " + orderDirection).Order("id desc").
+	if err := query.Order(orderColumn + " " + orderDirection).Order("id " + orderDirection).
 		Limit(input.PageSize).Offset((input.Page - 1) * input.PageSize).Find(&assets).Error; err != nil {
 		return nil, err
 	}
@@ -468,7 +469,104 @@ func ListAssets(input AssetListInput) (*AssetListView, error) {
 	for index := range views {
 		views[index].GroupName = groupNames[assets[index].GroupID]
 	}
+	if input.IncludePreviews && len(assets) > 0 {
+		attachListThumbnails(input.Context, assets, views)
+	}
 	return &AssetListView{Items: views, Total: total, Page: input.Page, PageSize: input.PageSize}, nil
+}
+
+func attachListThumbnails(ctx context.Context, assets []model.MediaAsset, views []AssetView) {
+	policy, err := storageService.GetAssetLibraryPolicy()
+	if err != nil || policy == nil || !policy.Enabled {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	objectIDs := make([]int64, 0, len(assets))
+	for _, asset := range assets {
+		if asset.StorageObjectID > 0 {
+			objectIDs = append(objectIDs, asset.StorageObjectID)
+		}
+	}
+	if len(objectIDs) == 0 {
+		return
+	}
+	ttl := time.Duration(policy.SignedURLTTLSeconds) * time.Second
+	previews, err := storageService.PresignAssetThumbnailsWithExpiry(ctx, objectIDs, ttl)
+	if err != nil {
+		return
+	}
+	for index, asset := range assets {
+		if preview, ok := previews[asset.StorageObjectID]; ok {
+			views[index].ThumbnailURL = preview.URL
+			views[index].PosterURL = preview.PosterURL
+			views[index].ThumbnailExpiresAt = preview.ExpiresAt
+		}
+	}
+}
+
+// assetScopeQuery applies the owner, group, status, type and search filters
+// shared by the asset list, summary counts, and filter-based batch deletion.
+func assetScopeQuery(input AssetListInput) (*gorm.DB, error) {
+	return assetScopeQueryOnDB(model.DB, input)
+}
+
+func assetScopeQueryOnDB(db *gorm.DB, input AssetListInput) (*gorm.DB, error) {
+	query := db.Model(&model.MediaAsset{}).Where("status <> ?", model.AssetStatusDeleted)
+	if len(input.Statuses) > 0 {
+		query = query.Where("status IN ?", input.Statuses)
+	}
+	if len(input.AssetTypes) > 0 {
+		query = query.Where("asset_type IN ?", input.AssetTypes)
+	}
+	if !input.IncludeAllOwners {
+		query = query.Where("owner_user_id = ?", input.OwnerUserID)
+	} else if input.TargetOwnerUserID > 0 {
+		query = query.Where("owner_user_id = ?", input.TargetOwnerUserID)
+	}
+	if input.GroupPublicID != "" {
+		groupQuery := db.Model(&model.AssetGroup{}).Where("public_id = ? AND status <> ?", input.GroupPublicID, model.AssetStatusDeleted)
+		if !input.IncludeAllOwners {
+			groupQuery = groupQuery.Where("owner_user_id = ?", input.OwnerUserID)
+		} else if input.TargetOwnerUserID > 0 {
+			groupQuery = groupQuery.Where("owner_user_id = ?", input.TargetOwnerUserID)
+		}
+		var groups []model.AssetGroup
+		if err := groupQuery.Limit(2).Find(&groups).Error; err != nil {
+			return nil, err
+		}
+		if len(groups) == 0 {
+			return nil, gorm.ErrRecordNotFound
+		}
+		if len(groups) > 1 {
+			return nil, model.ErrAssetAmbiguousPublicID
+		}
+		query = query.Where("group_id = ?", groups[0].ID)
+	}
+	if len(input.GroupPublicIDs) > 0 {
+		groupQuery := db.Model(&model.AssetGroup{}).
+			Select("id").
+			Where("public_id IN ? AND status <> ?", input.GroupPublicIDs, model.AssetStatusDeleted)
+		if !input.IncludeAllOwners {
+			groupQuery = groupQuery.Where("owner_user_id = ?", input.OwnerUserID)
+		}
+		query = query.Where("group_id IN (?)", groupQuery)
+	}
+	if keyword := strings.ToLower(strings.TrimSpace(input.Search)); keyword != "" {
+		keyword = strings.ReplaceAll(keyword, "!", "!!")
+		keyword = strings.ReplaceAll(keyword, "%", "!%")
+		keyword = strings.ReplaceAll(keyword, "_", "!_")
+		pattern := "%" + keyword + "%"
+		ownerIDs := db.Model(&model.User{}).
+			Select("id").
+			Where("LOWER(username) LIKE ? ESCAPE '!' OR LOWER(display_name) LIKE ? ESCAPE '!'", pattern, pattern)
+		query = query.Where(
+			"LOWER(name) LIKE ? ESCAPE '!' OR LOWER(public_id) LIKE ? ESCAPE '!' OR LOWER(content_type) LIKE ? ESCAPE '!' OR owner_user_id IN (?)",
+			pattern, pattern, pattern, ownerIDs,
+		)
+	}
+	return query, nil
 }
 
 func PreviewURL(ctx context.Context, publicID string, ownerUserID int, isAdmin bool) (string, int64, error) {

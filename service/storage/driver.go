@@ -21,6 +21,7 @@ type ObjectDriver interface {
 type ObjectGetOptions struct {
 	Process                    string
 	ResponseContentDisposition string
+	ResponseCacheControl       string
 }
 
 func driverForProfile(profile *model.StorageProfile, credential *model.StorageCredential) (ObjectDriver, error) {

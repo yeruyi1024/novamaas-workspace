@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"errors"
+	"slices"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
@@ -102,14 +103,36 @@ func RequestAssetDeletion(tx *gorm.DB, assetID int64) error {
 	if err := lockForUpdate(tx).First(&asset, assetID).Error; err != nil {
 		return err
 	}
+	return deleteLockedAsset(tx, &asset)
+}
+
+// RequestAssetDeletionIfStatusIn locks the asset row and deletes it only if it
+// is still active and (when allowedStatuses is non-empty) its locked status
+// matches allowedStatuses. Returns false when a concurrent sync or deletion
+// moved the asset out of the filter before the lock was acquired.
+func RequestAssetDeletionIfStatusIn(tx *gorm.DB, assetID int64, allowedStatuses []string) (bool, error) {
+	var asset MediaAsset
+	if err := lockForUpdate(tx).First(&asset, assetID).Error; err != nil {
+		return false, err
+	}
+	if asset.Status == AssetStatusDeleted {
+		return false, nil
+	}
+	if len(allowedStatuses) > 0 && !slices.Contains(allowedStatuses, asset.Status) {
+		return false, nil
+	}
+	return true, deleteLockedAsset(tx, &asset)
+}
+
+func deleteLockedAsset(tx *gorm.DB, asset *MediaAsset) error {
 	now := common.GetTimestamp()
-	if err := tx.Model(&asset).Updates(map[string]any{"status": AssetStatusDeleted, "deleted_slot": asset.ID, "updated_at": now}).Error; err != nil {
+	if err := tx.Model(asset).Updates(map[string]any{"status": AssetStatusDeleted, "deleted_slot": asset.ID, "updated_at": now}).Error; err != nil {
 		return err
 	}
 	asset.Status = AssetStatusDeleted
 	asset.DeletedSlot = asset.ID
 	var replicas []AssetReplica
-	if err := lockForUpdate(tx).Where("asset_id = ?", assetID).Order("id asc").Find(&replicas).Error; err != nil {
+	if err := lockForUpdate(tx).Where("asset_id = ?", asset.ID).Order("id asc").Find(&replicas).Error; err != nil {
 		return err
 	}
 	for index := range replicas {
@@ -127,7 +150,7 @@ func RequestAssetDeletion(tx *gorm.DB, assetID int64) error {
 			return err
 		}
 	}
-	return queueDeletedAssetStorage(tx, &asset, now)
+	return queueDeletedAssetStorage(tx, asset, now)
 }
 
 type UserAssetPurgeResult struct {
@@ -137,6 +160,19 @@ type UserAssetPurgeResult struct {
 }
 
 const assetPurgeBatchSize = 100
+
+// CheckUserAssetPurgePermission verifies that operatorID may purge assets owned
+// by targetUserID (self is always allowed; otherwise operator must be an
+// enabled admin strictly outranking target, or root).
+func CheckUserAssetPurgePermission(tx *gorm.DB, targetUserID, operatorID int) error {
+	if targetUserID == operatorID && operatorID > 0 {
+		return nil
+	}
+	if tx == nil {
+		tx = DB
+	}
+	return checkUserAssetPurgePermission(tx, targetUserID, operatorID)
+}
 
 func checkUserAssetPurgePermission(tx *gorm.DB, targetUserID, operatorID int) error {
 	var users []User
@@ -164,11 +200,19 @@ func checkUserAssetPurgePermission(tx *gorm.DB, targetUserID, operatorID int) er
 	return nil
 }
 
-// purgeUserAssetsInBatches clears a user's active assets in bounded short
+// assetPurgeScope selects whose assets are purged: every group of an owner, or
+// one group of that owner when GroupID is set.
+type assetPurgeScope struct {
+	OwnerUserID int
+	GroupID     int64
+}
+
+// purgeAssetsInBatches clears the scope's active assets in bounded short
 // transactions (100 assets per batch) followed by one bulk update for empty
 // groups. On partial failure it returns the already-committed counts alongside
 // the error so callers can still record an accurate audit log.
-func purgeUserAssetsInBatches(ownerUserID int, beforeBatch func(tx *gorm.DB) error) (*UserAssetPurgeResult, error) {
+func purgeAssetsInBatches(scope assetPurgeScope, beforeBatch func(tx *gorm.DB) error) (*UserAssetPurgeResult, error) {
+	ownerUserID := scope.OwnerUserID
 	result := &UserAssetPurgeResult{OwnerUserID: ownerUserID}
 	if ownerUserID <= 0 {
 		return result, nil
@@ -182,10 +226,13 @@ func purgeUserAssetsInBatches(ownerUserID int, beforeBatch func(tx *gorm.DB) err
 						return err
 					}
 				}
+				query := lockForUpdate(tx).Select("id").
+					Where("owner_user_id = ? AND status <> ?", ownerUserID, AssetStatusDeleted)
+				if scope.GroupID > 0 {
+					query = query.Where("group_id = ?", scope.GroupID)
+				}
 				var assets []MediaAsset
-				if err := lockForUpdate(tx).Select("id").
-					Where("owner_user_id = ? AND status <> ?", ownerUserID, AssetStatusDeleted).
-					Order("id asc").Limit(assetPurgeBatchSize).Find(&assets).Error; err != nil {
+				if err := query.Order("id asc").Limit(assetPurgeBatchSize).Find(&assets).Error; err != nil {
 					return err
 				}
 				for _, asset := range assets {
@@ -212,10 +259,13 @@ func purgeUserAssetsInBatches(ownerUserID int, beforeBatch func(tx *gorm.DB) err
 					return err
 				}
 			}
+			query := lockForUpdate(tx).Select("id").
+				Where("owner_user_id = ? AND status <> ?", ownerUserID, AssetStatusDeleted)
+			if scope.GroupID > 0 {
+				query = query.Where("id = ?", scope.GroupID)
+			}
 			var groups []AssetGroup
-			if err := lockForUpdate(tx).Select("id").
-				Where("owner_user_id = ? AND status <> ?", ownerUserID, AssetStatusDeleted).
-				Order("id asc").Find(&groups).Error; err != nil {
+			if err := query.Order("id asc").Find(&groups).Error; err != nil {
 				return err
 			}
 			if len(groups) == 0 {
@@ -275,9 +325,29 @@ func PurgeUserAssets(targetUserID, operatorID int) (*UserAssetPurgeResult, error
 	if err := checkUserAssetPurgePermission(DB, targetUserID, operatorID); err != nil {
 		return nil, err
 	}
-	return purgeUserAssetsInBatches(targetUserID, func(tx *gorm.DB) error {
+	return purgeAssetsInBatches(assetPurgeScope{OwnerUserID: targetUserID}, func(tx *gorm.DB) error {
 		return checkUserAssetPurgePermission(tx, targetUserID, operatorID)
 	})
+}
+
+// PurgeAssetGroup deletes every active asset in one group and then the group
+// itself. When operatorID differs from ownerUserID, the operator must satisfy
+// the same role hierarchy check as PurgeUserAssets. A group that receives a
+// concurrent upload is kept, which the result reports with DeletedGroupCount == 0.
+func PurgeAssetGroup(groupID int64, ownerUserID, operatorID int) (*UserAssetPurgeResult, error) {
+	if groupID <= 0 || ownerUserID <= 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var beforeBatch func(tx *gorm.DB) error
+	if operatorID != ownerUserID {
+		if err := checkUserAssetPurgePermission(DB, ownerUserID, operatorID); err != nil {
+			return nil, err
+		}
+		beforeBatch = func(tx *gorm.DB) error {
+			return checkUserAssetPurgePermission(tx, ownerUserID, operatorID)
+		}
+	}
+	return purgeAssetsInBatches(assetPurgeScope{OwnerUserID: ownerUserID, GroupID: groupID}, beforeBatch)
 }
 
 func CanSubmitAssetReplica(id int64, owner string) (allowed bool, err error) {

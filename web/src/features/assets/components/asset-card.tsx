@@ -17,301 +17,353 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import {
-  AudioWaveformIcon,
-  Delete02Icon,
-  Download01Icon,
-  FileVideoIcon,
-  Image01Icon,
-  ViewIcon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+  AudioLines,
+  Check,
+  Clock,
+  Download,
+  Eye,
+  Film,
+  Folder,
+  Image,
+  Trash2,
+  User,
+} from 'lucide-react'
+import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatTimestampToDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
-import { getMediaAssetPreview } from '../api'
-import { assertAssetSuccess } from '../asset-utils'
+import { assetKey, formatAssetBytes } from '../asset-utils'
 import type { MediaAsset } from '../types'
+import { AssetAudioMedia } from './asset-audio-media'
+import { AssetImageMedia } from './asset-image-media'
+import { AssetVideoMedia } from './asset-video-media'
 
-function AssetPreview(props: {
+const TYPE_ICONS = {
+  image: Image,
+  video: Film,
+  audio: AudioLines,
+} as const
+
+const TYPE_LABEL_KEYS = {
+  image: 'Image',
+  video: 'Video',
+  audio: 'Audio',
+} as const
+
+type AssetCardProps = {
   asset: MediaAsset
   isAdmin?: boolean
-  onPreview: (asset: MediaAsset) => void
-}) {
-  const { t } = useTranslation()
-  const previewRef = useRef<HTMLDivElement>(null)
-  const [useOriginalPreview, setUseOriginalPreview] = useState(false)
-  const [originalPreviewFailed, setOriginalPreviewFailed] = useState(false)
-  const [visible, setVisible] = useState(
-    () => typeof IntersectionObserver === 'undefined'
-  )
-  useEffect(() => {
-    if (visible || typeof IntersectionObserver === 'undefined') return
-    const target = previewRef.current
-    if (!target) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '300px' }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [visible])
-  const previewVariant = useOriginalPreview ? 'original' : 'thumbnail'
-  const ownerParam = props.isAdmin ? props.asset.owner_user_id : undefined
-  const previewQuery = useQuery({
-    queryKey: [
-      'asset-library',
-      'preview',
-      props.asset.owner_user_id,
-      props.asset.id,
-      previewVariant,
-    ],
-    queryFn: async () =>
-      assertAssetSuccess(
-        ownerParam
-          ? await getMediaAssetPreview(
-              props.asset.id,
-              previewVariant,
-              ownerParam
-            )
-          : await getMediaAssetPreview(props.asset.id, previewVariant)
-      ),
-    enabled: visible,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  if (!visible || previewQuery.isLoading) {
-    return (
-      <div ref={previewRef} className='h-36 w-full'>
-        <Skeleton className='h-full w-full rounded-none' />
-      </div>
-    )
-  }
-  if (!previewQuery.data?.url || originalPreviewFailed) {
-    return (
-      <div className='bg-muted text-muted-foreground flex h-36 items-center justify-center text-xs'>
-        {t('Preview unavailable')}
-      </div>
-    )
-  }
-  if (props.asset.type === 'image') {
-    return (
-      <button
-        type='button'
-        aria-label={`${t('Preview')} ${props.asset.name}`}
-        className='bg-muted/30 focus-visible:outline-ring flex h-36 w-full cursor-zoom-in items-center justify-center p-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px]'
-        onClick={() => props.onPreview(props.asset)}
-      >
-        <img
-          src={previewQuery.data.url}
-          alt={props.asset.name}
-          loading='lazy'
-          decoding='async'
-          className='max-h-full max-w-full object-contain'
-          onError={() => {
-            if (useOriginalPreview) setOriginalPreviewFailed(true)
-            else setUseOriginalPreview(true)
-          }}
-        />
-      </button>
-    )
-  }
-  if (props.asset.type === 'video') {
-    return (
-      <video
-        src={previewQuery.data.url}
-        controls
-        preload='metadata'
-        className='bg-muted h-36 w-full object-contain'
-      />
-    )
-  }
-  return (
-    <div className='bg-muted/40 flex h-36 flex-col items-center justify-center gap-3 px-3'>
-      <HugeiconsIcon
-        icon={AudioWaveformIcon}
-        className='text-muted-foreground size-8'
-      />
-      <audio
-        src={previewQuery.data.url}
-        controls
-        preload='metadata'
-        className='h-8 w-full'
-      />
-    </div>
-  )
-}
-
-function assetTypeIcon(type: MediaAsset['type']) {
-  if (type === 'video') return FileVideoIcon
-  if (type === 'audio') return AudioWaveformIcon
-  return Image01Icon
-}
-
-function assetTypeLabelKey(type: MediaAsset['type']) {
-  if (type === 'video') return 'Video'
-  if (type === 'audio') return 'Audio'
-  return 'Image'
-}
-
-export function AssetCard(props: {
-  asset: MediaAsset
-  groupName: string
-  isAdmin?: boolean
-  onDelete: (asset: MediaAsset) => void
-  onReupload?: (asset: MediaAsset) => void
+  thumbnailUrl?: string
+  posterUrl?: string
+  priority?: 'high' | 'eager' | 'lazy'
+  previewLoading?: boolean
+  selected: boolean
+  selectionMode: boolean
+  downloading: boolean
+  canReupload: boolean
+  onToggleSelect: (asset: MediaAsset, extend?: boolean) => void
   onPreview: (asset: MediaAsset) => void
   onDownload: (asset: MediaAsset) => void
-  downloading: boolean
+  onDelete: (asset: MediaAsset) => void
+  onReupload: (asset: MediaAsset) => void
+}
+
+function CardAction(props: {
+  label: string
+  Icon: typeof Eye
+  disabled?: boolean
+  destructive?: boolean
+  onClick: () => void
 }) {
-  const { t } = useTranslation()
-  const reference = `asset://${props.asset.id}`
-  const failed = props.asset.status === 'failed'
-  const unavailable = props.asset.status === 'unavailable' || failed
-  const statusLabel = failed ? t('Failed') : t('Asset unavailable')
-  const processing = props.asset.status === 'processing'
-  const deleteButton = (
-    <Button
-      type='button'
-      size='icon-sm'
-      variant='ghost'
-      aria-label={t('Delete asset')}
-      onClick={() => props.onDelete(props.asset)}
-    >
-      <HugeiconsIcon icon={Delete02Icon} />
-    </Button>
+  const ActionIcon = props.Icon
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type='button'
+            size='icon-sm'
+            variant='secondary'
+            aria-label={props.label}
+            disabled={props.disabled}
+            className={cn(
+              'bg-background/85 size-7 shadow-sm backdrop-blur',
+              props.destructive && 'hover:text-destructive'
+            )}
+            onClick={props.onClick}
+          />
+        }
+      >
+        <ActionIcon
+          className='size-3.5'
+          strokeWidth={1.75}
+          aria-hidden='true'
+        />
+      </TooltipTrigger>
+      <TooltipContent>{props.label}</TooltipContent>
+    </Tooltip>
   )
+}
+
+export const AssetCard = memo(function AssetCard(props: AssetCardProps) {
+  const { t } = useTranslation()
+  const [hovered, setHovered] = useState(false)
+  const asset = props.asset
+  const reference = `asset://${asset.id}`
+  const failed = asset.status === 'failed'
+  const unavailable = asset.status === 'unavailable' || failed
+  const processing = asset.status === 'processing'
+  const statusLabel = failed ? t('Failed') : t('Asset unavailable')
+  const TypeIcon = TYPE_ICONS[asset.type]
+  const uploadedAt = formatTimestampToDate(asset.created_at)
+  const openOrSelect = (event?: { shiftKey: boolean }) => {
+    if (props.selectionMode) props.onToggleSelect(asset, event?.shiftKey)
+    else props.onPreview(asset)
+  }
+
+  let media = (
+    <div
+      className='skeleton-shimmer size-full'
+      data-testid='asset-media-loading'
+    />
+  )
+  if (!props.previewLoading && asset.type === 'image') {
+    media = (
+      <AssetImageMedia
+        asset={asset}
+        url={props.thumbnailUrl}
+        isAdmin={props.isAdmin}
+        priority={props.priority}
+        onOpen={openOrSelect}
+      />
+    )
+  } else if (!props.previewLoading && asset.type === 'video') {
+    media = (
+      <AssetVideoMedia
+        asset={asset}
+        url={props.thumbnailUrl}
+        posterUrl={props.posterUrl}
+        priority={props.priority}
+        active={hovered && !props.selectionMode}
+        onOpen={openOrSelect}
+      />
+    )
+  } else if (!props.previewLoading) {
+    media = (
+      <AssetAudioMedia
+        asset={asset}
+        url={props.thumbnailUrl}
+        onOpen={openOrSelect}
+      />
+    )
+  }
 
   return (
-    <Card
-      size='sm'
-      className='overflow-hidden [contain-intrinsic-size:320px] [content-visibility:auto]'
+    <article
+      aria-label={asset.name}
+      data-asset-key={assetKey(asset)}
+      data-selected={props.selected || undefined}
+      className={cn(
+        'group/card bg-card/50 ring-border/60 relative flex h-full flex-col rounded-2xl p-1.5 ring-1 transition-all duration-300 ease-out [contain-intrinsic-size:340px] [content-visibility:auto]',
+        'hover:bg-card hover:ring-border hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/10 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:hover:shadow-black/40',
+        props.selected &&
+          'bg-primary/5 ring-primary hover:bg-primary/10 ring-2 hover:translate-y-0'
+      )}
     >
-      <div className='relative'>
-        <AssetPreview
-          asset={props.asset}
-          isAdmin={props.isAdmin}
-          onPreview={props.onPreview}
+      <div
+        className='bg-muted relative aspect-[4/3] overflow-hidden rounded-xl'
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+      >
+        {media}
+        <span
+          aria-hidden='true'
+          className='pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/35 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100'
         />
+        <span
+          aria-hidden='true'
+          className='pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity group-hover/card:opacity-100'
+        />
+        <button
+          type='button'
+          role='checkbox'
+          aria-checked={props.selected}
+          aria-label={`${t('Select')} ${asset.name}`}
+          className={cn(
+            'focus-visible:outline-ring absolute top-2 left-2 z-10 grid size-6 place-items-center rounded-full border-2 shadow-sm transition-all focus-visible:opacity-100 focus-visible:outline-2',
+            props.selected
+              ? 'bg-primary border-primary text-primary-foreground scale-100 opacity-100'
+              : 'scale-90 border-white/90 bg-black/25 text-transparent opacity-0 backdrop-blur-sm group-hover/card:scale-100 group-hover/card:opacity-100 [@media(hover:none)]:opacity-100',
+            props.selectionMode && 'opacity-100'
+          )}
+          onClick={(event) => props.onToggleSelect(asset, event.shiftKey)}
+        >
+          <Check className='size-3.5' strokeWidth={2.75} aria-hidden='true' />
+        </button>
+        <span
+          aria-label={t(TYPE_LABEL_KEYS[asset.type])}
+          title={t(TYPE_LABEL_KEYS[asset.type])}
+          className='pointer-events-none absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-full bg-neutral-950/60 px-2 py-0.5 text-[11px] font-medium text-white/95 ring-1 ring-white/15 backdrop-blur-md'
+        >
+          <TypeIcon
+            aria-hidden='true'
+            className='size-3 shrink-0'
+            strokeWidth={1.85}
+          />
+          <span>{t(TYPE_LABEL_KEYS[asset.type])}</span>
+        </span>
         {unavailable && (
           <Badge
             variant='destructive'
-            className='bg-card/95 absolute top-2 left-2 z-10'
+            className='absolute bottom-2 left-2 z-10 gap-1.5 border-0 bg-red-600/90 text-white shadow-sm backdrop-blur hover:bg-red-600'
             render={
               <button
                 type='button'
                 aria-label={`${statusLabel}: ${t('View details')}`}
-                onClick={() => props.onPreview(props.asset)}
+                onClick={() => props.onPreview(asset)}
               />
             }
           >
+            <span
+              aria-hidden='true'
+              className='size-1.5 rounded-full bg-white'
+            />
             {statusLabel}
           </Badge>
         )}
         {processing && (
-          <Badge variant='secondary' className='absolute top-2 left-2 z-10'>
+          <Badge className='absolute bottom-2 left-2 z-10 gap-1.5 border-0 bg-amber-500/90 text-white shadow-sm backdrop-blur'>
+            <span aria-hidden='true' className='relative flex size-1.5'>
+              <span className='absolute inline-flex size-full animate-ping rounded-full bg-white/80 motion-reduce:animate-none' />
+              <span className='relative inline-flex size-1.5 rounded-full bg-white' />
+            </span>
             {t('Under review')}
           </Badge>
         )}
-      </div>
-      <CardHeader className='gap-1.5'>
-        <div className='flex items-start justify-between gap-2'>
-          <CardTitle className='min-w-0 truncate'>{props.asset.name}</CardTitle>
-          <Badge variant='outline' className='shrink-0'>
-            <HugeiconsIcon icon={assetTypeIcon(props.asset.type)} />
-            {t(assetTypeLabelKey(props.asset.type))}
-          </Badge>
-        </div>
-        <p className='text-muted-foreground truncate text-xs'>
-          {props.groupName}
-        </p>
-        <div className='text-muted-foreground grid gap-0.5 text-xs'>
-          <p className='truncate' title={props.asset.owner_name}>
-            {t('Uploader')}: {props.asset.owner_name || t('Unknown uploader')}
-          </p>
-          <p>
-            {t('Uploaded at')}:{' '}
-            <time
-              dateTime={new Date(props.asset.created_at * 1000).toISOString()}
-            >
-              {formatTimestampToDate(props.asset.created_at)}
-            </time>
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <code className='bg-muted block truncate rounded-md px-2 py-1.5 text-[11px]'>
-          {reference}
-        </code>
-      </CardContent>
-      <CardFooter className='flex-wrap justify-end gap-1'>
-        <Button
-          type='button'
-          size='icon-sm'
-          variant='ghost'
-          aria-label={t('Preview asset')}
-          onClick={() => props.onPreview(props.asset)}
+        <div
+          className={cn(
+            'absolute right-2 bottom-2 z-10 flex gap-1 transition-all duration-200',
+            'translate-y-1 opacity-0 group-focus-within/card:translate-y-0 group-focus-within/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:opacity-100 max-sm:hidden [@media(hover:none)]:hidden',
+            props.selectionMode && 'hidden'
+          )}
         >
-          <HugeiconsIcon icon={ViewIcon} />
-        </Button>
-        <Button
-          type='button'
-          size='icon-sm'
-          variant='ghost'
-          aria-label={t('Download asset')}
-          disabled={props.downloading}
-          onClick={() => props.onDownload(props.asset)}
-        >
-          <HugeiconsIcon icon={Download01Icon} />
-        </Button>
-        {unavailable && props.onReupload && (
-          <Button
-            type='button'
-            size='xs'
-            variant='outline'
-            aria-label={t('Re-upload revised file')}
-            onClick={() => props.onReupload?.(props.asset)}
-          >
-            {t('Re-upload')}
-          </Button>
-        )}
-        {props.asset.status === 'ready' && (
-          <CopyButton
-            value={reference}
-            size='icon'
-            className='size-7'
-            tooltip={t('Copy asset reference')}
-            successTooltip={t('Asset reference copied')}
+          <CardAction
+            label={t('Preview asset')}
+            Icon={Eye}
+            onClick={() => props.onPreview(asset)}
           />
+          <CardAction
+            label={t('Download asset')}
+            Icon={Download}
+            disabled={props.downloading}
+            onClick={() => props.onDownload(asset)}
+          />
+          <CardAction
+            label={t('Delete asset')}
+            Icon={Trash2}
+            destructive
+            onClick={() => props.onDelete(asset)}
+          />
+        </div>
+      </div>
+
+      <div className='flex flex-1 flex-col gap-1.5 px-1.5 pt-2.5 pb-1'>
+        <div className='flex items-start justify-between gap-2'>
+          <h3
+            className='min-w-0 truncate text-sm leading-5 font-semibold tracking-tight'
+            title={asset.name}
+          >
+            {asset.name}
+          </h3>
+          {unavailable && props.canReupload && (
+            <Button
+              type='button'
+              size='xs'
+              variant='outline'
+              className='-my-0.5 shrink-0'
+              aria-label={t('Re-upload revised file')}
+              onClick={() => props.onReupload(asset)}
+            >
+              {t('Re-upload')}
+            </Button>
+          )}
+        </div>
+
+        <div className='bg-muted/70 ring-border/40 flex items-center gap-1 rounded-md py-1 pr-0.5 pl-2 ring-1 ring-inset'>
+          <code
+            data-testid='asset-card-id'
+            className='text-foreground/90 min-w-0 flex-1 font-mono text-[11px] leading-4 break-all select-all'
+            title={`${t('Asset ID')}: ${asset.id}`}
+          >
+            {asset.id}
+          </code>
+          {asset.status === 'ready' && (
+            <CopyButton
+              value={reference}
+              className='size-5 shrink-0 [&_svg]:size-3'
+              tooltip={t('Copy asset reference')}
+              successTooltip={t('Asset reference copied')}
+            />
+          )}
+        </div>
+
+        <div
+          data-testid='asset-card-group'
+          className='text-muted-foreground flex items-start gap-1.5 text-xs'
+          title={`${asset.group_name || t('Unknown group')} · ${t('ID')}: ${asset.group_id}`}
+        >
+          <Folder
+            className='text-primary/80 mt-0.5 size-3.5 shrink-0'
+            strokeWidth={1.75}
+            aria-hidden='true'
+          />
+          <span className='text-foreground/85 min-w-0 flex-1 leading-4 break-words'>
+            {asset.group_name || t('Unknown group')}
+          </span>
+        </div>
+
+        {props.isAdmin && (
+          <div
+            data-testid='asset-card-owner'
+            className='text-muted-foreground flex items-start gap-1.5 text-xs'
+            title={`${t('Uploader')}: ${asset.owner_name || t('Unknown uploader')} · ${t('ID')}: ${asset.owner_user_id}`}
+          >
+            <User
+              className='text-muted-foreground/85 mt-0.5 size-3.5 shrink-0'
+              strokeWidth={1.75}
+              aria-hidden='true'
+            />
+            <span className='text-foreground/85 min-w-0 flex-1 leading-4 break-words'>
+              {asset.owner_name || t('Unknown uploader')}
+              <span className='text-muted-foreground ml-1.5 font-mono text-[11px]'>
+                {t('ID')}: {asset.owner_user_id}
+              </span>
+            </span>
+          </div>
         )}
-        <Tooltip>
-          <TooltipTrigger render={deleteButton} />
-          <TooltipContent>{t('Delete asset')}</TooltipContent>
-        </Tooltip>
-      </CardFooter>
-    </Card>
+
+        <div className='text-muted-foreground/85 mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 pt-0.5 text-[11px] tabular-nums'>
+          <span className='inline-flex items-center gap-1'>
+            <Clock
+              className='size-3 shrink-0 opacity-75'
+              strokeWidth={1.75}
+              aria-hidden='true'
+            />
+            <span>{uploadedAt}</span>
+          </span>
+          <span className='shrink-0'>{formatAssetBytes(asset.size)}</span>
+        </div>
+      </div>
+    </article>
   )
-}
+})

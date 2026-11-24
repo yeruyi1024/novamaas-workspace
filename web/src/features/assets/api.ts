@@ -22,15 +22,25 @@ import type {
   AssetAccessKey,
   AssetCopyInput,
   AssetCopyResult,
+  AssetFilterDeleteInput,
+  AssetFilterDeleteResult,
   AssetGroup,
   AssetGroupList,
+  AssetGroupPurgeResult,
   AssetLibraryResponse,
+  AssetOwnerList,
+  AssetPreviewMap,
+  AssetRef,
   AssetRequestLogList,
   AssetRequestLogWithDetail,
+  AssetSortOrder,
+  AssetStatusFilter,
+  AssetSummary,
   AssetSyncJobList,
   CreatedAssetAccessKey,
   MediaAsset,
   MediaAssetList,
+  MediaAssetType,
   UserAssetPurgeResult,
 } from './types'
 
@@ -69,6 +79,7 @@ export async function listAssetGroups(includeAllOwners = false) {
 export async function listAssetGroupsPage(params: {
   includeAllOwners: boolean
   ownerUserId?: number
+  groupId?: string
   page: number
   pageSize: number
   search: string
@@ -82,6 +93,7 @@ export async function listAssetGroupsPage(params: {
         search: params.search || undefined,
         scope: params.includeAllOwners ? 'all' : undefined,
         owner_user_id: params.ownerUserId,
+        group_id: params.groupId || undefined,
       },
     }
   )
@@ -135,9 +147,32 @@ export async function createAssetGroup(input: {
   return response.data
 }
 
-export async function deleteAssetGroup(id: string, ownerUserId?: number) {
-  const response = await api.delete<AssetLibraryResponse>(
+export async function deleteAssetGroup(
+  id: string,
+  ownerUserId?: number,
+  options?: { withAssets?: boolean }
+) {
+  const response = await api.delete<
+    AssetLibraryResponse<AssetGroupPurgeResult | undefined>
+  >(`/api/asset-library/groups/${encodeURIComponent(id)}`, {
+    params: {
+      owner_user_id: ownerUserId || undefined,
+      with_assets: options?.withAssets ? 'true' : undefined,
+    },
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
+  return response.data
+}
+
+export async function updateAssetGroup(
+  id: string,
+  input: { name: string; description: string },
+  ownerUserId?: number
+) {
+  const response = await api.put<AssetLibraryResponse<AssetGroup>>(
     `/api/asset-library/groups/${encodeURIComponent(id)}`,
+    input,
     {
       params: ownerUserId ? { owner_user_id: ownerUserId } : undefined,
       skipBusinessError: true,
@@ -147,27 +182,100 @@ export async function deleteAssetGroup(id: string, ownerUserId?: number) {
   return response.data
 }
 
-export async function listMediaAssets(params: {
+type AssetScopeParams = {
   groupId?: string
   ownerUserId?: number
   search?: string
-  page: number
-  pageSize: number
   includeAllOwners?: boolean
-}) {
+}
+
+function assetScopeQuery(params: AssetScopeParams) {
+  return {
+    group_id: params.groupId || undefined,
+    owner_user_id: params.ownerUserId || undefined,
+    search: params.search || undefined,
+    scope: params.includeAllOwners ? 'all' : undefined,
+  }
+}
+
+export async function listMediaAssets(
+  params: AssetScopeParams & {
+    type?: MediaAssetType
+    status?: AssetStatusFilter
+    sort?: AssetSortOrder
+    page: number
+    pageSize: number
+  }
+) {
   const response = await api.get<AssetLibraryResponse<MediaAssetList>>(
     '/api/asset-library/assets',
     {
       params: {
-        group_id: params.groupId || undefined,
-        owner_user_id: params.ownerUserId || undefined,
-        search: params.search || undefined,
+        ...assetScopeQuery(params),
+        type: params.type || undefined,
+        status: params.status || undefined,
+        sort: params.sort === 'oldest' ? 'oldest' : undefined,
         p: params.page,
         page_size: params.pageSize,
-        scope: params.includeAllOwners ? 'all' : undefined,
       },
     }
   )
+  return response.data
+}
+
+export async function summarizeMediaAssets(params: AssetScopeParams) {
+  const response = await api.get<AssetLibraryResponse<AssetSummary>>(
+    '/api/asset-library/assets/summary',
+    { params: assetScopeQuery(params) }
+  )
+  return response.data
+}
+
+export async function listAssetOwners(params: {
+  search: string
+  page: number
+  pageSize: number
+}) {
+  const response = await api.get<AssetLibraryResponse<AssetOwnerList>>(
+    '/api/asset-library/admin/owners',
+    {
+      params: {
+        search: params.search || undefined,
+        p: params.page,
+        page_size: params.pageSize,
+      },
+    }
+  )
+  return response.data
+}
+
+export async function previewMediaAssets(items: AssetRef[]) {
+  const response = await api.post<AssetLibraryResponse<AssetPreviewMap>>(
+    '/api/asset-library/assets/previews',
+    { items },
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
+export async function deleteMediaAssets(items: AssetRef[]) {
+  const response = await api.post<
+    AssetLibraryResponse<{ deleted_count: number }>
+  >(
+    '/api/asset-library/assets/batch-delete',
+    { items },
+    { skipBusinessError: true, skipErrorHandler: true }
+  )
+  return response.data
+}
+
+export async function deleteMediaAssetsByFilter(input: AssetFilterDeleteInput) {
+  const response = await api.post<
+    AssetLibraryResponse<AssetFilterDeleteResult>
+  >('/api/asset-library/assets/batch-delete-by-filter', input, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   return response.data
 }
 

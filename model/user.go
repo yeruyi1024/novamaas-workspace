@@ -1046,7 +1046,7 @@ func (user *User) Delete() error {
 	if _, err := RevokeAllUserSessions(user.Id, "user_deleted"); err != nil {
 		return err
 	}
-	if _, err := purgeUserAssetsInBatches(user.Id, nil); err != nil {
+	if _, err := purgeAssetsInBatches(assetPurgeScope{OwnerUserID: user.Id}, nil); err != nil {
 		common.SysError(fmt.Sprintf("failed to purge assets after deleting user %d: %v", user.Id, err))
 	}
 	return invalidateUserCache(user.Id)
@@ -1077,7 +1077,7 @@ func (user *User) HardDelete() error {
 	if err != nil {
 		return err
 	}
-	if _, err := purgeUserAssetsInBatches(user.Id, nil); err != nil {
+	if _, err := purgeAssetsInBatches(assetPurgeScope{OwnerUserID: user.Id}, nil); err != nil {
 		common.SysError(fmt.Sprintf("failed to purge assets after hard deleting user %d: %v", user.Id, err))
 	}
 	if err := publishCommittedUserAuthVersion(user.Id, deletedAuthVersion); err != nil {

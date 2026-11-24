@@ -107,6 +107,12 @@ func validateAliyunProfile(profile *model.StorageProfile) error {
 
 func (driver *aliyunOSSDriver) PutObject(ctx context.Context, objectKey string, contentType string, size int64, body io.Reader) (string, error) {
 	cacheControl := "private, no-store"
+	if strings.HasPrefix(contentType, "image/") || strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "audio/") {
+		// Media objects use unique random keys with ForbidOverwrite=true and are
+		// immutable once uploaded; private max-age enables browser disk caching
+		// even when Aliyun OSS x-oss-process inherits object Cache-Control.
+		cacheControl = "private, max-age=1800, immutable"
+	}
 	forbidOverwrite := "true"
 	request := &oss.PutObjectRequest{
 		Bucket:          oss.Ptr(driver.bucket),
@@ -143,6 +149,9 @@ func (driver *aliyunOSSDriver) PresignGet(ctx context.Context, objectKey string,
 		}
 		if options[0].ResponseContentDisposition != "" {
 			request.ResponseContentDisposition = oss.Ptr(options[0].ResponseContentDisposition)
+		}
+		if options[0].ResponseCacheControl != "" {
+			request.ResponseCacheControl = oss.Ptr(options[0].ResponseCacheControl)
 		}
 	}
 	result, err := driver.client.Presign(ctx, request, oss.PresignExpires(ttl))

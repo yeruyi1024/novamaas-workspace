@@ -120,6 +120,84 @@ func TestAssetCopyRoutesAllowAdministratorsForCustomersOnly(t *testing.T) {
 	require.Equal(t, http.StatusOK, purgeResp.Code, purgeResp.Body.String())
 	assert.Contains(t, purgeResp.Body.String(), `"deleted_asset_count":1`)
 	assert.Contains(t, purgeResp.Body.String(), `"deleted_group_count":1`)
+
+	for _, path := range []string{"/api/asset-library/assets?type=document", "/api/asset-library/assets?status=archived", "/api/asset-library/assets/summary?sort=largest"} {
+		assert.Equal(t, http.StatusBadRequest, request(common.RoleCommonUser, "GET", path, "").Code, path)
+	}
+	summaryResp := request(common.RoleCommonUser, "GET", "/api/asset-library/assets/summary?type=video", "")
+	require.Equal(t, http.StatusOK, summaryResp.Code, summaryResp.Body.String())
+	assert.Contains(t, summaryResp.Body.String(), `"by_type":{"audio":0,"image":0,"video":0}`)
+	assert.Equal(t, http.StatusBadRequest, request(common.RoleCommonUser, "POST", "/api/asset-library/assets/batch-delete", `{"items":[]}`).Code)
+	assert.Equal(t, http.StatusBadRequest, request(common.RoleCommonUser, "POST", "/api/asset-library/assets/batch-delete-by-filter", `{"status":"invalid"}`).Code)
+	filterDelResp := request(common.RoleCommonUser, "POST", "/api/asset-library/assets/batch-delete-by-filter", `{"status":"unavailable"}`)
+	require.Equal(t, http.StatusOK, filterDelResp.Code, filterDelResp.Body.String())
+	assert.Contains(t, filterDelResp.Body.String(), `"deleted_count":0`)
+	assert.Equal(t, http.StatusForbidden, request(common.RoleCommonUser, "GET", "/api/asset-library/admin/owners", "").Code)
+	ownersResp := request(common.RoleAdminUser, "GET", "/api/asset-library/admin/owners", "")
+	require.Equal(t, http.StatusOK, ownersResp.Code, ownersResp.Body.String())
+	assert.Contains(t, ownersResp.Body.String(), `"items":`)
+}
+
+func TestAssetLibraryFrequentDeletesDoNotHitCriticalRateLimit(t *testing.T) {
+	setupRelayRouterTestDB(t)
+	db := model.DB
+	require.NoError(t, db.AutoMigrate(&model.UserSession{}, &model.Log{}, &model.AssetGroup{}, &model.MediaAsset{}, &model.AssetReplica{}, &model.StorageObject{}))
+	savedSecret := common.SessionSecret
+	savedCriticalEnable := common.CriticalRateLimitEnable
+	savedCriticalNum := common.CriticalRateLimitNum
+	savedGlobalEnable := common.GlobalApiRateLimitEnable
+	common.SessionSecret = "asset-ratelimit-route-fixture"
+	common.CriticalRateLimitEnable = true
+	common.CriticalRateLimitNum = 2
+	common.GlobalApiRateLimitEnable = false
+	t.Cleanup(func() {
+		common.SessionSecret = savedSecret
+		common.CriticalRateLimitEnable = savedCriticalEnable
+		common.CriticalRateLimitNum = savedCriticalNum
+		common.GlobalApiRateLimitEnable = savedGlobalEnable
+	})
+
+	admin := model.User{Username: "rl-admin", AffCode: "rl-admin", Role: common.RoleAdminUser, Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1}
+	require.NoError(t, db.Create(&admin).Error)
+	session, err := service.CreateLoginSession(admin.Id, "password", "198.51.100.77", "test")
+	require.NoError(t, err)
+
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	SetApiRouter(engine)
+	send := func(method, path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.RemoteAddr = "198.51.100.77:54321"
+		req.Header.Set("Authorization", "Bearer "+session.AccessToken)
+		recorder := httptest.NewRecorder()
+		engine.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	// Interactive batch deletes, filter deletes, and group deletes must not share
+	// the low 20/20m IP CriticalRateLimit bucket.
+	for i := 0; i < 5; i++ {
+		groupID := fmt.Sprintf("group-rl-%d", i)
+		require.NoError(t, db.Create(&model.AssetGroup{PublicID: groupID, OwnerUserID: admin.Id, Name: groupID, Status: model.AssetStatusReady}).Error)
+		assert.Equal(t, http.StatusOK, send("DELETE", "/api/asset-library/groups/"+groupID, "").Code)
+		assert.Equal(t, http.StatusOK, send("POST", "/api/asset-library/assets/batch-delete-by-filter", `{"status":"unavailable"}`).Code)
+		assert.Equal(t, http.StatusBadRequest, send("POST", "/api/asset-library/assets/batch-delete", `{"items":[]}`).Code)
+	}
+
+	// Admin user purges use an isolated per-user scope, never blocking /auth/refresh.
+	customer := model.User{Username: "rl-customer", AffCode: "rl-customer", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1}
+	require.NoError(t, db.Create(&customer).Error)
+	purgePath := fmt.Sprintf("/api/asset-library/admin/users/%d/purge", customer.Id)
+	assert.Equal(t, http.StatusOK, send("POST", purgePath, "").Code)
+	assert.Equal(t, http.StatusOK, send("POST", purgePath, "").Code)
+	assert.Equal(t, http.StatusTooManyRequests, send("POST", purgePath, "").Code)
+
+	// Confirm the shared IP CriticalRateLimit bucket used by auth refresh was not touched.
+	refreshReq := httptest.NewRequest("POST", "/api/user/auth/refresh", nil)
+	refreshReq.RemoteAddr = "198.51.100.77:54321"
+	refreshRec := httptest.NewRecorder()
+	engine.ServeHTTP(refreshRec, refreshReq)
+	assert.NotEqual(t, http.StatusTooManyRequests, refreshRec.Code)
 }
 
 func TestRetryAssetSyncJobSkipsAuditLog(t *testing.T) {

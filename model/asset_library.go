@@ -73,7 +73,7 @@ type MediaAsset struct {
 	PublicID      string `json:"id" gorm:"type:varchar(64);index:idx_media_assets_public_ref;uniqueIndex:idx_media_assets_owner_public_slot,priority:2"`
 	OwnerUserID   int    `json:"owner_user_id" gorm:"index:idx_media_assets_owner_status,priority:1;uniqueIndex:idx_media_assets_owner_public_slot,priority:1"`
 	DeletedSlot   int64  `json:"-" gorm:"default:0;uniqueIndex:idx_media_assets_owner_public_slot,priority:3"`
-	GroupID       int64  `json:"-" gorm:"index"`
+	GroupID       int64  `json:"-" gorm:"index;index:idx_media_assets_group_status,priority:1"`
 	GroupPublicID string `json:"group_id" gorm:"-"`
 	// Copied assets share the permanent file; it is reclaimed with the last one.
 	StorageObjectID   int64  `json:"-" gorm:"index:idx_media_assets_storage_ref"`
@@ -82,9 +82,9 @@ type MediaAsset struct {
 	ContentType       string `json:"content_type" gorm:"type:varchar(128)"`
 	Size              int64  `json:"size" gorm:"bigint"`
 	SHA256            string `json:"sha256" gorm:"type:char(64);index"`
-	Status            string `json:"status" gorm:"type:varchar(32);index:idx_media_assets_owner_status,priority:2"`
+	Status            string `json:"status" gorm:"type:varchar(32);index:idx_media_assets_owner_status,priority:2;index:idx_media_assets_group_status,priority:2;index:idx_media_assets_status_created,priority:1"`
 	UnavailableReason string `json:"unavailable_reason,omitempty" gorm:"type:varchar(32)"`
-	CreatedAt         int64  `json:"created_at" gorm:"bigint;index"`
+	CreatedAt         int64  `json:"created_at" gorm:"bigint;index;index:idx_media_assets_status_created,priority:2"`
 	UpdatedAt         int64  `json:"updated_at" gorm:"bigint"`
 }
 
