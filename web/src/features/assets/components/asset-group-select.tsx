@@ -17,79 +17,33 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { ChevronsUpDown } from 'lucide-react'
-import { useDeferredValue, useState } from 'react'
+import { Folder, LayoutGrid } from 'lucide-react'
+import { useDeferredValue, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { Separator } from '@/components/ui/separator'
 
 import { listAssetGroupsPage } from '../api'
 import { assertAssetSuccess, assetErrorMessage } from '../asset-utils'
 import type { AssetGroup } from '../types'
+import { AssetPicker, AssetPickerTile } from './asset-picker'
 
 const GROUP_PAGE_SIZE = 20
 
 type AssetGroupSelectProps = {
   value: string
   selectedGroup?: AssetGroup
+  /** Shown when the value is known but its group details are not loaded. */
+  selectedLabel?: string
   isAdmin: boolean
+  /** Limits the list to one user's groups. */
   ownerUserId?: number
   selectOnly?: boolean
   disabled?: boolean
+  triggerClassName?: string
   onValueChange: (value: string, group?: AssetGroup) => void
 }
 
-function AssetGroupOptionLabel(props: {
-  group: AssetGroup
-  isAdmin: boolean
-  selected?: boolean
-}) {
-  const { t } = useTranslation()
-  const creator = props.group.owner_name || `#${props.group.owner_user_id}`
-  const metadata = props.isAdmin
-    ? `${t('ID')}: ${props.group.id} · ${t('Creator')}: ${creator}`
-    : `${t('ID')}: ${props.group.id}`
-
-  return (
-    <span className='flex w-full min-w-0 flex-1 flex-col items-start text-left leading-tight'>
-      <span
-        className='block w-full truncate font-medium'
-        data-testid={props.selected ? 'selected-asset-group-name' : undefined}
-      >
-        {props.group.name}
-      </span>
-      <span
-        aria-label={metadata}
-        className='text-muted-foreground mt-0.5 flex w-full min-w-0 items-baseline gap-1 overflow-hidden text-[11px] leading-4 whitespace-nowrap'
-        data-testid={
-          props.selected ? 'selected-asset-group-metadata' : undefined
-        }
-        title={metadata}
-      >
-        <span className='shrink-0'>{t('ID')}: </span>
-        <span
-          className='min-w-0 truncate font-mono'
-          data-testid={props.selected ? 'selected-asset-group-id' : undefined}
-        >
-          {props.group.id}
-        </span>
-        {props.isAdmin && (
-          <>
-            <span className='shrink-0'> · </span>
-            <span className='shrink-0'>{t('Creator')}: </span>
-            <span className='max-w-[35%] shrink-0 truncate'>{creator}</span>
-          </>
-        )}
-      </span>
-    </span>
-  )
+function groupCreator(group: AssetGroup) {
+  return group.owner_name || `#${group.owner_user_id}`
 }
 
 export function AssetGroupSelect(props: AssetGroupSelectProps) {
@@ -99,6 +53,13 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
   const [page, setPage] = useState(1)
   const deferredSearch = useDeferredValue(search.trim())
   const searchPending = search.trim() !== deferredSearch
+  const showCreator = props.isAdmin && !props.ownerUserId
+
+  useEffect(() => {
+    setPage(1)
+    setSearch('')
+  }, [props.ownerUserId])
+
   const groupsQuery = useQuery({
     queryKey: [
       'asset-library',
@@ -125,144 +86,117 @@ export function AssetGroupSelect(props: AssetGroupSelectProps) {
     1,
     Math.ceil((groupsQuery.data?.total ?? 0) / GROUP_PAGE_SIZE)
   )
+  const selectedLabel = props.selectedGroup?.name || props.selectedLabel
+  const isSelected = (group: AssetGroup) =>
+    props.selectedGroup
+      ? props.selectedGroup.id === group.id &&
+        props.selectedGroup.owner_user_id === group.owner_user_id
+      : props.value === group.id
+  const placeholder = props.selectOnly
+    ? t('Select asset groups')
+    : t('All groups')
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type='button'
-            disabled={props.disabled}
-            variant='outline'
-            role='combobox'
-            aria-label={t('Asset group')}
-            aria-expanded={open}
-            className='min-h-12 w-full justify-between gap-2 px-3 py-2'
-          />
-        }
-      >
-        {props.value && props.selectedGroup ? (
-          <AssetGroupOptionLabel
-            group={props.selectedGroup}
-            isAdmin={props.isAdmin}
-            selected
-          />
-        ) : (
-          <span className='truncate'>
-            {props.selectOnly ? t('Select asset groups') : t('All groups')}
+  const trigger =
+    props.value && selectedLabel ? (
+      <span className='flex min-w-0 flex-1 items-center gap-2 text-left'>
+        <AssetPickerTile size='sm'>
+          <Folder className='size-3.5' strokeWidth={1.75} />
+        </AssetPickerTile>
+        <span
+          className='min-w-0 truncate font-medium'
+          data-testid='selected-asset-group-name'
+          title={`${t('ID')}: ${props.value}`}
+        >
+          {selectedLabel}
+        </span>
+        {showCreator && props.selectedGroup && (
+          <span
+            className='bg-muted text-muted-foreground max-w-[40%] shrink-0 truncate rounded px-1.5 text-[11px]'
+            data-testid='selected-asset-group-creator'
+          >
+            {groupCreator(props.selectedGroup)}
           </span>
         )}
-        <ChevronsUpDown
-          className='size-4 shrink-0 opacity-50'
-          aria-hidden='true'
-        />
-      </PopoverTrigger>
-      <PopoverContent
-        align='start'
-        className='w-[var(--anchor-width)] min-w-80 gap-2 p-2'
-      >
-        <Input
-          autoFocus
-          aria-label={t('Search groups...')}
-          placeholder={t('Search groups...')}
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value)
-            setPage(1)
-          }}
-        />
-        <div
-          role='listbox'
-          aria-label={t('Asset group')}
-          className='max-h-72 space-y-0.5 overflow-y-auto'
-        >
-          {!props.selectOnly && (
-            <button
-              type='button'
-              role='option'
-              aria-selected={!props.value}
-              className='hover:bg-accent w-full rounded-md px-2 py-2 text-left text-sm'
-              onClick={() => {
-                props.onValueChange('')
-                setOpen(false)
-              }}
-            >
-              {t('All groups')}
-            </button>
-          )}
-          {(groupsQuery.isLoading || searchPending) && (
-            <p className='text-muted-foreground px-2 py-3 text-sm'>
-              {t('Loading...')}
-            </p>
-          )}
-          {groupsQuery.isError && (
-            <p role='alert' className='text-destructive px-2 py-3 text-sm'>
-              {assetErrorMessage(groupsQuery.error)}
-            </p>
-          )}
-          {!groupsQuery.isLoading &&
-            !searchPending &&
-            !groupsQuery.isError &&
-            groups.length === 0 && (
-              <p className='text-muted-foreground px-2 py-3 text-sm'>
-                {t('No groups match your search')}
-              </p>
-            )}
-          {!searchPending &&
-            groups.map((group) => (
-              <button
-                key={`${group.owner_user_id}:${group.id}`}
-                type='button'
-                role='option'
-                aria-selected={
-                  props.selectedGroup
-                    ? props.selectedGroup.id === group.id &&
-                      props.selectedGroup.owner_user_id === group.owner_user_id
-                    : props.value === group.id
-                }
-                aria-label={`${group.name} · ${t('ID')}: ${group.id}${props.isAdmin ? ` · ${t('Creator')}: ${group.owner_name || `#${group.owner_user_id}`}` : ''}`}
-                className='hover:bg-accent w-full rounded-md px-2 py-2'
-                onClick={() => {
-                  props.onValueChange(group.id, group)
-                  setOpen(false)
-                }}
-              >
-                <AssetGroupOptionLabel group={group} isAdmin={props.isAdmin} />
-              </button>
-            ))}
-        </div>
-        {totalPages > 1 && (
-          <>
-            <Separator />
-            <div className='flex items-center justify-between pt-1'>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                disabled={page <= 1 || groupsQuery.isFetching}
-                onClick={() => setPage((current) => current - 1)}
-              >
-                {t('Previous')}
-              </Button>
-              <span
-                className='text-muted-foreground text-xs tabular-nums'
-                aria-live='polite'
-              >
-                {t('Page {{page}} of {{total}}', { page, total: totalPages })}
-              </span>
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                disabled={page >= totalPages || groupsQuery.isFetching}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                {t('Next')}
-              </Button>
-            </div>
-          </>
-        )}
-      </PopoverContent>
-    </Popover>
+      </span>
+    ) : (
+      <span className='flex min-w-0 flex-1 items-center gap-2 text-left'>
+        <AssetPickerTile size='sm' tone='muted'>
+          <Folder className='size-3.5' strokeWidth={1.75} />
+        </AssetPickerTile>
+        <span className='truncate'>{placeholder}</span>
+      </span>
+    )
+
+  return (
+    <AssetPicker
+      label={t('Asset group')}
+      open={open}
+      onOpenChange={setOpen}
+      disabled={props.disabled}
+      triggerClassName={props.triggerClassName}
+      trigger={trigger}
+      searchLabel={t('Search groups...')}
+      search={search}
+      onSearchChange={(value) => {
+        setSearch(value)
+        setPage(1)
+      }}
+      allOption={
+        props.selectOnly
+          ? undefined
+          : {
+              label: t('All groups'),
+              icon: (
+                <AssetPickerTile tone='muted'>
+                  <LayoutGrid className='size-4' strokeWidth={1.75} />
+                </AssetPickerTile>
+              ),
+              selected: !props.value,
+              onSelect: () => props.onValueChange(''),
+            }
+      }
+      options={
+        searchPending
+          ? []
+          : groups.map((group) => {
+              const creator = groupCreator(group)
+              return {
+                key: `${group.owner_user_id}:${group.id}`,
+                label: group.name,
+                accessibleName: `${group.name} · ${t('ID')}: ${group.id}${showCreator ? ` · ${t('Creator')}: ${creator}` : ''}`,
+                description: (
+                  <>
+                    {showCreator && (
+                      <span className='text-foreground/80'>{creator} · </span>
+                    )}
+                    <span className='font-mono'>{group.id}</span>
+                  </>
+                ),
+                badge:
+                  group.asset_count === undefined ? undefined : (
+                    <span className='bg-muted text-muted-foreground shrink-0 rounded-full px-1.5 text-[11px] tabular-nums'>
+                      {group.asset_count}
+                    </span>
+                  ),
+                icon: (
+                  <AssetPickerTile>
+                    <Folder className='size-4' strokeWidth={1.75} />
+                  </AssetPickerTile>
+                ),
+                selected: isSelected(group),
+                onSelect: () => props.onValueChange(group.id, group),
+              }
+            })
+      }
+      loading={groupsQuery.isLoading || searchPending}
+      error={
+        groupsQuery.isError ? assetErrorMessage(groupsQuery.error) : undefined
+      }
+      emptyLabel={t('No groups match your search')}
+      page={page}
+      totalPages={totalPages}
+      paging={groupsQuery.isFetching}
+      onPageChange={setPage}
+    />
   )
 }

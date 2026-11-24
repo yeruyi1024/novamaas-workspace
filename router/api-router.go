@@ -342,7 +342,11 @@ func SetApiRouter(router *gin.Engine) {
 			assetLibraryRoute.PUT("/groups/:id", controller.UpdateAssetGroup)
 			assetLibraryRoute.DELETE("/groups/:id", controller.DeleteAssetGroup)
 			assetLibraryRoute.GET("/assets", controller.ListMediaAssets)
+			assetLibraryRoute.GET("/assets/summary", controller.SummarizeMediaAssets)
 			assetLibraryRoute.POST("/assets", controller.UploadMediaAsset)
+			assetLibraryRoute.POST("/assets/previews", controller.PreviewMediaAssets)
+			assetLibraryRoute.POST("/assets/batch-delete", controller.BatchDeleteMediaAssets)
+			assetLibraryRoute.POST("/assets/batch-delete-by-filter", controller.BatchDeleteMediaAssetsByFilter)
 			assetLibraryRoute.GET("/assets/:id/preview", controller.GetMediaAssetPreview)
 			assetLibraryRoute.DELETE("/assets/:id", controller.DeleteMediaAsset)
 		}
@@ -372,10 +376,11 @@ func SetApiRouter(router *gin.Engine) {
 		assetCopyRoute := apiRouter.Group("/asset-library/admin")
 		assetCopyRoute.Use(middleware.AdminAuth(), middleware.DisableCache())
 		{
-			assetCopyRoute.POST("/copies", middleware.CriticalRateLimit(), controller.CopyAssetGroups)
+			assetCopyRoute.POST("/copies", middleware.UserCriticalRateLimit("asset-copy"), controller.CopyAssetGroups)
 			assetCopyRoute.GET("/copies/:id", controller.GetAssetCopy)
-			assetCopyRoute.POST("/copies/:id/delete-sources", middleware.CriticalRateLimit(), controller.DeleteAssetCopySources)
-			assetCopyRoute.POST("/users/:id/purge", middleware.CriticalRateLimit(), controller.PurgeUserAssets)
+			assetCopyRoute.POST("/copies/:id/delete-sources", middleware.UserCriticalRateLimit("asset-copy"), controller.DeleteAssetCopySources)
+			assetCopyRoute.POST("/users/:id/purge", middleware.UserCriticalRateLimit("asset-purge"), controller.PurgeUserAssets)
+			assetCopyRoute.GET("/owners", controller.ListAssetOwners)
 		}
 		assetLibraryAdminRoute := apiRouter.Group("/asset-library/admin")
 		assetLibraryAdminRoute.Use(middleware.RootAuth(), middleware.DisableCache())

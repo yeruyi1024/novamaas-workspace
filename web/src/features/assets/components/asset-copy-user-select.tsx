@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown, UserRound } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -36,9 +36,11 @@ import {
 } from '@/components/ui/popover'
 import { searchUsers } from '@/features/users/api'
 import type { User } from '@/features/users/types'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { assetErrorMessage } from '../asset-utils'
+import { AssetPickerTile } from './asset-picker'
 
 const PAGE_SIZE = 20
 
@@ -95,20 +97,32 @@ export function AssetCopyUserSelect(props: {
             aria-label={props.label}
             aria-expanded={open}
             disabled={props.disabled}
-            className='h-auto min-h-12 w-full justify-between gap-2 px-3 py-2 text-left'
+            className='border-border/80 bg-background/80 hover:border-primary/40 hover:bg-background h-auto min-h-12 w-full justify-between gap-2.5 rounded-xl px-3 py-2 text-left transition-colors'
           />
         }
       >
-        <span className='min-w-0 flex-1'>
-          <span className='block truncate'>
-            {props.value?.username || t('Select a user')}
-          </span>
-          {props.value && (
-            <span className='text-muted-foreground block truncate text-xs'>
-              {props.value.display_name && `${props.value.display_name} · `}
-              {t('ID')}: {props.value.id}
+        <span className='flex min-w-0 flex-1 items-center gap-2.5'>
+          <AssetPickerTile size='sm' tone={props.value ? 'primary' : 'muted'}>
+            <UserRound className='size-3.5' strokeWidth={1.75} />
+          </AssetPickerTile>
+          <span className='min-w-0 flex-1'>
+            <span
+              className={cn(
+                'block truncate text-sm',
+                props.value
+                  ? 'text-foreground font-medium'
+                  : 'text-muted-foreground font-normal'
+              )}
+            >
+              {props.value?.username || t('Select a user')}
             </span>
-          )}
+            {props.value && (
+              <span className='text-muted-foreground block truncate text-[11px] tabular-nums'>
+                {props.value.display_name && `${props.value.display_name} · `}
+                {t('ID')}: {props.value.id}
+              </span>
+            )}
+          </span>
         </span>
         <ChevronsUpDown
           className='size-4 shrink-0 opacity-50'
@@ -117,7 +131,7 @@ export function AssetCopyUserSelect(props: {
       </PopoverTrigger>
       <PopoverContent
         align='start'
-        className='w-[var(--anchor-width)] max-w-[calc(100vw-2rem)] min-w-64 p-1'
+        className='border-border/80 w-[var(--anchor-width)] max-w-[calc(100vw-2rem)] min-w-72 rounded-xl p-1.5 shadow-xl'
       >
         <Command shouldFilter={false} label={t('Search users by name or ID')}>
           <CommandInput
@@ -126,7 +140,7 @@ export function AssetCopyUserSelect(props: {
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList label={props.label}>
+          <CommandList label={props.label} className='max-h-64 p-1'>
             {loading && (
               <p role='status' className='text-muted-foreground p-3 text-sm'>
                 {t('Loading...')}
@@ -143,28 +157,54 @@ export function AssetCopyUserSelect(props: {
               </p>
             )}
             {!loading && !users.isError && (
-              <CommandGroup>
-                {items.map((user) => (
-                  <CommandItem
-                    key={user.id}
-                    value={String(user.id)}
-                    aria-label={`${user.username} · ${user.display_name} · ${t('ID')}: ${user.id}`}
-                    disabled={user.id === props.excludeUserId || props.disabled}
-                    onSelect={() => {
-                      if (user.id !== props.value?.id) props.onValueChange(user)
-                      setOpen(false)
-                      setSearch('')
-                    }}
-                  >
-                    <span className='min-w-0 flex-1'>
-                      <span className='block truncate'>{user.username}</span>
-                      <span className='text-muted-foreground block truncate text-xs'>
-                        {user.display_name && `${user.display_name} · `}
-                        {t('ID')}: {user.id}
+              <CommandGroup className='p-0'>
+                {items.map((user) => {
+                  const selected = user.id === props.value?.id
+                  return (
+                    <CommandItem
+                      key={user.id}
+                      value={String(user.id)}
+                      aria-label={`${user.username} · ${user.display_name} · ${t('ID')}: ${user.id}`}
+                      disabled={
+                        user.id === props.excludeUserId || props.disabled
+                      }
+                      className={cn(
+                        'flex items-center gap-2.5 rounded-lg px-2.5 py-2',
+                        selected && 'bg-accent/70'
+                      )}
+                      onSelect={() => {
+                        if (user.id !== props.value?.id) {
+                          props.onValueChange(user)
+                        }
+                        setOpen(false)
+                        setSearch('')
+                      }}
+                    >
+                      <AssetPickerTile
+                        size='sm'
+                        tone={selected ? 'primary' : 'muted'}
+                      >
+                        <UserRound className='size-3.5' strokeWidth={1.75} />
+                      </AssetPickerTile>
+                      <span className='min-w-0 flex-1'>
+                        <span className='block truncate text-sm font-medium'>
+                          {user.username}
+                        </span>
+                        <span className='text-muted-foreground block truncate text-[11px] tabular-nums'>
+                          {user.display_name && `${user.display_name} · `}
+                          {t('ID')}: {user.id}
+                        </span>
                       </span>
-                    </span>
-                  </CommandItem>
-                ))}
+                      <Check
+                        aria-hidden='true'
+                        className={cn(
+                          'text-primary size-4 shrink-0',
+                          !selected && 'invisible'
+                        )}
+                      />
+                    </CommandItem>
+                  )
+                })}
               </CommandGroup>
             )}
           </CommandList>

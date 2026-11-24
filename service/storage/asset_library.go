@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -25,6 +26,9 @@ func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID strin
 		return nil, &RequestError{StatusCode: 503, Err: fmt.Errorf("asset library storage is unavailable: %w", err)}
 	}
 	contentType = strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
+	if contentType == "audio/wave" {
+		contentType = "audio/wav"
+	}
 	if !policyAllowsMIMEType(policy, contentType) {
 		return nil, &RequestError{StatusCode: 400, Err: fmt.Errorf("asset MIME type %s is not allowed", contentType)}
 	}
@@ -88,10 +92,171 @@ func UploadAssetObject(ctx context.Context, ownerUserID int, groupPublicID strin
 type AssetObjectURLMode string
 
 const (
-	AssetObjectURLOriginal  AssetObjectURLMode = "original"
-	AssetObjectURLThumbnail AssetObjectURLMode = "thumbnail"
-	AssetObjectURLDownload  AssetObjectURLMode = "download"
+	AssetObjectURLOriginal    AssetObjectURLMode = "original"
+	AssetObjectURLThumbnail   AssetObjectURLMode = "thumbnail"
+	AssetObjectURLVideoPoster AssetObjectURLMode = "video_poster"
+	AssetObjectURLDownload    AssetObjectURLMode = "download"
+
+	assetThumbnailCacheControl = "private, max-age=1800, immutable"
+	maxThumbnailCacheWindowSec = 1800
+	maxCachedThumbnailURLs     = 10000
 )
+
+type PresignedThumbnail struct {
+	URL       string
+	PosterURL string
+	ExpiresAt int64
+}
+
+type signedThumbnailCacheKey struct {
+	endpoint         string
+	bucket           string
+	objectKey        string
+	credentialID     int64
+	credentialVer    int
+	credentialDigest [32]byte
+	encryptionDigest [32]byte
+	mode             AssetObjectURLMode
+	process          string
+	cacheControl     string
+}
+
+type signedThumbnailCacheEntry struct {
+	url          string
+	expiresAt    int64
+	refreshAfter int64
+}
+
+type assetDriverIdentity struct {
+	provider         string
+	profileID        int
+	endpoint         string
+	region           string
+	bucket           string
+	credentialID     int64
+	credentialVer    int
+	credentialDigest [32]byte
+	encryptionDigest [32]byte
+}
+
+const maxCachedAssetDrivers = 64
+
+var (
+	thumbnailCacheMu sync.RWMutex
+	thumbnailCache   = make(map[signedThumbnailCacheKey]signedThumbnailCacheEntry)
+
+	assetDriverCacheMu sync.RWMutex
+	assetDriverCache   = make(map[assetDriverIdentity]ObjectDriver)
+)
+
+func assetEncryptionDigest(credential *model.StorageCredential) ([32]byte, error) {
+	if credential.AuthType != model.StorageCredentialAuthStatic {
+		return [32]byte{}, nil
+	}
+	key, err := storageCredentialEncryptionKey()
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return sha256.Sum256(key), nil
+}
+
+func cachedAssetDriver(profile *model.StorageProfile, credential *model.StorageCredential) (ObjectDriver, error) {
+	if credential.AuthType != model.StorageCredentialAuthStatic {
+		return driverForProfile(profile, credential)
+	}
+	encDigest, err := assetEncryptionDigest(credential)
+	if err != nil {
+		return nil, err
+	}
+	id := assetDriverIdentity{
+		provider:         profile.ProviderType,
+		profileID:        profile.ID,
+		endpoint:         profile.Endpoint,
+		region:           profile.Region,
+		bucket:           profile.Bucket,
+		credentialID:     credential.ID,
+		credentialVer:    credential.Version,
+		credentialDigest: sha256.Sum256([]byte(credential.EncryptedPayload)),
+		encryptionDigest: encDigest,
+	}
+	assetDriverCacheMu.RLock()
+	cached, ok := assetDriverCache[id]
+	assetDriverCacheMu.RUnlock()
+	if ok {
+		return cached, nil
+	}
+	driver, err := driverForProfile(profile, credential)
+	if err != nil {
+		return nil, err
+	}
+	assetDriverCacheMu.Lock()
+	if len(assetDriverCache) >= maxCachedAssetDrivers {
+		assetDriverCache = make(map[assetDriverIdentity]ObjectDriver)
+	}
+	assetDriverCache[id] = driver
+	assetDriverCacheMu.Unlock()
+	return driver, nil
+}
+
+func presignAssetCached(ctx context.Context, driver ObjectDriver, profile *model.StorageProfile, credential *model.StorageCredential, object *model.StorageObject, ttl time.Duration, mode AssetObjectURLMode, options ObjectGetOptions) (string, int64, error) {
+	now := common.GetTimestamp()
+	ttlSec := int64(ttl / time.Second)
+	if ttlSec <= 0 {
+		ttlSec = 3600
+		ttl = time.Hour
+	}
+	cacheable := (mode == AssetObjectURLThumbnail || mode == AssetObjectURLVideoPoster) &&
+		credential.AuthType == model.StorageCredentialAuthStatic
+	var key signedThumbnailCacheKey
+	if cacheable {
+		encDigest, err := assetEncryptionDigest(credential)
+		if err != nil {
+			return "", 0, err
+		}
+		key = signedThumbnailCacheKey{
+			endpoint:         profile.Endpoint,
+			bucket:           profile.Bucket,
+			objectKey:        object.ObjectKey,
+			credentialID:     credential.ID,
+			credentialVer:    credential.Version,
+			credentialDigest: sha256.Sum256([]byte(credential.EncryptedPayload)),
+			encryptionDigest: encDigest,
+			mode:             mode,
+			process:          options.Process,
+			cacheControl:     options.ResponseCacheControl,
+		}
+		thumbnailCacheMu.RLock()
+		entry, ok := thumbnailCache[key]
+		thumbnailCacheMu.RUnlock()
+		if ok && now < entry.refreshAfter && now < entry.expiresAt {
+			return entry.url, entry.expiresAt, nil
+		}
+	}
+	signed, err := driver.PresignGet(ctx, object.ObjectKey, ttl, options)
+	if err != nil {
+		return "", 0, err
+	}
+	expiresAt := now + ttlSec
+	if cacheable {
+		window := ttlSec / 2
+		if window > maxThumbnailCacheWindowSec {
+			window = maxThumbnailCacheWindowSec
+		}
+		if window > 0 {
+			thumbnailCacheMu.Lock()
+			if len(thumbnailCache) >= maxCachedThumbnailURLs {
+				thumbnailCache = make(map[signedThumbnailCacheKey]signedThumbnailCacheEntry)
+			}
+			thumbnailCache[key] = signedThumbnailCacheEntry{
+				url:          signed,
+				expiresAt:    expiresAt,
+				refreshAfter: now + window,
+			}
+			thumbnailCacheMu.Unlock()
+		}
+	}
+	return signed, expiresAt, nil
+}
 
 func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, mode AssetObjectURLMode, downloadName string) (string, error) {
 	var object model.StorageObject
@@ -106,7 +271,7 @@ func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, 
 	if err != nil || credential == nil {
 		return "", fmt.Errorf("asset storage credential is unavailable")
 	}
-	driver, err := driverForProfile(profile, credential)
+	driver, err := cachedAssetDriver(profile, credential)
 	if err != nil {
 		return "", err
 	}
@@ -117,19 +282,112 @@ func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, 
 		}
 		ttl = policySignedURLTTL(policy)
 	}
+	options, err := assetObjectGetOptions(&object, mode, downloadName)
+	if err != nil {
+		return "", err
+	}
+	signed, _, err := presignAssetCached(ctx, driver, profile, credential, &object, ttl, mode, options)
+	return signed, err
+}
+
+// PresignAssetThumbnailsWithExpiry signs thumbnail (and video poster) URLs for
+// many asset objects with one object query, cached drivers, and process-local
+// deterministic URL caching so browsers hit disk cache across reloads/filters.
+func PresignAssetThumbnailsWithExpiry(ctx context.Context, objectIDs []int64, ttl time.Duration) (map[int64]PresignedThumbnail, error) {
+	results := make(map[int64]PresignedThumbnail, len(objectIDs))
+	if len(objectIDs) == 0 {
+		return results, nil
+	}
+	if ttl <= 0 {
+		policy, policyErr := model.GetStoragePolicyByKey(model.StoragePolicyAssetLibrary)
+		if policyErr != nil || policy == nil {
+			return nil, fmt.Errorf("asset storage policy is unavailable")
+		}
+		ttl = policySignedURLTTL(policy)
+	}
+	var objects []model.StorageObject
+	if err := model.DB.Where("id IN ? AND purpose = ? AND status = ?", objectIDs, model.StorageObjectPurposeAssetLibrary, model.StorageObjectStatusUploaded).
+		Find(&objects).Error; err != nil {
+		return nil, err
+	}
+	type profileBundle struct {
+		profile    *model.StorageProfile
+		credential *model.StorageCredential
+		driver     ObjectDriver
+	}
+	bundles := make(map[int]profileBundle)
+	failedProfiles := make(map[int]bool)
+	for index := range objects {
+		object := &objects[index]
+		if failedProfiles[object.StorageProfileID] {
+			continue
+		}
+		bundle, ok := bundles[object.StorageProfileID]
+		if !ok {
+			profile, err := model.GetStorageProfileByID(object.StorageProfileID)
+			if err != nil || profile == nil {
+				failedProfiles[object.StorageProfileID] = true
+				common.SysError(fmt.Sprintf("asset thumbnail skipped: storage profile %d unavailable", object.StorageProfileID))
+				continue
+			}
+			credential, err := model.GetActiveStorageCredential(profile.ID)
+			if err != nil || credential == nil {
+				failedProfiles[object.StorageProfileID] = true
+				common.SysError(fmt.Sprintf("asset thumbnail skipped: storage credential for profile %d unavailable", profile.ID))
+				continue
+			}
+			driver, err := cachedAssetDriver(profile, credential)
+			if err != nil {
+				failedProfiles[object.StorageProfileID] = true
+				common.SysError(fmt.Sprintf("asset thumbnail skipped: storage driver for profile %d failed: %v", profile.ID, err))
+				continue
+			}
+			bundle = profileBundle{profile: profile, credential: credential, driver: driver}
+			bundles[object.StorageProfileID] = bundle
+		}
+		options, err := assetObjectGetOptions(object, AssetObjectURLThumbnail, "")
+		if err != nil {
+			continue
+		}
+		signed, expiresAt, err := presignAssetCached(ctx, bundle.driver, bundle.profile, bundle.credential, object, ttl, AssetObjectURLThumbnail, options)
+		if err != nil {
+			common.SysError(fmt.Sprintf("asset thumbnail presign skipped for object %d: %v", object.ID, err))
+			continue
+		}
+		item := PresignedThumbnail{URL: signed, ExpiresAt: expiresAt}
+		if strings.HasPrefix(object.ContentType, "video/") {
+			posterOpts, err := assetObjectGetOptions(object, AssetObjectURLVideoPoster, "")
+			if err == nil && posterOpts.Process != "" {
+				if posterURL, posterExp, posterErr := presignAssetCached(ctx, bundle.driver, bundle.profile, bundle.credential, object, ttl, AssetObjectURLVideoPoster, posterOpts); posterErr == nil {
+					item.PosterURL = posterURL
+					if posterExp < item.ExpiresAt {
+						item.ExpiresAt = posterExp
+					}
+				}
+			}
+		}
+		results[object.ID] = item
+	}
+	return results, nil
+}
+
+func assetObjectGetOptions(object *model.StorageObject, mode AssetObjectURLMode, downloadName string) (ObjectGetOptions, error) {
 	options := ObjectGetOptions{}
 	switch mode {
 	case AssetObjectURLOriginal:
 	case AssetObjectURLThumbnail:
+		options.ResponseCacheControl = assetThumbnailCacheControl
 		if strings.HasPrefix(object.ContentType, "image/") {
-			options.Process = "image/resize,m_lfit,w_640,h_360"
-			if object.ContentType == "image/jpeg" || object.ContentType == "image/webp" {
-				options.Process += "/quality,q_80"
-			}
+			options.Process = "image/resize,m_lfit,w_512,h_384/auto-orient,1/format,webp/quality,q_75"
+		}
+	case AssetObjectURLVideoPoster:
+		options.ResponseCacheControl = assetThumbnailCacheControl
+		if strings.HasPrefix(object.ContentType, "video/") {
+			options.Process = "video/snapshot,t_100,f_jpg,w_512,h_384,m_fast"
 		}
 	case AssetObjectURLDownload:
 		if downloadName == "" || strings.ContainsAny(downloadName, "\"\\\r\n/") {
-			return "", errors.New("invalid asset download name")
+			return options, errors.New("invalid asset download name")
 		}
 		extension := assetExtension(object.ContentType)
 		if extension == "" {
@@ -137,9 +395,9 @@ func PresignAssetObject(ctx context.Context, objectID int64, ttl time.Duration, 
 		}
 		options.ResponseContentDisposition = fmt.Sprintf("attachment; filename=\"%s.%s\"", downloadName, extension)
 	default:
-		return "", errors.New("invalid asset object URL mode")
+		return options, errors.New("invalid asset object URL mode")
 	}
-	return driver.PresignGet(ctx, object.ObjectKey, ttl, options)
+	return options, nil
 }
 
 func DeleteAssetObject(objectID int64, reason string) error {

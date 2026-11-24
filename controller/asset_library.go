@@ -26,14 +26,18 @@ func ListAssetGroups(c *gin.Context) {
 	if requestedOwner, _ := strconv.Atoi(c.Query("owner_user_id")); includeAll && requestedOwner > 0 {
 		ownerID, includeAll = requestedOwner, false
 	}
-	if c.Query("p") != "" || c.Query("page_size") != "" || c.Query("search") != "" {
+	if c.Query("p") != "" || c.Query("page_size") != "" || c.Query("search") != "" || c.Query("group_id") != "" {
 		pageInfo := common.GetPageQuery(c)
-		groups, err := assetService.ListGroupsPage(assetService.GroupListInput{
+		input := assetService.GroupListInput{
 			OwnerUserID:      ownerID,
 			IncludeAllOwners: includeAll,
 			Search:           c.Query("search"), Page: pageInfo.GetPage(), PageSize: pageInfo.GetPageSize(),
 			SortBy: "Name", SortOrder: "Asc",
-		})
+		}
+		if groupID := strings.TrimSpace(c.Query("group_id")); groupID != "" {
+			input.GroupIDs = []string{groupID}
+		}
+		groups, err := assetService.ListGroupsPage(input)
 		if err != nil {
 			assetLibraryError(c, err)
 			return
@@ -47,10 +51,20 @@ func ListAssetGroups(c *gin.Context) {
 			assetLibraryError(c, err)
 			return
 		}
+		groupIDs := make([]int64, 0, len(groups.Items))
+		for _, group := range groups.Items {
+			groupIDs = append(groupIDs, group.ID)
+		}
+		assetCounts, err := assetService.CountGroupAssets(groupIDs)
+		if err != nil {
+			assetLibraryError(c, err)
+			return
+		}
 		items := make([]assetService.GroupView, 0, len(groups.Items))
 		for _, group := range groups.Items {
+			assetCount := assetCounts[group.ID]
 			items = append(items, assetService.GroupView{
-				ID: group.PublicID, OwnerUserID: group.OwnerUserID, OwnerName: ownerNames[group.OwnerUserID],
+				ID: group.PublicID, OwnerUserID: group.OwnerUserID, OwnerName: ownerNames[group.OwnerUserID], AssetCount: &assetCount,
 				Name: group.Name, Description: group.Description, Status: group.Status,
 				CreatedAt: group.CreatedAt, UpdatedAt: group.UpdatedAt,
 			})
@@ -99,31 +113,213 @@ func UpdateAssetGroup(c *gin.Context) {
 
 func DeleteAssetGroup(c *gin.Context) {
 	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
-	err := assetService.DeleteGroup(c.Param("id"), c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser, targetOwner)
+	isAdmin := c.GetInt("role") >= common.RoleAdminUser
+	if c.Query("with_assets") != "true" {
+		if err := assetService.DeleteGroup(c.Param("id"), c.GetInt("id"), isAdmin, targetOwner); err != nil {
+			assetLibraryError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true})
+		return
+	}
+	result, err := assetService.DeleteGroupWithAssets(c.Param("id"), c.GetInt("id"), isAdmin, targetOwner)
+	if isAdmin && result != nil && result.DeletedAssetCount > 0 {
+		recordManageAudit(c, "asset_library.group_purge", map[string]interface{}{
+			"group_id": c.Param("id"), "owner_user_id": result.OwnerUserID,
+			"deleted_asset_count": result.DeletedAssetCount, "deleted_group_count": result.DeletedGroupCount,
+		})
+	}
 	if err != nil {
 		assetLibraryError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 
-func ListMediaAssets(c *gin.Context) {
-	pageInfo := common.GetPageQuery(c)
+// applyAssetTypeAndStatusFilters parses the media type and status filters
+// shared across asset listing, summary counts, and filter-based batch deletion
+// so what the user sees in the gallery always matches the deletion scope.
+func applyAssetTypeAndStatusFilters(input *assetService.AssetListInput, assetTypeRaw string, statusRaw string) error {
+	switch assetType := strings.TrimSpace(assetTypeRaw); assetType {
+	case "":
+	case model.AssetTypeImage, model.AssetTypeVideo, model.AssetTypeAudio:
+		input.AssetTypes = []string{assetType}
+	default:
+		return &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset type filter")}
+	}
+	switch status := strings.TrimSpace(statusRaw); status {
+	case "":
+	case model.AssetStatusReady, model.AssetStatusProcessing:
+		input.Statuses = []string{status}
+	case model.AssetStatusUnavailable:
+		input.Statuses = []string{model.AssetStatusUnavailable, model.AssetStatusSyncFailed}
+	default:
+		return &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset status filter")}
+	}
+	return nil
+}
+
+// assetListInputFromQuery reads the asset list scope and filters shared by
+// the list and summary endpoints.
+func assetListInputFromQuery(c *gin.Context) (assetService.AssetListInput, error) {
 	targetOwner, _ := strconv.Atoi(c.Query("owner_user_id"))
-	assets, err := assetService.ListAssets(assetService.AssetListInput{
+	input := assetService.AssetListInput{
 		OwnerUserID:       c.GetInt("id"),
 		IncludeAllOwners:  c.GetInt("role") >= common.RoleAdminUser && c.Query("scope") == "all",
 		TargetOwnerUserID: targetOwner,
 		GroupPublicID:     strings.TrimSpace(c.Query("group_id")),
 		Search:            strings.TrimSpace(c.Query("search")),
-		Page:              pageInfo.GetPage(),
-		PageSize:          pageInfo.GetPageSize(),
-	})
+	}
+	if err := applyAssetTypeAndStatusFilters(&input, c.Query("type"), c.Query("status")); err != nil {
+		return input, err
+	}
+	switch sortOrder := strings.TrimSpace(c.Query("sort")); sortOrder {
+	case "", "newest":
+	case "oldest":
+		input.SortOrder = "Asc"
+	default:
+		return input, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset sort order")}
+	}
+	return input, nil
+}
+
+func ListMediaAssets(c *gin.Context) {
+	input, err := assetListInputFromQuery(c)
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	pageInfo := common.GetPageQuery(c)
+	input.Context = c.Request.Context()
+	input.Page, input.PageSize = pageInfo.GetPage(), pageInfo.GetPageSize()
+	input.IncludePreviews = c.Query("include_previews") != "false"
+	assets, err := assetService.ListAssets(input)
 	if err != nil {
 		assetLibraryError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": assets})
+}
+
+func SummarizeMediaAssets(c *gin.Context) {
+	input, err := assetListInputFromQuery(c)
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	summary, err := assetService.SummarizeAssets(input)
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": summary})
+}
+
+type assetBatchRequest struct {
+	Items []assetService.AssetRef `json:"items"`
+}
+
+func BatchDeleteMediaAssets(c *gin.Context) {
+	var request assetBatchRequest
+	if err := common.DecodeJson(c.Request.Body, &request); err != nil {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset batch request")})
+		return
+	}
+	isAdmin := c.GetInt("role") >= common.RoleAdminUser
+	deleted, err := assetService.DeleteAssets(request.Items, c.GetInt("id"), isAdmin)
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	if isAdmin {
+		ownerSeen := make(map[int]bool, len(deleted))
+		ownerIDs := make([]int, 0, len(deleted))
+		assetIDs := make([]string, 0, len(deleted))
+		for _, item := range deleted {
+			assetIDs = append(assetIDs, item.ID)
+			if !ownerSeen[item.OwnerUserID] {
+				ownerSeen[item.OwnerUserID] = true
+				ownerIDs = append(ownerIDs, item.OwnerUserID)
+			}
+		}
+		recordManageAudit(c, "asset_library.assets_batch_delete", map[string]interface{}{
+			"deleted_asset_count": len(deleted),
+			"owner_user_ids":      ownerIDs,
+			"asset_ids":           assetIDs,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"deleted_count": len(deleted)}})
+}
+
+type assetFilterDeleteRequest struct {
+	Scope       string                  `json:"scope"`
+	OwnerUserID int                     `json:"owner_user_id"`
+	GroupID     string                  `json:"group_id"`
+	Type        string                  `json:"type"`
+	Status      string                  `json:"status"`
+	Search      string                  `json:"search"`
+	Exclude     []assetService.AssetRef `json:"exclude"`
+}
+
+func BatchDeleteMediaAssetsByFilter(c *gin.Context) {
+	var request assetFilterDeleteRequest
+	if err := common.DecodeJson(c.Request.Body, &request); err != nil {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset batch filter request")})
+		return
+	}
+	isAdmin := c.GetInt("role") >= common.RoleAdminUser
+	input := assetService.AssetListInput{
+		OwnerUserID:       c.GetInt("id"),
+		IncludeAllOwners:  isAdmin && request.Scope == "all",
+		TargetOwnerUserID: request.OwnerUserID,
+		GroupPublicID:     strings.TrimSpace(request.GroupID),
+		Search:            strings.TrimSpace(request.Search),
+	}
+	if err := applyAssetTypeAndStatusFilters(&input, request.Type, request.Status); err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	result, err := assetService.DeleteAssetsByFilter(input, request.Exclude, c.GetInt("id"), isAdmin)
+	if isAdmin && result != nil && result.DeletedCount > 0 {
+		recordManageAudit(c, "asset_library.assets_filter_delete", map[string]interface{}{
+			"deleted_asset_count": result.DeletedCount,
+			"owner_user_ids":      result.OwnerUserIDs,
+			"target_owner_id":     request.OwnerUserID,
+			"group_id":            input.GroupPublicID,
+			"type":                request.Type,
+			"status":              request.Status,
+			"search":              input.Search,
+		})
+	}
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+func ListAssetOwners(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	owners, err := assetService.ListAssetOwners(c.Query("search"), pageInfo.GetPage(), pageInfo.GetPageSize())
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": owners})
+}
+
+func PreviewMediaAssets(c *gin.Context) {
+	var request assetBatchRequest
+	if err := common.DecodeJson(c.Request.Body, &request); err != nil {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset batch request")})
+		return
+	}
+	previews, err := assetService.PreviewThumbnails(c.Request.Context(), request.Items, c.GetInt("id"), c.GetInt("role") >= common.RoleAdminUser)
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": previews})
 }
 
 func UploadMediaAsset(c *gin.Context) {
@@ -163,11 +359,10 @@ func UploadMediaAsset(c *gin.Context) {
 		assetLibraryError(c, err)
 		return
 	}
-	detectedType := strings.ToLower(strings.TrimSpace(strings.SplitN(http.DetectContentType(header[:read]), ";", 2)[0]))
-	declaredType := strings.ToLower(strings.TrimSpace(strings.SplitN(fileHeader.Header.Get("Content-Type"), ";", 2)[0]))
-	if detectedType == "application/octet-stream" && (strings.HasPrefix(declaredType, "image/") || strings.HasPrefix(declaredType, "video/") || strings.HasPrefix(declaredType, "audio/")) {
-		detectedType = declaredType
-	}
+	detectedType := normalizeUploadedAssetContentType(
+		http.DetectContentType(header[:read]),
+		fileHeader.Header.Get("Content-Type"),
+	)
 	asset, err := assetService.CreateAsset(c.Request.Context(), c.GetInt("id"), assetService.AssetInput{
 		GroupPublicID: strings.TrimSpace(c.PostForm("group_id")),
 		Name:          strings.TrimSpace(c.PostForm("name")),
@@ -182,6 +377,36 @@ func UploadMediaAsset(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": asset})
+}
+
+func normalizeUploadedAssetContentType(detectedRaw string, declaredRaw string) string {
+	detected := strings.ToLower(strings.TrimSpace(strings.SplitN(detectedRaw, ";", 2)[0]))
+	declared := strings.ToLower(strings.TrimSpace(strings.SplitN(declaredRaw, ";", 2)[0]))
+	switch declared {
+	case "audio/mp3":
+		declared = "audio/mpeg"
+	case "audio/x-m4a":
+		declared = "audio/mp4"
+	case "audio/wave":
+		declared = "audio/wav"
+	}
+	switch detected {
+	case "audio/wave":
+		return "audio/wav"
+	case "video/mp4":
+		if declared == "audio/mp4" {
+			return "audio/mp4"
+		}
+	case "application/ogg":
+		if declared == "audio/ogg" {
+			return "audio/ogg"
+		}
+	case "application/octet-stream":
+		if strings.HasPrefix(declared, "image/") || strings.HasPrefix(declared, "video/") || strings.HasPrefix(declared, "audio/") {
+			return declared
+		}
+	}
+	return detected
 }
 
 func GetMediaAssetPreview(c *gin.Context) {

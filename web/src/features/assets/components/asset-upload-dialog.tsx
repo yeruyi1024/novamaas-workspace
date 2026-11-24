@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FileUploadIcon } from '@hugeicons/core-free-icons'
+import { Cancel01Icon, FileUploadIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type DragEvent, useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -70,15 +70,26 @@ export function AssetUploadDialog(props: {
   groups: AssetGroup[]
   selectedGroup: string
   initialName?: string
+  initialFiles?: File[]
   replacing?: boolean
-  onSubmit: (formData: FormData) => void
+  /** One form per file, uploaded in order. */
+  onSubmit: (forms: FormData[]) => void
   pending: boolean
   progress: number
+  /** Position of the file being uploaded when several are queued. */
+  queue?: { index: number; total: number }
 }) {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const multiple = files.length > 1
+  const queueState = (index: number) => {
+    if (!props.pending || !props.queue) return 'waiting'
+    if (index < props.queue.index) return 'done'
+    return index === props.queue.index ? 'active' : 'waiting'
+  }
   const schema = z.object({
     group_id: z.string().min(1, t('Select an asset group')),
     name: z.string().trim().max(255),
@@ -100,15 +111,51 @@ export function AssetUploadDialog(props: {
   })
   const selectedFile = form.watch('file')
 
+  const wasOpenRef = useRef(false)
   useEffect(() => {
-    if (!props.open) return
+    if (!props.open) {
+      wasOpenRef.current = false
+      return
+    }
+    const justOpened = !wasOpenRef.current
+    wasOpenRef.current = true
+    if (!justOpened) return
+
+    const initial = props.initialFiles ?? []
+    const dropped = initial.filter((file) => inferAssetType(file) !== null)
+    const first = dropped[0]
+    setFiles(dropped)
     form.reset({
       group_id: props.selectedGroup || props.groups[0]?.id || '',
       name: props.initialName || '',
-      type: 'image',
-      file: undefined,
+      type: (first && inferAssetType(first)) || 'image',
+      file: first,
     })
-  }, [form, props.groups, props.initialName, props.open, props.selectedGroup])
+    if (initial.length > 0 && dropped.length === 0) {
+      form.setError('file', {
+        type: 'validate',
+        message: t('Select an image, video, or audio file'),
+      })
+    }
+  }, [
+    form,
+    props.groups,
+    props.initialFiles,
+    props.initialName,
+    props.open,
+    props.selectedGroup,
+    t,
+  ])
+
+  // Populate the default group once async group options arrive, without
+  // resetting files or inputs the user has already entered.
+  useEffect(() => {
+    if (!props.open || form.getValues('group_id')) return
+    const fallbackGroup = props.selectedGroup || props.groups[0]?.id || ''
+    if (fallbackGroup) {
+      form.setValue('group_id', fallbackGroup)
+    }
+  }, [form, props.groups, props.open, props.selectedGroup])
 
   useEffect(() => {
     if (!selectedFile || !selectedFile.type.startsWith('image/')) {
@@ -120,10 +167,12 @@ export function AssetUploadDialog(props: {
     return () => URL.revokeObjectURL(url)
   }, [selectedFile])
 
-  const selectFile = (file?: File) => {
-    if (!file) return
-    const type = inferAssetType(file)
-    if (!type) {
+  const selectFiles = (picked: Iterable<File>) => {
+    const candidates = props.replacing ? [...picked].slice(0, 1) : [...picked]
+    if (candidates.length === 0) return
+    const accepted = candidates.filter((file) => inferAssetType(file) !== null)
+    const first = accepted[0]
+    if (!first) {
       form.setError('file', {
         type: 'validate',
         message: t('Select an image, video, or audio file'),
@@ -131,23 +180,43 @@ export function AssetUploadDialog(props: {
       return
     }
     form.clearErrors('file')
-    form.setValue('file', file, { shouldDirty: true, shouldValidate: true })
-    form.setValue('type', type, { shouldDirty: true })
+    setFiles(accepted)
+    form.setValue('file', first, { shouldDirty: true, shouldValidate: true })
+    form.setValue('type', inferAssetType(first) ?? 'image', {
+      shouldDirty: true,
+    })
+  }
+
+  const removeFile = (target: File) => {
+    const remaining = files.filter((file) => file !== target)
+    setFiles(remaining)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    const first = remaining[0]
+    if (!first) {
+      form.resetField('file')
+      return
+    }
+    form.setValue('file', first, { shouldValidate: true })
+    form.setValue('type', inferAssetType(first) ?? 'image')
   }
 
   const handleDrop = (event: DragEvent<HTMLButtonElement>) => {
     event.preventDefault()
     setDragging(false)
-    selectFile(event.dataTransfer.files[0])
+    selectFiles(event.dataTransfer.files)
   }
 
   const submit = (values: UploadValues) => {
-    const formData = new FormData()
-    formData.append('group_id', values.group_id)
-    formData.append('name', values.name)
-    formData.append('type', values.type)
-    formData.append('file', values.file)
-    props.onSubmit(formData)
+    const queued = files.length > 0 ? files : [values.file]
+    const forms = queued.map((file) => {
+      const formData = new FormData()
+      formData.append('group_id', values.group_id)
+      formData.append('name', queued.length > 1 ? '' : values.name)
+      formData.append('type', inferAssetType(file) ?? values.type)
+      formData.append('file', file)
+      return formData
+    })
+    props.onSubmit(forms)
   }
 
   return (
@@ -194,22 +263,24 @@ export function AssetUploadDialog(props: {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name='name'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('Name')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t('Uses the file name when empty')}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!multiple && (
+              <FormField
+                control={form.control}
+                name='name'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Name')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t('Uses the file name when empty')}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name='file'
@@ -224,8 +295,9 @@ export function AssetUploadDialog(props: {
                         aria-label={t('File')}
                         className='sr-only'
                         accept='image/*,video/*,audio/*'
+                        multiple={!props.replacing}
                         onChange={(event) =>
-                          selectFile(event.target.files?.[0])
+                          selectFiles(event.target.files ?? [])
                         }
                       />
                       <button
@@ -257,7 +329,9 @@ export function AssetUploadDialog(props: {
                           />
                         )}
                         <span className='font-medium'>
-                          {t('Drop a file here, or click to browse')}
+                          {props.replacing
+                            ? t('Drop a file here, or click to browse')
+                            : t('Drop files here, or click to browse')}
                         </span>
                         <span className='text-muted-foreground text-xs'>
                           {t('Images, videos, and audio files are supported')}
@@ -269,7 +343,7 @@ export function AssetUploadDialog(props: {
                 </FormItem>
               )}
             />
-            {selectedFile && (
+            {selectedFile && !multiple && (
               <div className='bg-muted/40 flex items-center justify-between gap-3 rounded-lg border px-3 py-2'>
                 <div className='min-w-0'>
                   <p className='truncate text-sm font-medium'>
@@ -284,10 +358,63 @@ export function AssetUploadDialog(props: {
                 </Badge>
               </div>
             )}
+            {multiple && (
+              <div className='flex flex-col gap-1.5'>
+                <p className='text-muted-foreground text-xs'>
+                  {t('{{count}} files selected · each uses its file name', {
+                    count: files.length,
+                  })}
+                </p>
+                <ul className='bg-muted/30 max-h-48 divide-y overflow-y-auto rounded-lg border'>
+                  {files.map((file, index) => {
+                    const type = inferAssetType(file) ?? 'image'
+                    const state = queueState(index)
+                    return (
+                      <li
+                        key={`${file.name}-${file.size}-${file.lastModified}`}
+                        className='flex items-center gap-3 px-3 py-2'
+                      >
+                        <div className='min-w-0 flex-1'>
+                          <p className='truncate text-sm font-medium'>
+                            {file.name}
+                          </p>
+                          <p className='text-muted-foreground text-xs'>
+                            {formatAssetBytes(file.size)} ·{' '}
+                            {t(typeLabelKey(type))}
+                          </p>
+                        </div>
+                        {state === 'done' && (
+                          <Badge variant='secondary'>{t('Uploaded')}</Badge>
+                        )}
+                        {state === 'active' && <Spinner />}
+                        {!props.pending && (
+                          <Button
+                            type='button'
+                            size='icon-xs'
+                            variant='ghost'
+                            aria-label={`${t('Remove')} ${file.name}`}
+                            onClick={() => removeFile(file)}
+                          >
+                            <HugeiconsIcon icon={Cancel01Icon} />
+                          </Button>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
             {props.pending && (
               <div className='flex flex-col gap-2' aria-live='polite'>
                 <div className='flex items-center justify-between text-xs'>
-                  <span>{t('Uploading')}</span>
+                  <span>
+                    {props.queue && props.queue.total > 1
+                      ? t('Uploading {{current}} of {{total}}', {
+                          current: props.queue.index + 1,
+                          total: props.queue.total,
+                        })
+                      : t('Uploading')}
+                  </span>
                   <span>{props.progress}%</span>
                 </div>
                 <Progress value={props.progress} />
@@ -304,7 +431,9 @@ export function AssetUploadDialog(props: {
               </Button>
               <Button type='submit' disabled={props.pending || !selectedFile}>
                 {props.pending && <Spinner data-icon='inline-start' />}
-                {t('Upload')}
+                {multiple
+                  ? t('Upload {{count}} files', { count: files.length })
+                  : t('Upload')}
               </Button>
             </DialogFooter>
           </form>

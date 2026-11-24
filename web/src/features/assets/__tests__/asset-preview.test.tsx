@@ -17,7 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -28,9 +34,11 @@ import {
   getMediaAssetPreview,
   listAssetGroupsPage,
   listMediaAssets,
+  previewMediaAssets,
 } from '../api'
 import { AssetLibrary } from '../asset-library'
 import type { MediaAsset } from '../types'
+import { mockAssetPageApis } from './asset-api-fixtures'
 
 vi.mock('../api', () => ({
   createAssetGroup: vi.fn(),
@@ -40,12 +48,18 @@ vi.mock('../api', () => ({
   deleteAssetWebhookEndpoint: vi.fn(),
   deleteAssetGroup: vi.fn(),
   deleteMediaAsset: vi.fn(),
+  deleteMediaAssets: vi.fn(),
+  deleteMediaAssetsByFilter: vi.fn(),
   getMediaAssetPreview: vi.fn(),
   listAssetAccessKeys: vi.fn(),
   listAssetWebhookEndpoints: vi.fn(),
   listAssetGroups: vi.fn(),
   listAssetGroupsPage: vi.fn(),
+  listAssetOwners: vi.fn(),
   listMediaAssets: vi.fn(),
+  previewMediaAssets: vi.fn(),
+  summarizeMediaAssets: vi.fn(),
+  updateAssetGroup: vi.fn(),
   rotateAssetWebhookEndpointSecret: vi.fn(),
   testAssetWebhookEndpoint: vi.fn(),
   uploadMediaAsset: vi.fn(),
@@ -79,6 +93,7 @@ function renderLibrary() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockAssetPageApis()
   useAuthStore.getState().auth.reset()
   useAuthStore.getState().auth.setUser({ id: 1, username: 'member', role: 1 })
   queryClient = new QueryClient({
@@ -106,7 +121,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test('clicking an image thumbnail opens the original image while the card uses a small OSS preview', async () => {
+test('clicking an image thumbnail opens the original image while the page signs every thumbnail in one request', async () => {
   renderLibrary()
   const user = userEvent.setup()
 
@@ -119,7 +134,14 @@ test('clicking an image thumbnail opens the original image while the card uses a
       'https://example.com/thumbnail.jpg'
     )
   )
-  expect(getMediaAssetPreview).toHaveBeenCalledWith('asset-image', 'thumbnail')
+  expect(previewMediaAssets).toHaveBeenCalledOnce()
+  expect(previewMediaAssets).toHaveBeenCalledWith([
+    { id: 'asset-image', owner_user_id: 1 },
+  ])
+  expect(getMediaAssetPreview).not.toHaveBeenCalledWith(
+    'asset-image',
+    'thumbnail'
+  )
 
   await user.click(thumbnail)
   const dialog = await screen.findByRole('dialog', { name: 'Hero image' })
@@ -247,4 +269,22 @@ test('a failed download does not navigate and shows an error', async () => {
     expect(toast.error).toHaveBeenCalledWith('Signed URL unavailable')
   )
   expect(click).not.toHaveBeenCalled()
+})
+
+test('deleting from the preview closes it and asks for confirmation', async () => {
+  renderLibrary()
+  const user = userEvent.setup()
+
+  await user.click(
+    await screen.findByRole('button', { name: 'Preview Hero image' })
+  )
+  const dialog = await screen.findByRole('dialog', { name: 'Hero image' })
+  await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+  expect(
+    await screen.findByRole('alertdialog', { name: 'Delete asset?' })
+  ).toBeVisible()
+  expect(
+    screen.queryByRole('dialog', { name: 'Hero image' })
+  ).not.toBeInTheDocument()
 })

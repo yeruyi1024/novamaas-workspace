@@ -32,6 +32,7 @@ import {
 } from '../api'
 import { AssetLibrary } from '../asset-library'
 import type { MediaAsset } from '../types'
+import { mockAssetPageApis } from './asset-api-fixtures'
 
 vi.mock('../api', () => ({
   createAssetGroup: vi.fn(),
@@ -41,12 +42,18 @@ vi.mock('../api', () => ({
   deleteAssetWebhookEndpoint: vi.fn(),
   deleteAssetGroup: vi.fn(),
   deleteMediaAsset: vi.fn(),
+  deleteMediaAssets: vi.fn(),
+  deleteMediaAssetsByFilter: vi.fn(),
   getMediaAssetPreview: vi.fn(),
   listAssetAccessKeys: vi.fn(),
   listAssetWebhookEndpoints: vi.fn(),
   listAssetGroups: vi.fn(),
   listAssetGroupsPage: vi.fn(),
+  listAssetOwners: vi.fn(),
   listMediaAssets: vi.fn(),
+  previewMediaAssets: vi.fn(),
+  summarizeMediaAssets: vi.fn(),
+  updateAssetGroup: vi.fn(),
   rotateAssetWebhookEndpointSecret: vi.fn(),
   testAssetWebhookEndpoint: vi.fn(),
   uploadMediaAsset: vi.fn(),
@@ -94,6 +101,7 @@ function assetsResponse(items: MediaAsset[]) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockAssetPageApis()
   useAuthStore.getState().auth.reset()
   useAuthStore.getState().auth.setUser({ id: 1, username: 'member', role: 1 })
   queryClient = new QueryClient({
@@ -161,7 +169,7 @@ test('a rejected asset in a mixed row keeps its reason out of the card and revea
 
   expect(await screen.findByText('Ready image')).toBeVisible()
   const grid = screen.getByTestId('asset-grid')
-  expect(grid.querySelectorAll('[data-slot="card"]')).toHaveLength(2)
+  expect(within(grid).getAllByRole('article')).toHaveLength(2)
   expect(within(grid).queryByText(/Sensitive content was rejected/)).toBeNull()
   expect(grid.querySelector('[data-slot="alert"]')).toBeNull()
   const status = within(grid).getByRole('button', {
@@ -315,7 +323,7 @@ test('technical synchronization failure shows an error without a content rejecti
 })
 
 test.each([false, true])(
-  'processing refresh uses three seconds, then thirty seconds (request failed: %s)',
+  'polls every three seconds while an asset is under review and stops once none is (request failed: %s)',
   async (failed) => {
     vi.useFakeTimers()
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
@@ -341,10 +349,15 @@ test.each([false, true])(
     expect(screen.getByText('Under review')).toBeVisible()
     await act(() => vi.advanceTimersByTimeAsync(3_001))
     expect(listMediaAssets).toHaveBeenCalledTimes(2)
-    await act(() => vi.advanceTimersByTimeAsync(29_000))
-    expect(listMediaAssets).toHaveBeenCalledTimes(2)
-    await act(() => vi.advanceTimersByTimeAsync(1_001))
-    expect(listMediaAssets).toHaveBeenCalledTimes(3)
+    if (failed) {
+      await act(() => vi.advanceTimersByTimeAsync(29_000))
+      expect(listMediaAssets).toHaveBeenCalledTimes(2)
+      await act(() => vi.advanceTimersByTimeAsync(1_001))
+      expect(listMediaAssets).toHaveBeenCalledTimes(3)
+    }
     expect(screen.queryByText('Under review')).not.toBeInTheDocument()
+    const settledCalls = vi.mocked(listMediaAssets).mock.calls.length
+    await act(() => vi.advanceTimersByTimeAsync(120_000))
+    expect(listMediaAssets).toHaveBeenCalledTimes(settledCalls)
   }
 )
