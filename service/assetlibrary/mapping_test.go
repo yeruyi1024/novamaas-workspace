@@ -63,6 +63,9 @@ func setupAssetLibraryTestDB(t *testing.T) *gorm.DB {
 		model.DB = previous
 		common.SetMainDatabaseType(previousDatabaseType)
 	})
+	// Registered last so it runs first: background passes finish against the
+	// test's database before it is swapped back.
+	t.Cleanup(libraryFills.wg.Wait)
 	return db
 }
 

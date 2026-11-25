@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import axios from 'axios'
 import i18next from 'i18next'
 
-import type { StorageAPIResponse } from './types'
+import type { AssetLibraryConnection, StorageAPIResponse } from './types'
 
 export function assertStorageSuccess<T>(response: StorageAPIResponse<T>): T {
   if (!response.success) {
@@ -39,4 +39,19 @@ export function storageErrorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
     : i18next.t('Storage operation failed')
+}
+
+/** An account uploads only while enabled and linked to an enabled channel. */
+export function canUpload(library: AssetLibraryConnection): boolean {
+  return library.enabled && library.channels.some((channel) => channel.enabled)
+}
+
+/**
+ * Uploads an account that cannot upload keeps paused; "Clear failures" can
+ * release them like failures.
+ */
+export function pausedUploadCount(library: AssetLibraryConnection): number {
+  if (canUpload(library)) return 0
+  const summary = library.summary
+  return summary.pending + summary.processing - (summary.deleting ?? 0)
 }

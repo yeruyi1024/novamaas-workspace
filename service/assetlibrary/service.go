@@ -185,6 +185,8 @@ type SyncJobSummary struct {
 	Processing int64 `json:"processing"`
 	Active     int64 `json:"active"`
 	Failed     int64 `json:"failed"`
+	// Deleting is the part of Processing that is upstream deletion, not upload.
+	Deleting int64 `json:"deleting"`
 }
 
 type SyncJobListView struct {

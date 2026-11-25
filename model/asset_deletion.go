@@ -43,10 +43,12 @@ func assetDeletionRequested(asset *MediaAsset, replica *AssetReplica) bool {
 	return asset.Status == AssetStatusDeleted || replica.Operation == AssetReplicaOperationDelete
 }
 
+// assetReplicaDeletionUpdates starts (or restarts) a replica's deletion with a
+// fresh retry budget; failures recorded later still increment attempts.
 func assetReplicaDeletionUpdates(now int64) map[string]any {
 	return map[string]any{
 		"operation": AssetReplicaOperationDelete, "status": AssetReplicaStatusDeleting, "next_sync_at": now,
-		"locked_by": "", "lease_until": 0, "updated_at": now,
+		"locked_by": "", "lease_until": 0, "attempts": 0, "updated_at": now,
 	}
 }
 
@@ -425,6 +427,99 @@ func AcknowledgeAssetReplicaDeletion(id int64, owner, upstreamID string) error {
 		}
 		return queueDeletedAssetStorage(tx, asset, now)
 	}, AssetDeletionTxOptions())
+}
+
+// UploadingAssetLibraries returns the accounts that can upload: enabled and
+// linked to an existing, enabled channel.
+func UploadingAssetLibraries(tx *gorm.DB) (map[int]bool, error) {
+	var linked []int
+	if err := tx.Model(&AssetChannelConfig{}).Where("library_id > ? AND enabled = ? AND channel_id IN (?)", 0, true, tx.Model(&Channel{}).Select("id")).
+		Distinct().Pluck("library_id", &linked).Error; err != nil {
+		return nil, err
+	}
+	uploading := make(map[int]bool, len(linked))
+	if len(linked) == 0 {
+		return uploading, nil
+	}
+	var enabled []int
+	if err := tx.Model(&AssetLibraryConnection{}).Where("id IN ? AND enabled = ?", linked, true).Pluck("id", &enabled).Error; err != nil {
+		return nil, err
+	}
+	for _, id := range enabled {
+		uploading[id] = true
+	}
+	return uploading, nil
+}
+
+// failedFinally reports a copy that will not be retried: rejected by review,
+// or failed with no retry scheduled.
+func (replica *AssetReplica) failedFinally() bool {
+	return replica.Status == AssetReplicaStatusRejected || (replica.Status == AssetReplicaStatusFailed && replica.NextSyncAt == 0)
+}
+
+// ClearAssetReplicaFailure settles one account's failed copy under the asset's
+// lock; uploading is UploadingAssetLibraries' result. On an account that cannot
+// upload, a paused, unfinished copy counts as failed too. The asset is deleted
+// when no other copy may still succeed; otherwise only this copy is dropped,
+// and filling the account again uploads it anew. Copies paused elsewhere count
+// as able to succeed unless this account cannot upload either, so clearing a
+// working account keeps the uploads other accounts hold paused (#89).
+func ClearAssetReplicaFailure(replicaID int64, operatorID int, uploading map[int]bool) (dropped bool, deleted bool, err error) {
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		asset, target, err := lockAssetReplica(tx, replicaID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil // removed meanwhile: nothing left to clear
+		}
+		if err != nil {
+			return err
+		}
+		now := common.GetTimestamp()
+		if target.LibraryID == nil || target.Operation != AssetReplicaOperationSync || (target.LockedBy != "" && target.LeaseUntil > now) {
+			return nil
+		}
+		paused := !uploading[*target.LibraryID]
+		unfinished := target.Status != AssetReplicaStatusActive && target.Status != AssetReplicaStatusDeleted && target.Status != AssetReplicaStatusDeleting
+		if !target.failedFinally() && !(paused && unfinished) {
+			return nil
+		}
+		var copies []AssetReplica
+		if err := lockForUpdate(tx).Where("asset_id = ? AND id <> ?", asset.ID, target.ID).Order("id asc").Find(&copies).Error; err != nil {
+			return err
+		}
+		mayStillSucceed := false
+		for _, other := range copies {
+			final := other.Operation == AssetReplicaOperationDelete || other.Status == AssetReplicaStatusDeleted ||
+				other.Status == AssetReplicaStatusDeleting || other.failedFinally()
+			if !final && (other.Status == AssetReplicaStatusActive || other.LibraryID == nil || !paused || uploading[*other.LibraryID]) {
+				mayStillSucceed = true
+			}
+		}
+		unusable := asset.Status == AssetStatusUnavailable ||
+			((asset.Status == AssetStatusSyncFailed || asset.Status == AssetStatusProcessing) && !mayStillSucceed)
+		if asset.Status == AssetStatusReady || (!unusable && paused) {
+			updates := assetReplicaDeletionUpdates(now)
+			if target.UpstreamAssetID == "" {
+				updates["status"], updates["next_sync_at"], updates["progress"] = AssetReplicaStatusDeleted, 0, 100
+			}
+			updates["last_error"] = ""
+			dropped = true
+			return tx.Model(target).Updates(updates).Error
+		}
+		if !unusable {
+			return nil
+		}
+		switch err := CheckUserAssetPurgePermission(tx, asset.OwnerUserID, operatorID); {
+		case err == nil, errors.Is(err, gorm.ErrRecordNotFound):
+			// An owner that no longer exists leaves unusable assets behind.
+		case errors.Is(err, ErrAssetCopyPermissionDenied):
+			return nil
+		default:
+			return err
+		}
+		deleted = true
+		return deleteLockedAsset(tx, asset)
+	}, AssetDeletionTxOptions())
+	return dropped, deleted, err
 }
 
 func RetryAssetReplicaSynchronization(id int64) (retried bool, err error) {

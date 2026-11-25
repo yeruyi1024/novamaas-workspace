@@ -34,6 +34,7 @@ import {
   mergeAssetLibraries,
   syncAssetLibraryMissing,
   rebuildAssetLibrary,
+  clearAssetLibraryFailures,
   deleteAssetLibraryConnection,
 } from '../api'
 import { AssetLibrarySettings } from '../asset-library-settings'
@@ -91,6 +92,10 @@ vi.mock('../api', () => ({
   rebuildAssetLibrary: vi.fn(async () => ({
     success: true,
     data: undefined,
+  })),
+  clearAssetLibraryFailures: vi.fn(async () => ({
+    success: true,
+    data: { deleted_assets: 1, dismissed_replicas: 2 },
   })),
   deleteAssetLibraryConnection: vi.fn(async () => ({
     success: true,
@@ -380,7 +385,7 @@ describe('asset channel protocol configuration', () => {
     expect(bindAssetChannelLibrary).toHaveBeenCalledTimes(1)
   })
 
-  test('lays out independent resource accounts as compact squares with scrollable channel lists', async () => {
+  test('lays out resource accounts as equal-height cards with sync progress and a bounded channel list', async () => {
     const longChannelName =
       'Production asset channel with a long account and pricing group name'
     vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
@@ -388,6 +393,15 @@ describe('asset channel protocol configuration', () => {
       data: [
         {
           ...libraryFixture,
+          credential_status: 'unavailable',
+          summary: {
+            total: 40,
+            active: 30,
+            pending: 2,
+            processing: 3,
+            failed: 4,
+          },
+          missing: 5,
           channels: [
             { id: 7, name: longChannelName, enabled: true },
             { id: 8, name: 'Second pricing channel', enabled: true },
@@ -409,23 +423,29 @@ describe('asset channel protocol configuration', () => {
     const provider = await screen.findByRole('region', {
       name: 'Production account',
     })
-    expect(provider).toHaveClass('aspect-square', 'max-w-md', 'min-h-0')
+    expect(provider).toHaveClass('h-full', 'w-full')
+    expect(provider).not.toHaveClass('aspect-square')
     expect(
       screen.getByRole('group', { name: 'Provider asset libraries' })
     ).toHaveClass(
       'grid',
       'grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))]'
     )
-    const content = within(provider).getByRole('group', {
-      name: 'Linked channels',
-    })
-    expect(content).toHaveClass('min-h-0', 'flex-1', 'overflow-hidden')
+    expect(
+      within(provider).getByRole('progressbar', { name: 'Synchronized' })
+    ).toHaveAttribute('aria-valuenow', '75')
+    expect(within(provider).getByText('Synchronizing · 5')).toBeVisible()
+    expect(within(provider).getByText('Failed · 4')).toBeVisible()
+    expect(within(provider).getByText('Missing assets · 5')).toBeVisible()
+    expect(within(provider).getByRole('alert')).toHaveTextContent(
+      'Credentials unavailable'
+    )
+    expect(within(provider).getByText('60 QPM')).toBeVisible()
     const channels = within(provider).getByRole('list', {
       name: 'Linked channels',
     })
     expect(channels).toHaveClass(
-      'flex-1',
-      'min-h-0',
+      'max-h-32',
       'overflow-y-auto',
       'overscroll-contain'
     )
@@ -629,11 +649,126 @@ describe('asset channel protocol configuration', () => {
     ).toBeVisible()
   })
 
-  test('rebuilding upstream synchronization requires confirmation before calling the endpoint', async () => {
+  test('an account without failures offers no failure cleanup', async () => {
+    renderSettings()
+    await screen.findByRole('button', { name: 'Manage channels' })
+    expect(
+      screen.queryByRole('button', { name: 'Clear failures' })
+    ).not.toBeInTheDocument()
+  })
+
+  test("clearing an account's failures explains what is kept and submits once after confirmation", async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...libraryFixture,
+          summary: { ...libraryFixture.summary, failed: 3 },
+        },
+      ],
+    })
     renderSettings()
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Rebuild sync' })
+      await screen.findByRole('button', { name: 'Clear failures' })
     )
+    expect(clearAssetLibraryFailures).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Clear failed synchronization',
+    })
+    expect(
+      within(dialog).getByText(
+        /Clear 3 failed records on Production account\? Assets that failed on every account cannot be used and are deleted\. Assets still usable on another account are kept/
+      )
+    ).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() =>
+      expect(clearAssetLibraryFailures).toHaveBeenCalledWith(17)
+    )
+    expect(clearAssetLibraryFailures).toHaveBeenCalledTimes(1)
+  })
+
+  test('a disabled account offers to clear the uploads it keeps paused', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...libraryFixture,
+          enabled: false,
+          summary: {
+            total: 3,
+            active: 1,
+            pending: 2,
+            processing: 0,
+            failed: 0,
+          },
+        },
+      ],
+    })
+    renderSettings()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Clear failures' })
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Clear failed synchronization',
+    })
+    expect(
+      within(dialog).getByText(
+        'This account cannot upload now (disabled or without an enabled channel), so its 2 paused uploads are cleared the same way.'
+      )
+    ).toBeVisible()
+  })
+
+  test('upstream deletions on a disabled account are not offered as paused uploads', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...libraryFixture,
+          enabled: false,
+          summary: {
+            total: 3,
+            active: 0,
+            pending: 0,
+            processing: 3,
+            failed: 0,
+            deleting: 3,
+          },
+        },
+      ],
+    })
+    renderSettings()
+    await screen.findByRole('button', { name: 'Manage channels' })
+    expect(
+      screen.queryByRole('button', { name: 'Clear failures' })
+    ).not.toBeInTheDocument()
+  })
+
+  test('a background pass is shown on the card and blocks starting another', async () => {
+    vi.mocked(listAssetLibraryConnections).mockResolvedValueOnce({
+      success: true,
+      data: [
+        {
+          ...libraryFixture,
+          missing: 2,
+          filling: true,
+          fill_error: 'database unavailable',
+        },
+      ],
+    })
+    renderSettings()
+    expect(await screen.findByText('Queueing assets...')).toBeInTheDocument()
+    expect(
+      screen.getByText('Background synchronization failed: database unavailable')
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Sync missing assets' })
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Rebuild sync' })).toBeDisabled()
+  })
+
+  test('rebuilding upstream synchronization requires confirmation before calling the endpoint', async () => {
+    renderSettings()
+    fireEvent.click(await screen.findByRole('button', { name: 'Rebuild sync' }))
     expect(rebuildAssetLibrary).not.toHaveBeenCalled()
     const dialog = await screen.findByRole('dialog', {
       name: 'Rebuild upstream synchronization',

@@ -2,6 +2,7 @@ package assetlibrary
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -581,6 +582,7 @@ func TestRebuildLibrarySyncResetsMappingsAndQueuesMissing(t *testing.T) {
 	}
 
 	require.NoError(t, RebuildLibrarySync(lib.ID))
+	libraryFills.wg.Wait()
 
 	require.NoError(t, db.First(&repActive, repActive.ID).Error)
 	assert.Equal(t, model.AssetReplicaStatusPending, repActive.Status)
@@ -633,6 +635,7 @@ func TestQueueLibrarySyncFillsMissingAndRetriesFailedOnly(t *testing.T) {
 	}
 
 	require.NoError(t, QueueLibrarySync(lib.ID))
+	libraryFills.wg.Wait()
 
 	require.NoError(t, db.First(&repActive, repActive.ID).Error)
 	assert.Equal(t, model.AssetReplicaStatusActive, repActive.Status)
@@ -651,4 +654,34 @@ func TestQueueLibrarySyncFillsMissingAndRetriesFailedOnly(t *testing.T) {
 	var queued model.AssetReplica
 	require.NoError(t, db.Where("asset_id = ? AND library_id = ?", missingAsset.ID, lib.ID).First(&queued).Error)
 	assert.Equal(t, model.AssetReplicaStatusPending, queued.Status)
+}
+
+func TestLibraryFillRunsInBackgroundOncePerAccountAndShowsOnTheCard(t *testing.T) {
+	db := setupAssetLibraryTestDB(t)
+	library := model.AssetLibraryConnection{Name: "card", Enabled: true}
+	require.NoError(t, db.Create(&library).Error)
+	viewOf := func() LibraryConnectionView {
+		views, err := buildLibraryViews([]model.AssetLibraryConnection{library})
+		require.NoError(t, err)
+		require.Len(t, views, 1)
+		return views[0]
+	}
+
+	release := make(chan struct{})
+	require.NoError(t, startLibraryFill(library.ID, "test fill", func() error { <-release; return nil }), "the request returns while the pass is still running")
+	assert.True(t, viewOf().Filling, "the card keeps refreshing while the pass runs")
+	var conflict *RequestError
+	require.ErrorAs(t, startLibraryFill(library.ID, "test fill", func() error { return nil }), &conflict)
+	assert.Equal(t, http.StatusConflict, conflict.StatusCode)
+	require.NoError(t, startLibraryFill(library.ID+1, "test fill", func() error { return nil }), "another account is not blocked")
+	close(release)
+	libraryFills.wg.Wait()
+	assert.False(t, viewOf().Filling)
+
+	require.NoError(t, startLibraryFill(library.ID, "test fill", func() error { return errors.New("database unavailable") }), "the account can be synchronized again once the pass ends")
+	libraryFills.wg.Wait()
+	assert.Equal(t, "database unavailable", viewOf().FillError, "a failed pass is shown until the next one starts")
+	require.NoError(t, startLibraryFill(library.ID, "test fill", func() error { return nil }))
+	libraryFills.wg.Wait()
+	assert.Empty(t, viewOf().FillError)
 }

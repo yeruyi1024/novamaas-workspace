@@ -394,6 +394,7 @@ func SetApiRouter(router *gin.Engine) {
 			assetLibraryAdminRoute.POST("/libraries/:library_id/test", controller.TestAssetLibraryConnection)
 			assetLibraryAdminRoute.POST("/libraries/:library_id/sync", controller.SyncAssetLibraryConnection)
 			assetLibraryAdminRoute.POST("/libraries/:library_id/rebuild", middleware.CriticalRateLimit(), controller.RebuildAssetLibraryConnection)
+			assetLibraryAdminRoute.POST("/libraries/:library_id/clear-failed", middleware.CriticalRateLimit(), controller.ClearAssetLibraryFailures)
 			assetLibraryAdminRoute.GET("/channels", controller.ListAssetChannelConfigs)
 			assetLibraryAdminRoute.PUT("/channels/:channel_id", controller.UpdateAssetChannelConfig)
 			assetLibraryAdminRoute.POST("/channels/:channel_id/test", controller.TestAssetChannelConfig)

@@ -27,6 +27,9 @@ const (
 	assetActiveReviewInterval    = time.Hour
 	assetActiveReconcileInterval = 24 * time.Hour
 	assetActiveRetryInterval     = time.Hour
+	// Upstream deletion retries back off up to 256 minutes; 12 failed attempts
+	// span about 21 hours before the copy is given up on.
+	assetDeleteMaxAttempts = 12
 )
 
 // assetSyncTurns is the weighted rotation used when several kinds of work are
@@ -611,6 +614,17 @@ func failReplica(runnerID string, replica *model.AssetReplica, err error) {
 		_ = model.FinishAssetReplica(replica.ID, runnerID, replica.ClaimedFromStatus, replica.Progress, replica.UpstreamAssetID, common.GetTimestamp(), replica.LastError, replica.Operation)
 		return
 	}
+	// A deletion that keeps failing (for example on a provider that shut down)
+	// must not retry forever and block asset or account cleanup. The upstream
+	// copy may be left behind; the warning records which one.
+	if replica.Operation == model.AssetReplicaOperationDelete && replica.Attempts+1 >= assetDeleteMaxAttempts {
+		logger.LogWarn(context.Background(), fmt.Sprintf("gave up deleting upstream asset copy after %d attempts: replica_id=%d account=%s upstream_asset_id=%s error=%v",
+			replica.Attempts+1, replica.ID, replicaAccount(replica), replica.UpstreamAssetID, err))
+		if ackErr := model.AcknowledgeAssetReplicaDeletion(replica.ID, runnerID, replica.UpstreamAssetID); ackErr != nil {
+			logger.LogWarn(context.Background(), fmt.Sprintf("close abandoned asset deletion failed: replica_id=%d error=%v", replica.ID, ackErr))
+		}
+		return
+	}
 	if replicaWorkload(replica) == model.AssetReplicaWorkloadReview {
 		status := model.AssetReplicaStatusProcessing
 		if replica.ClaimedFromStatus == model.AssetReplicaStatusActive {
@@ -630,12 +644,17 @@ func failReplica(runnerID string, replica *model.AssetReplica, err error) {
 	logReplicaFailure(replica, err, fmt.Sprintf("asset replica synchronization failed: replica_id=%d channel_id=%d error=%v", replica.ID, replica.ChannelID, err))
 }
 
+// replicaAccount names the upstream account a replica belongs to in logs.
+func replicaAccount(replica *model.AssetReplica) string {
+	if replica.LibraryID != nil && *replica.LibraryID > 0 {
+		return fmt.Sprintf("library:%d", *replica.LibraryID)
+	}
+	return fmt.Sprintf("channel:%d", replica.ChannelID)
+}
+
 func logReplicaFailure(replica *model.AssetReplica, err error, message string) {
 	if errors.Is(err, errAssetCredentialDecryption) {
-		account := fmt.Sprintf("channel:%d", replica.ChannelID)
-		if replica.LibraryID != nil && *replica.LibraryID > 0 {
-			account = fmt.Sprintf("library:%d", *replica.LibraryID)
-		}
+		account := replicaAccount(replica)
 		if !assetCredentialWarningLimiter().Request(account, 1, int64(time.Hour/time.Second)) {
 			return
 		}

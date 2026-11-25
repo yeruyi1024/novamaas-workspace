@@ -70,6 +70,7 @@ import { AssetConfirmDialog } from './components/asset-confirm-dialog'
 import { AssetCopyDialog } from './components/asset-copy-dialog'
 import { AssetDropOverlay } from './components/asset-drop-overlay'
 import { AssetEmptyArt } from './components/asset-empty-art'
+import { AssetFailedNotice } from './components/asset-failed-notice'
 import { AssetFilterBar } from './components/asset-filter-bar'
 import { AssetGroupDeleteDialog } from './components/asset-group-delete-dialog'
 import {
@@ -215,6 +216,7 @@ export function AssetLibrary(props: {
   const [previewKey, setPreviewKey] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<MediaAsset | null>(null)
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
+  const [clearFailedOpen, setClearFailedOpen] = useState(false)
   const [batchMode, setBatchMode] = useState(false)
 
   const scope = useMemo(
@@ -478,7 +480,8 @@ export function AssetLibrary(props: {
     uploadDialogOpen ||
     previewKey !== null ||
     deleteTarget !== null ||
-    batchDeleteOpen
+    batchDeleteOpen ||
+    clearFailedOpen
 
   const gridRef = useRef<HTMLDivElement>(null)
   const marqueeBox = useMarqueeSelection(
@@ -700,17 +703,24 @@ export function AssetLibrary(props: {
       payload:
         | { mode: 'filter'; exclude: AssetRef[] }
         | { mode: 'explicit'; targets: MediaAsset[] }
+        // Failed assets (rejected by review or failed to synchronize) in the
+        // current scope, whatever the type and status filters.
+        | { mode: 'failed' }
     ) => {
-      if (payload.mode === 'filter') {
+      if (payload.mode !== 'explicit') {
+        const failedOnly = payload.mode === 'failed'
         const res = assertAssetSuccess(
           await deleteMediaAssetsByFilter({
             scope: isAdmin ? 'all' : undefined,
             owner_user_id: scope.ownerUserId,
             group_id: scope.groupId,
-            type: filters.type,
-            status: filters.status,
+            type: failedOnly ? undefined : filters.type,
+            status: failedOnly ? 'unavailable' : filters.status,
             search: scope.search,
-            exclude: payload.exclude.length > 0 ? payload.exclude : undefined,
+            exclude:
+              payload.mode === 'filter' && payload.exclude.length > 0
+                ? payload.exclude
+                : undefined,
           })
         )
         return { deleted_count: res.deleted_count, resetToFirstPage: true }
@@ -737,6 +747,7 @@ export function AssetLibrary(props: {
     },
     onSuccess: async (result) => {
       setBatchDeleteOpen(false)
+      setClearFailedOpen(false)
       setBatchMode(false)
       selection.clear()
       await afterDeletion(result.deleted_count, result.resetToFirstPage)
@@ -748,6 +759,8 @@ export function AssetLibrary(props: {
     },
     onError: (error) => toast.error(assetErrorMessage(error)),
   })
+  // The summary counts failed assets regardless of type or status filters.
+  const failedCount = summaryQuery.data?.by_status.unavailable ?? 0
   const deleteGroupMutation = useMutation({
     mutationFn: async (withAssets: boolean) =>
       assertAssetSuccess(
@@ -979,6 +992,17 @@ export function AssetLibrary(props: {
               onClearAll={clearAllFilters}
               onFiltersChange={changeFilters}
             />
+            {failedCount > 0 && (
+              <AssetFailedNotice
+                count={failedCount}
+                viewing={filters.status === 'unavailable' && !filters.type}
+                pending={batchDeleteMutation.isPending}
+                onView={() =>
+                  changeFilters({ status: 'unavailable', type: undefined })
+                }
+                onClear={() => setClearFailedOpen(true)}
+              />
+            )}
             {isAdmin && filters.owner && !filters.group && (
               <AssetOwnerHeader
                 ownerId={filters.owner}
@@ -1309,6 +1333,26 @@ export function AssetLibrary(props: {
               mode: 'explicit',
               targets: selection.assets,
             })
+          }
+        }}
+      />
+      <AssetConfirmDialog
+        open={clearFailedOpen}
+        title={t('Clear {{count}} failed assets?', { count: failedCount })}
+        description={t(
+          'Assets rejected by review or failed to synchronize cannot be used. They and their managed copies will be removed in the background. This action cannot be undone.'
+        )}
+        acknowledgeLabel={
+          isAdmin && !scope.ownerUserId
+            ? t('I confirm clearing failed assets of all users in this view.')
+            : undefined
+        }
+        checkboxId='asset-clear-failed-ack'
+        pending={batchDeleteMutation.isPending}
+        onOpenChange={setClearFailedOpen}
+        onConfirm={() => {
+          if (!batchDeleteMutation.isPending) {
+            batchDeleteMutation.mutate({ mode: 'failed' })
           }
         }}
       />

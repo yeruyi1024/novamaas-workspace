@@ -403,6 +403,13 @@ func FinalizeAssetLibraryDeletion(libraryID int) (finished bool, err error) {
 // resource account so every live platform asset is uploaded again from OSS
 // without unlinking channels or changing customer asset IDs.
 func RebuildAssetLibraryReplicas(libraryID int) error {
+	// Reset the groups first: uploads that start while the copies below are
+	// being reset must go into fresh upstream groups, not the stale ones.
+	if err := DB.Model(&AssetGroupReplica{}).Where("library_id = ?", libraryID).Updates(map[string]any{
+		"upstream_group_id": "", "status": AssetReplicaStatusPending, "progress": 0, "last_error": "", "updated_at": common.GetTimestamp(),
+	}).Error; err != nil {
+		return err
+	}
 	liveAssets := DB.Model(&MediaAsset{}).Select("id").Where("status IN ?", []string{
 		AssetStatusReady, AssetStatusProcessing, AssetStatusSyncFailed,
 	})
@@ -453,8 +460,5 @@ func RebuildAssetLibraryReplicas(libraryID int) error {
 			return err
 		}
 	}
-	now := common.GetTimestamp()
-	return DB.Model(&AssetGroupReplica{}).Where("library_id = ?", libraryID).Updates(map[string]any{
-		"upstream_group_id": "", "status": AssetReplicaStatusPending, "progress": 0, "last_error": "", "updated_at": now,
-	}).Error
+	return nil
 }

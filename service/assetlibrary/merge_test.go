@@ -202,6 +202,7 @@ func TestMergeIdenticalLibrariesMovesOnlyCopiesTheKeptAccountLacks(t *testing.T)
 
 	_, err := MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 
 	assert.Equal(t, first, libraryOfChannel(t, db, 2))
 	upstream := map[int64]string{}
@@ -281,11 +282,13 @@ func TestNewlyActiveAccountReceivesAssetsUploadedBeforeIt(t *testing.T) {
 	require.NoError(t, db.Create(&model.AssetReplica{AssetID: assets[1].ID, LibraryID: &id, Status: model.AssetReplicaStatusFailed, Operation: model.AssetReplicaOperationSync}).Error)
 	_, err = BindChannelLibrary(51, account.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Equal(t, map[int64]string{assets[0].ID: model.AssetReplicaStatusPending, assets[1].ID: model.AssetReplicaStatusFailed}, copiesOf(account.ID))
 
 	// Assets follow the account, so linking another channel adds no copies.
 	_, err = BindChannelLibrary(52, account.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Len(t, copiesOf(account.ID), 2)
 }
 
@@ -300,6 +303,7 @@ func TestDisabledAccountReceivesNoCopiesAndIsBackfilledWhenSwitchedOn(t *testing
 	require.NoError(t, err)
 	_, err = BindChannelLibrary(61, account.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 
 	count := func() int64 {
 		var total int64
@@ -357,11 +361,13 @@ func TestDisabledAccountStopsWritingButKeepsServingSynchronizedAssets(t *testing
 	assert.Contains(t, conflict.Error(), "has not been synchronized", "what was missed while paused is not available until it is synchronized")
 
 	backfillMissingAssets(library.ID, true)
+	libraryFills.wg.Wait()
 	var queued int64
 	require.NoError(t, db.Model(&model.AssetReplica{}).Where("library_id = ? AND asset_id = ?", library.ID, missed.ID).Count(&queued).Error)
 	assert.Zero(t, queued, "a paused account is not backfilled")
 	require.NoError(t, db.Model(&model.AssetLibraryConnection{}).Where("id = ?", library.ID).Update("enabled", true).Error)
 	backfillMissingAssets(library.ID, true)
+	libraryFills.wg.Wait()
 	require.NoError(t, db.Model(&model.AssetReplica{}).Where("library_id = ? AND asset_id = ?", library.ID, missed.ID).Count(&queued).Error)
 	assert.EqualValues(t, 1, queued, "turning it on queues what was missed meanwhile")
 }
