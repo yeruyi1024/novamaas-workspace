@@ -16,47 +16,71 @@ import (
 	"gorm.io/gorm"
 )
 
+// newClearAccount creates a resource account linked to its own enabled
+// channel (none when channelID is 0); a paused account is disabled.
+func newClearAccount(t *testing.T, db *gorm.DB, name string, channelID int, paused bool) *model.AssetLibraryConnection {
+	library := &model.AssetLibraryConnection{Name: name, Enabled: true}
+	require.NoError(t, db.Create(library).Error)
+	if paused {
+		require.NoError(t, db.Model(library).Update("enabled", false).Error)
+	}
+	if channelID > 0 {
+		require.NoError(t, db.Create(&model.Channel{Id: channelID, Name: fmt.Sprintf("channel-%d", channelID), Type: constant.ChannelTypeVolcNative}).Error)
+		require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: channelID, LibraryID: library.ID, Enabled: true}).Error)
+	}
+	return library
+}
+
+// clearFixture creates assets of one owner and their copies on accounts.
+type clearFixture struct {
+	t     *testing.T
+	db    *gorm.DB
+	group model.AssetGroup
+}
+
+func newClearFixture(t *testing.T, db *gorm.DB, ownerID int) clearFixture {
+	group := model.AssetGroup{PublicID: fmt.Sprintf("grp-clear-%d", ownerID), OwnerUserID: ownerID, Name: "Clear", Status: model.AssetStatusReady}
+	require.NoError(t, db.Create(&group).Error)
+	return clearFixture{t: t, db: db, group: group}
+}
+
+func (f clearFixture) asset(publicID string, status string) model.MediaAsset {
+	asset := model.MediaAsset{PublicID: publicID, OwnerUserID: f.group.OwnerUserID, GroupID: f.group.ID, StorageObjectID: int64(len(publicID)), Status: status}
+	require.NoError(f.t, f.db.Create(&asset).Error)
+	return asset
+}
+
+func (f clearFixture) copy(asset model.MediaAsset, library *model.AssetLibraryConnection, replica model.AssetReplica) model.AssetReplica {
+	replica.AssetID, replica.LibraryID, replica.Operation = asset.ID, &library.ID, model.AssetReplicaOperationSync
+	require.NoError(f.t, f.db.Create(&replica).Error)
+	return replica
+}
+
 func TestClearLibraryFailuresDeletesUnusableAssetsAndKeepsUsableOnes(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
-	cleared := model.AssetLibraryConnection{Name: "account-with-failures", Enabled: true}
-	other := model.AssetLibraryConnection{Name: "healthy-account", Enabled: true}
-	require.NoError(t, db.Create(&cleared).Error)
-	require.NoError(t, db.Create(&other).Error)
-	require.NoError(t, db.Create(&model.Channel{Id: 77, Name: "cleared-channel", Type: constant.ChannelTypeVolcNative}).Error)
-	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 77, LibraryID: cleared.ID, Enabled: true}).Error)
-	require.NoError(t, db.Create(&model.Channel{Id: 78, Name: "healthy-channel", Type: constant.ChannelTypeVolcNative}).Error)
-	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 78, LibraryID: other.ID, Enabled: true}).Error)
-	group := model.AssetGroup{PublicID: "grp-clear", OwnerUserID: 7, Name: "Clear", Status: model.AssetStatusReady}
-	require.NoError(t, db.Create(&group).Error)
-
-	newAsset := func(publicID string, status string) model.MediaAsset {
-		asset := model.MediaAsset{PublicID: publicID, OwnerUserID: 7, GroupID: group.ID, StorageObjectID: int64(len(publicID)), Status: status}
-		require.NoError(t, db.Create(&asset).Error)
-		return asset
-	}
-	newReplica := func(asset model.MediaAsset, library *model.AssetLibraryConnection, status string, upstreamID string, nextSyncAt int64) model.AssetReplica {
-		replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, UpstreamAssetID: upstreamID, Operation: model.AssetReplicaOperationSync,
-			Status: status, NextSyncAt: nextSyncAt, Attempts: 1, LastError: "failed"}
-		require.NoError(t, db.Create(&replica).Error)
-		return replica
+	cleared := newClearAccount(t, db, "account-with-failures", 77, false)
+	other := newClearAccount(t, db, "healthy-account", 78, false)
+	f := newClearFixture(t, db, 7)
+	failed := func(upstreamID string, nextSyncAt int64) model.AssetReplica {
+		return model.AssetReplica{Status: model.AssetReplicaStatusFailed, UpstreamAssetID: upstreamID, NextSyncAt: nextSyncAt, Attempts: 1, LastError: "failed"}
 	}
 
-	failedEverywhere := newAsset("failed-everywhere", model.AssetStatusSyncFailed)
-	newReplica(failedEverywhere, &cleared, model.AssetReplicaStatusFailed, "", 0)
-	rejected := newAsset("rejected", model.AssetStatusUnavailable)
-	newReplica(rejected, &cleared, model.AssetReplicaStatusRejected, "", 0)
-	usableNeverAccepted := newAsset("usable-never-accepted", model.AssetStatusReady)
-	neverAccepted := newReplica(usableNeverAccepted, &cleared, model.AssetReplicaStatusFailed, "", 0)
-	healthy := newReplica(usableNeverAccepted, &other, model.AssetReplicaStatusActive, "healthy-copy", 0)
-	usableWithLeftover := newAsset("usable-with-leftover", model.AssetStatusReady)
-	leftover := newReplica(usableWithLeftover, &cleared, model.AssetReplicaStatusFailed, "failed-upstream-copy", 0)
-	stillRetrying := newAsset("still-retrying", model.AssetStatusProcessing)
-	retrying := newReplica(stillRetrying, &cleared, model.AssetReplicaStatusFailed, "", 4102444800)
-	syncingElsewhere := newAsset("syncing-elsewhere", model.AssetStatusProcessing)
-	waiting := newReplica(syncingElsewhere, &cleared, model.AssetReplicaStatusFailed, "", 0)
-	newReplica(syncingElsewhere, &other, model.AssetReplicaStatusProcessing, "still-processing", 4102444800)
-	otherAccountFailure := newAsset("other-account-failure", model.AssetStatusReady)
-	untouched := newReplica(otherAccountFailure, &other, model.AssetReplicaStatusFailed, "", 0)
+	failedEverywhere := f.asset("failed-everywhere", model.AssetStatusSyncFailed)
+	f.copy(failedEverywhere, cleared, failed("", 0))
+	rejected := f.asset("rejected", model.AssetStatusUnavailable)
+	f.copy(rejected, cleared, model.AssetReplica{Status: model.AssetReplicaStatusRejected})
+	usableNeverAccepted := f.asset("usable-never-accepted", model.AssetStatusReady)
+	neverAccepted := f.copy(usableNeverAccepted, cleared, failed("", 0))
+	healthy := f.copy(usableNeverAccepted, other, model.AssetReplica{Status: model.AssetReplicaStatusActive, UpstreamAssetID: "healthy-copy"})
+	usableWithLeftover := f.asset("usable-with-leftover", model.AssetStatusReady)
+	leftover := f.copy(usableWithLeftover, cleared, failed("failed-upstream-copy", 0))
+	stillRetrying := f.asset("still-retrying", model.AssetStatusProcessing)
+	retrying := f.copy(stillRetrying, cleared, failed("", 4102444800))
+	syncingElsewhere := f.asset("syncing-elsewhere", model.AssetStatusProcessing)
+	waiting := f.copy(syncingElsewhere, cleared, failed("", 0))
+	f.copy(syncingElsewhere, other, model.AssetReplica{Status: model.AssetReplicaStatusProcessing, UpstreamAssetID: "still-processing", NextSyncAt: 4102444800})
+	otherAccountFailure := f.asset("other-account-failure", model.AssetStatusReady)
+	untouched := f.copy(otherAccountFailure, other, failed("", 0))
 
 	before, err := libraryConnectionView(cleared.ID)
 	require.NoError(t, err)
@@ -141,43 +165,27 @@ func TestUpstreamDeletionStopsRetryingAfterAboutADay(t *testing.T) {
 func TestClearingAPausedAccountSettlesAssetsWaitingOnIt(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
 	require.NoError(t, db.Create(&model.User{Id: 1, Username: "root-admin", Role: common.RoleRootUser, Status: common.UserStatusEnabled, AffCode: "clear-root"}).Error)
-	working := model.AssetLibraryConnection{Name: "working account", Enabled: true}
-	cancelled := model.AssetLibraryConnection{Name: "cancelled provider", Enabled: true}
-	alsoCancelled := model.AssetLibraryConnection{Name: "another cancelled provider", Enabled: true}
-	for _, library := range []*model.AssetLibraryConnection{&working, &cancelled, &alsoCancelled} {
-		require.NoError(t, db.Create(library).Error)
-	}
-	require.NoError(t, db.Model(&model.AssetLibraryConnection{}).Where("id IN ?", []int{cancelled.ID, alsoCancelled.ID}).Update("enabled", false).Error)
-	require.NoError(t, db.Create(&model.Channel{Id: 81, Name: "working-channel", Type: constant.ChannelTypeVolcNative}).Error)
-	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 81, LibraryID: working.ID, Enabled: true}).Error)
-	require.NoError(t, db.Create(&model.Channel{Id: 82, Name: "cancelled-channel", Type: constant.ChannelTypeVolcNative}).Error)
-	require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: 82, LibraryID: cancelled.ID, Enabled: true}).Error)
-	group := model.AssetGroup{PublicID: "grp-paused", OwnerUserID: 9, Name: "Paused", Status: model.AssetStatusReady}
-	require.NoError(t, db.Create(&group).Error)
-	newAsset := func(publicID string, status string) model.MediaAsset {
-		// Owner 9 no longer exists: an administrator may still clear what it left unusable.
-		asset := model.MediaAsset{PublicID: publicID, OwnerUserID: 9, GroupID: group.ID, StorageObjectID: int64(len(publicID)), Status: status}
-		require.NoError(t, db.Create(&asset).Error)
-		return asset
-	}
-	newReplica := func(asset model.MediaAsset, library *model.AssetLibraryConnection, status string, nextSyncAt int64) model.AssetReplica {
-		replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, Operation: model.AssetReplicaOperationSync, Status: status, NextSyncAt: nextSyncAt}
-		require.NoError(t, db.Create(&replica).Error)
-		return replica
+	working := newClearAccount(t, db, "working account", 81, false)
+	cancelled := newClearAccount(t, db, "cancelled provider", 82, true)
+	alsoCancelled := newClearAccount(t, db, "another cancelled provider", 0, true)
+	// Owner 9 no longer exists: an administrator may still clear what it left unusable.
+	f := newClearFixture(t, db, 9)
+	copyOf := func(asset model.MediaAsset, library *model.AssetLibraryConnection, status string, nextSyncAt int64) model.AssetReplica {
+		return f.copy(asset, library, model.AssetReplica{Status: status, NextSyncAt: nextSyncAt})
 	}
 
-	readyElsewhere := newAsset("ready-elsewhere", model.AssetStatusReady)
-	newReplica(readyElsewhere, &working, model.AssetReplicaStatusActive, 0)
-	pausedCopy := newReplica(readyElsewhere, &cancelled, model.AssetReplicaStatusPending, 1)
-	failedElsewhere := newAsset("failed-elsewhere", model.AssetStatusProcessing)
-	newReplica(failedElsewhere, &working, model.AssetReplicaStatusFailed, 0)
-	newReplica(failedElsewhere, &cancelled, model.AssetReplicaStatusPending, 1)
-	syncingElsewhere := newAsset("syncing-elsewhere", model.AssetStatusProcessing)
-	stillUploading := newReplica(syncingElsewhere, &working, model.AssetReplicaStatusProcessing, 4102444800)
-	releasedCopy := newReplica(syncingElsewhere, &cancelled, model.AssetReplicaStatusPending, 1)
-	onlyCancelled := newAsset("only-cancelled-providers", model.AssetStatusProcessing)
-	newReplica(onlyCancelled, &cancelled, model.AssetReplicaStatusProcessing, 1)
-	newReplica(onlyCancelled, &alsoCancelled, model.AssetReplicaStatusPending, 1)
+	readyElsewhere := f.asset("ready-elsewhere", model.AssetStatusReady)
+	copyOf(readyElsewhere, working, model.AssetReplicaStatusActive, 0)
+	pausedCopy := copyOf(readyElsewhere, cancelled, model.AssetReplicaStatusPending, 1)
+	failedElsewhere := f.asset("failed-elsewhere", model.AssetStatusProcessing)
+	copyOf(failedElsewhere, working, model.AssetReplicaStatusFailed, 0)
+	copyOf(failedElsewhere, cancelled, model.AssetReplicaStatusPending, 1)
+	syncingElsewhere := f.asset("syncing-elsewhere", model.AssetStatusProcessing)
+	stillUploading := copyOf(syncingElsewhere, working, model.AssetReplicaStatusProcessing, 4102444800)
+	releasedCopy := copyOf(syncingElsewhere, cancelled, model.AssetReplicaStatusPending, 1)
+	onlyCancelled := f.asset("only-cancelled-providers", model.AssetStatusProcessing)
+	copyOf(onlyCancelled, cancelled, model.AssetReplicaStatusProcessing, 1)
+	copyOf(onlyCancelled, alsoCancelled, model.AssetReplicaStatusPending, 1)
 
 	result, err := ClearLibraryFailures(cancelled.ID, 1)
 	require.NoError(t, err)
@@ -217,40 +225,26 @@ func TestReleasedDeletionKeepsItsRetryCount(t *testing.T) {
 
 func TestClearingAWorkingAccountRespectsOtherAccountsAndLeases(t *testing.T) {
 	db := setupAssetLibraryTestDB(t)
-	working := model.AssetLibraryConnection{Name: "working account", Enabled: true}
-	paused := model.AssetLibraryConnection{Name: "paused for maintenance", Enabled: true}
-	healthy := model.AssetLibraryConnection{Name: "healthy account", Enabled: true}
-	for _, library := range []*model.AssetLibraryConnection{&working, &paused, &healthy} {
-		require.NoError(t, db.Create(library).Error)
-	}
-	require.NoError(t, db.Model(&paused).Update("enabled", false).Error)
-	for channelID, libraryID := range map[int]int{91: working.ID, 92: paused.ID, 93: healthy.ID} {
-		require.NoError(t, db.Create(&model.Channel{Id: channelID, Name: fmt.Sprintf("channel-%d", channelID), Type: constant.ChannelTypeVolcNative}).Error)
-		require.NoError(t, db.Create(&model.AssetChannelConfig{ChannelID: channelID, LibraryID: libraryID, Enabled: true}).Error)
-	}
-	group := model.AssetGroup{PublicID: "grp-working", OwnerUserID: 7, Name: "Working", Status: model.AssetStatusReady}
-	require.NoError(t, db.Create(&group).Error)
-	newAsset := func(publicID string, status string) model.MediaAsset {
-		asset := model.MediaAsset{PublicID: publicID, OwnerUserID: 7, GroupID: group.ID, StorageObjectID: int64(len(publicID)), Status: status}
-		require.NoError(t, db.Create(&asset).Error)
-		return asset
-	}
-	newReplica := func(asset model.MediaAsset, library *model.AssetLibraryConnection, status string, lockedBy string) {
-		replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &library.ID, Operation: model.AssetReplicaOperationSync, Status: status, LockedBy: lockedBy}
+	working := newClearAccount(t, db, "working account", 91, false)
+	paused := newClearAccount(t, db, "paused for maintenance", 92, true)
+	healthy := newClearAccount(t, db, "healthy account", 93, false)
+	f := newClearFixture(t, db, 7)
+	copyOf := func(asset model.MediaAsset, library *model.AssetLibraryConnection, status string, lockedBy string) {
+		replica := model.AssetReplica{Status: status, LockedBy: lockedBy}
 		if lockedBy != "" {
 			replica.LeaseUntil = common.GetTimestamp() + 120
 		}
-		require.NoError(t, db.Create(&replica).Error)
+		f.copy(asset, library, replica)
 	}
 
-	waitingForResume := newAsset("waiting-for-resume", model.AssetStatusProcessing)
-	newReplica(waitingForResume, &working, model.AssetReplicaStatusFailed, "")
-	newReplica(waitingForResume, &paused, model.AssetReplicaStatusPending, "")
-	rejectedByReview := newAsset("rejected-by-review", model.AssetStatusUnavailable)
-	newReplica(rejectedByReview, &working, model.AssetReplicaStatusRejected, "")
-	newReplica(rejectedByReview, &healthy, model.AssetReplicaStatusActive, "")
-	beingProcessed := newAsset("being-processed", model.AssetStatusSyncFailed)
-	newReplica(beingProcessed, &working, model.AssetReplicaStatusFailed, "worker-holding-it")
+	waitingForResume := f.asset("waiting-for-resume", model.AssetStatusProcessing)
+	copyOf(waitingForResume, working, model.AssetReplicaStatusFailed, "")
+	copyOf(waitingForResume, paused, model.AssetReplicaStatusPending, "")
+	rejectedByReview := f.asset("rejected-by-review", model.AssetStatusUnavailable)
+	copyOf(rejectedByReview, working, model.AssetReplicaStatusRejected, "")
+	copyOf(rejectedByReview, healthy, model.AssetReplicaStatusActive, "")
+	beingProcessed := f.asset("being-processed", model.AssetStatusSyncFailed)
+	copyOf(beingProcessed, working, model.AssetReplicaStatusFailed, "worker-holding-it")
 
 	result, err := ClearLibraryFailures(working.ID, 7)
 	require.NoError(t, err)

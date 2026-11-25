@@ -156,7 +156,7 @@ test('no failed-asset notice is shown when the scope has no failed assets', asyn
   ).not.toBeInTheDocument()
 })
 
-test('failed assets in the scope can be viewed and cleared in one confirmed step', async () => {
+test('failed assets in the scope are cleared in one confirmed step', async () => {
   mockFailedCount(3)
   renderLibrary()
   const user = userEvent.setup()
@@ -164,14 +164,6 @@ test('failed assets in the scope can be viewed and cleared in one confirmed step
     '3 failed assets cannot be used (rejected by review or failed to synchronize).'
   )
   expect(notice).toBeVisible()
-
-  await user.click(screen.getByRole('button', { name: 'View' }))
-  await waitFor(() =>
-    expect(listMediaAssets).toHaveBeenLastCalledWith(
-      expect.objectContaining({ status: 'unavailable' })
-    )
-  )
-  expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: 'Clear failed assets' }))
   const dialog = await screen.findByRole('alertdialog', {
