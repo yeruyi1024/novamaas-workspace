@@ -90,6 +90,7 @@ func TestMergeIdenticalLibrariesFoldsPerChannelConfigsWithoutUploadingAgain(t *t
 
 	report, err := MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Equal(t, 2, report.MergedGroups, "Flaios and YooFang were split across several accounts")
 	assert.Zero(t, report.DeferredGroups)
 
@@ -150,6 +151,7 @@ func TestMergeIdenticalLibrariesFoldsPerChannelConfigsWithoutUploadingAgain(t *t
 	require.NoError(t, RecordLibraryIdentities())
 	again, err := MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Zero(t, again.MergedGroups)
 	require.NoError(t, db.First(&kept, flaios).Error)
 	assert.Equal(t, "Flaios production", kept.Name)
@@ -240,6 +242,7 @@ func TestMergeIdenticalLibrariesWaitsForRequestsInFlightAndSkipsUnreadableCreden
 
 	report, err := MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Equal(t, 1, report.DeferredGroups)
 	assert.Equal(t, 2, report.UnreadableAccounts, "accounts whose credential cannot be read are counted so they are not mistaken for no duplicates")
 	assert.NotEqual(t, libraryOfChannel(t, db, 1), libraryOfChannel(t, db, 2), "no merge while an upload holds a lease")
@@ -248,6 +251,7 @@ func TestMergeIdenticalLibrariesWaitsForRequestsInFlightAndSkipsUnreadableCreden
 	require.NoError(t, db.Model(&model.AssetReplica{}).Where("library_id = ?", second).Updates(map[string]any{"locked_by": "", "lease_until": 0}).Error)
 	report, err = MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Equal(t, 1, report.MergedGroups)
 	assert.Equal(t, libraryOfChannel(t, db, 1), libraryOfChannel(t, db, 2), "the next run merges once the lease is gone")
 }
@@ -266,6 +270,7 @@ func TestNewlyActiveAccountReceivesAssetsUploadedBeforeIt(t *testing.T) {
 	}
 	account, err := SaveLibraryConnection(0, LibraryConfigInput{Name: "new account", ChannelConfigInput: ChannelConfigInput{Enabled: true, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthBearer, BaseURL: "https://provider.example", Credential: "backfill-secret", QPM: 60}})
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	copiesOf := func(libraryID int) map[int64]string {
 		var rows []model.AssetReplica
 		require.NoError(t, db.Where("library_id = ?", libraryID).Find(&rows).Error)
@@ -301,6 +306,7 @@ func TestDisabledAccountReceivesNoCopiesAndIsBackfilledWhenSwitchedOn(t *testing
 	input := LibraryConfigInput{Name: "account", ChannelConfigInput: ChannelConfigInput{Enabled: false, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthBearer, BaseURL: "https://provider.example", Credential: "disabled-secret", QPM: 60}}
 	account, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	_, err = BindChannelLibrary(61, account.ID, true)
 	require.NoError(t, err)
 	libraryFills.wg.Wait()
@@ -325,6 +331,7 @@ func TestDisabledAccountReceivesNoCopiesAndIsBackfilledWhenSwitchedOn(t *testing
 	input.Enabled = true
 	_, err = SaveLibraryConnection(account.ID, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.EqualValues(t, 1, count(), "switching the account on queues the assets it missed")
 	channelIDs, err = enabledChannelIDs(db)
 	require.NoError(t, err)
@@ -333,6 +340,7 @@ func TestDisabledAccountReceivesNoCopiesAndIsBackfilledWhenSwitchedOn(t *testing
 	input.Enabled = false
 	_, err = SaveLibraryConnection(account.ID, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	channelIDs, err = enabledChannelIDs(db)
 	require.NoError(t, err)
 	assert.NotContains(t, channelIDs, 61, "the account can be switched off again")
@@ -395,6 +403,7 @@ func TestMergePreservesUsableCopyWhenKeptAccountHasFailedCopy(t *testing.T) {
 	require.NoError(t, err, "channel 2 can reference the target before merging")
 	report, err := MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	require.Equal(t, 1, report.MergedGroups)
 	_, _, err = ResolveRequestAssetIDs(body, 7, 2)
 	assert.NoError(t, err, "merging must preserve a previously usable asset reference")

@@ -82,6 +82,7 @@ func TestDeletingLibraryRetriesUpstreamFailuresAndPreservesSharedCopies(t *testi
 	require.NoError(t, DeleteLibraryConnection(library.ID))
 	_, err = BindChannelLibrary(1, library.ID, true)
 	require.ErrorAs(t, err, &blocked, "a deleting account cannot acquire new channels")
+	libraryFills.wg.Wait()
 	for index := range replicas {
 		replica := &replicas[index]
 		require.NoError(t, db.First(replica, replica.ID).Error)
@@ -124,14 +125,18 @@ func TestSharedLibraryChannelOwnershipRequiresExplicitUnlink(t *testing.T) {
 	input := LibraryConfigInput{Name: "account A", ProviderName: "provider", ChannelConfigInput: ChannelConfigInput{Enabled: true, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthBearer, BaseURL: "https://provider.example", Credential: "fixture-account-A", QPM: 60}}
 	first, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	input.Name, input.Credential = "account B", "fixture-account-B"
 	second, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	_, err = BindChannelLibrary(91, first.ID, false)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	var conflict *RequestError
 	_, err = BindChannelLibrary(91, second.ID, true)
 	require.ErrorAs(t, err, &conflict)
+	libraryFills.wg.Wait()
 	assert.Equal(t, http.StatusConflict, conflict.HTTPStatusCode())
 	var binding model.AssetChannelConfig
 	require.NoError(t, db.Where("channel_id = ?", 91).First(&binding).Error)
@@ -139,8 +144,10 @@ func TestSharedLibraryChannelOwnershipRequiresExplicitUnlink(t *testing.T) {
 	assert.False(t, binding.Enabled, "disabled associations still belong to their account")
 	_, err = BindChannelLibrary(91, 0, false)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	_, err = BindChannelLibrary(91, second.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	require.NoError(t, db.Where("channel_id = ?", 91).First(&binding).Error)
 	assert.Equal(t, second.ID, binding.LibraryID)
 }
@@ -157,6 +164,7 @@ func TestSharedLibraryAssociationsOnlyAllowSupportedVideoChannelTypes(t *testing
 	} {
 		require.NoError(t, db.Create(&channel).Error)
 		_, err := BindChannelLibrary(channel.Id, library.ID, true)
+		libraryFills.wg.Wait()
 		if channel.Id <= 82 {
 			require.NoError(t, err)
 		} else {
@@ -202,6 +210,7 @@ func TestLegacyChannelConfigurationReusesAccountWithoutUploadingAndKeepsOtherCha
 	assert.True(t, other.Enabled)
 	_, err = SaveLibraryConnection(libraryID, LibraryConfigInput{Name: "renamed account", ProviderName: "provider", ChannelConfigInput: ChannelConfigInput{Enabled: true, Protocol: input.Protocol, AuthType: input.AuthType, BaseURL: input.BaseURL, QPM: input.QPM}})
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	var disabled model.AssetChannelConfig
 	require.NoError(t, db.Where("channel_id = ?", 51).First(&disabled).Error)
 	assert.False(t, disabled.Enabled, "editing a resource account must preserve disabled channel associations")
@@ -251,31 +260,37 @@ func TestSharedLibraryIdentityChangeIsRejectedOnceAccountOwnsUpstreamAssets(t *t
 	input := LibraryConfigInput{Name: "resource account", ProviderName: "provider", ChannelConfigInput: ChannelConfigInput{Enabled: true, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthBearer, BaseURL: "https://provider.example", Credential: "original-fixture-key", QPM: 60}}
 	first, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	input.Name, input.Credential = "other account", "other-fixture-key"
 	other, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 
 	// Another account's identity is never adopted, even before any upload.
 	input.Credential = "original-fixture-key"
 	var conflict *RequestError
 	_, err = SaveLibraryConnection(other.ID, input)
 	require.ErrorAs(t, err, &conflict)
+	libraryFills.wg.Wait()
 	assert.Equal(t, "library_identity_exists", conflict.Code)
 
 	// Without upstream state an account may still take a new credential.
 	input.Credential = "rotated-fixture-key"
 	_, err = SaveLibraryConnection(other.ID, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 
 	require.NoError(t, db.Create(&model.AssetReplica{AssetID: 81, LibraryID: &first.ID, UpstreamAssetID: "existing-resource", Status: model.AssetReplicaStatusProcessing}).Error)
 	input.Name, input.Credential, input.ProjectName = "resource account", "", "default"
 	_, err = SaveLibraryConnection(first.ID, input)
 	require.NoError(t, err, "an empty legacy project and the default project share a namespace")
+	libraryFills.wg.Wait()
 	var before model.AssetLibraryConnection
 	require.NoError(t, db.First(&before, first.ID).Error)
 	input.Credential = "another-account-fixture-key"
 	_, err = SaveLibraryConnection(first.ID, input)
 	require.ErrorAs(t, err, &conflict)
+	libraryFills.wg.Wait()
 	assert.Equal(t, "library_identity_locked", conflict.Code)
 	var after model.AssetLibraryConnection
 	require.NoError(t, db.First(&after, first.ID).Error)
@@ -301,6 +316,7 @@ func TestBackfilledResourceKeyLetsNewAccountReuseMigratedAccount(t *testing.T) {
 
 	view, err := SaveLibraryConnection(0, LibraryConfigInput{Name: "duplicate", ProviderName: "provider", ChannelConfigInput: ChannelConfigInput{Enabled: true, Protocol: model.AssetChannelProtocolVolcAction, AuthType: model.AssetChannelAuthBearer, BaseURL: "https://provider.example/", Credential: "shared-fixture-secret", QPM: 60}})
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	assert.Equal(t, account.ID, view.ID)
 	assert.True(t, view.ReusedExisting)
 	var libraries int64
@@ -319,8 +335,10 @@ func TestLinkingChannelsPreservesExistingReplicasWithoutSync(t *testing.T) {
 	}}
 	first, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	_, err = BindChannelLibrary(31, first.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	asset := model.MediaAsset{PublicID: "asset-existing", OwnerUserID: 7, StorageObjectID: 7004, Status: model.AssetStatusReady}
 	require.NoError(t, db.Create(&asset).Error)
 	replica := model.AssetReplica{AssetID: asset.ID, LibraryID: &first.ID, UpstreamAssetID: "active-upstream", Status: model.AssetReplicaStatusActive}
@@ -329,14 +347,18 @@ func TestLinkingChannelsPreservesExistingReplicasWithoutSync(t *testing.T) {
 	input.Credential = "different-resource-account-secret"
 	second, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	_, err = BindChannelLibrary(32, second.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	var before int64
 	require.NoError(t, db.Model(&model.AssetReplica{}).Count(&before).Error)
 	_, err = BindChannelLibrary(32, 0, false)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	_, err = BindChannelLibrary(32, first.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	var after int64
 	require.NoError(t, db.Model(&model.AssetReplica{}).Count(&after).Error)
 	assert.Equal(t, before, after)
@@ -431,9 +453,11 @@ func TestPausedProcessingResumesAfterReenable(t *testing.T) {
 	}}
 	library, err := SaveLibraryConnection(0, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	require.NoError(t, db.Create(&model.Channel{Id: 1, Name: "channel", Type: 61}).Error)
 	_, err = BindChannelLibrary(1, library.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	group := model.AssetGroup{PublicID: "group-paused", OwnerUserID: 7, Status: model.AssetStatusReady}
 	require.NoError(t, db.Create(&group).Error)
 	asset := model.MediaAsset{PublicID: "asset-paused", OwnerUserID: 7, GroupID: group.ID, StorageObjectID: 200, Status: model.AssetStatusProcessing}
@@ -459,6 +483,7 @@ func TestPausedProcessingResumesAfterReenable(t *testing.T) {
 	input.Enabled, input.Credential = true, ""
 	_, err = SaveLibraryConnection(library.ID, input)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	var untouched []model.AssetReplica
 	require.NoError(t, db.Where("library_id = ? AND asset_id <> ?", library.ID, asset.ID).Find(&untouched).Error)
 	require.Len(t, untouched, 3)
@@ -495,6 +520,7 @@ func TestMergedHistoricalDeletionSharesCurrentAccountBudget(t *testing.T) {
 	require.NoError(t, model.MigrateAssetLibraryConnections(db))
 	report, err := MergeIdenticalLibraries()
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	require.Equal(t, 1, report.MergedGroups)
 	var library model.AssetLibraryConnection
 	require.NoError(t, db.First(&library, libraryOfChannel(t, db, 1)).Error)
@@ -534,12 +560,14 @@ func TestFirstEnabledChannelResumesPausedWorkButAdditionalChannelsDoNot(t *testi
 	require.NoError(t, db.Create(&replica).Error)
 	_, err := BindChannelLibrary(1, library.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	require.NoError(t, db.First(&replica, replica.ID).Error)
 	assert.GreaterOrEqual(t, replica.CreatedAt, now)
 	assert.Equal(t, "already-submitted", replica.UpstreamAssetID)
 	require.NoError(t, db.Model(&replica).Update("created_at", now-60).Error)
 	_, err = BindChannelLibrary(2, library.ID, true)
 	require.NoError(t, err)
+	libraryFills.wg.Wait()
 	require.NoError(t, db.First(&replica, replica.ID).Error)
 	assert.Equal(t, now-60, replica.CreatedAt, "adding a channel must not extend an account that was already synchronizing")
 }
