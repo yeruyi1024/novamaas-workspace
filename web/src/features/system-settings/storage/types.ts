@@ -73,6 +73,11 @@ export type StoragePolicyInput = Omit<
   'id' | 'key' | 'name' | 'purpose' | 'created_at' | 'updated_at'
 >
 
+export type AssetLibraryFailureCleanup = {
+  deleted_assets: number
+  dismissed_replicas: number
+}
+
 export type StorageAPIResponse<T = undefined> = {
   success: boolean
   message?: string
@@ -173,8 +178,14 @@ export type AssetLibraryConnection = AssetChannelConfig & {
     processing: number
     active: number
     failed: number
+    /** Part of processing that is upstream deletion rather than upload. */
+    deleting?: number
   }
   missing: number
+  /** A background pass is queueing this account's assets. */
+  filling?: boolean
+  /** Failure of the last background pass, kept until the next one starts. */
+  fill_error?: string
 }
 
 export type AssetLibraryConnectionInput = AssetChannelConfigInput & {

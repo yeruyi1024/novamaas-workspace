@@ -213,7 +213,19 @@ func runSyncPass(runnerID string) {
 		scheduler.dispatch(context.Background())
 		scheduler.jobs.Wait()
 		if scheduler.dispatched == before {
-			return
+			// A review just sent spaces the next one on its channel by ten
+			// request slots. With the tiny slots these fixtures use, wait that
+			// out instead of ending the pass early; real spacing ends it.
+			spacing := time.Duration(0)
+			channelRateState.Lock()
+			for _, next := range channelRateState.reviewNext {
+				spacing = max(spacing, time.Until(next))
+			}
+			channelRateState.Unlock()
+			if spacing <= 0 || spacing > 50*time.Millisecond {
+				return
+			}
+			time.Sleep(spacing)
 		}
 	}
 }

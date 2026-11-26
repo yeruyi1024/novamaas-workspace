@@ -538,6 +538,25 @@ func SyncAssetLibraryConnection(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"success": true})
 }
 
+func ClearAssetLibraryFailures(c *gin.Context) {
+	libraryID, err := strconv.Atoi(c.Param("library_id"))
+	if err != nil || libraryID <= 0 {
+		assetLibraryError(c, &assetService.RequestError{StatusCode: http.StatusBadRequest, Err: errors.New("invalid asset library ID")})
+		return
+	}
+	result, err := assetService.ClearLibraryFailures(libraryID, c.GetInt("id"))
+	if result != nil && result.DeletedAssets+result.DismissedReplicas > 0 {
+		recordManageAudit(c, "asset_library.connection_clear_failed", map[string]interface{}{
+			"library_id": libraryID, "deleted_assets": result.DeletedAssets, "dismissed_replicas": result.DismissedReplicas,
+		})
+	}
+	if err != nil {
+		assetLibraryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
 func RebuildAssetLibraryConnection(c *gin.Context) {
 	libraryID, err := strconv.Atoi(c.Param("library_id"))
 	if err != nil || libraryID <= 0 {

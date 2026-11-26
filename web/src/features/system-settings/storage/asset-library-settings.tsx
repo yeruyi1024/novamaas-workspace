@@ -66,6 +66,7 @@ import {
   testAssetLibraryConnection,
   saveAssetLibraryConnection,
   syncAssetLibraryMissing,
+  clearAssetLibraryFailures,
   rebuildAssetLibrary,
   bindAssetChannelLibrary,
   mergeAssetLibraries,
@@ -85,6 +86,7 @@ import {
   type AssetLibraryConnectionFormValues,
   type AssetLibraryPolicyFormValues,
 } from './storage-schemas'
+import { pausedUploadCount } from './storage-utils'
 import {
   ASSET_PROTOCOL_VOLC_ACTION,
   ASSET_PROTOCOL_YOUFANG_REST,
@@ -681,6 +683,11 @@ export function AssetLibrarySettings() {
   )
   const [rebuildTarget, setRebuildTarget] =
     useState<AssetLibraryConnection | null>(null)
+  const [clearFailedTarget, setClearFailedTarget] =
+    useState<AssetLibraryConnection | null>(null)
+  const clearPausedUploads = clearFailedTarget
+    ? pausedUploadCount(clearFailedTarget)
+    : 0
   const settingsQuery = useQuery({
     queryKey: SETTINGS_QUERY_KEY,
     queryFn: async () => {
@@ -703,6 +710,7 @@ export function AssetLibrarySettings() {
       query.state.data?.some(
         (library) =>
           Boolean(library.delete_requested_at) ||
+          Boolean(library.filling) ||
           (library.channels.length > 0 &&
             library.enabled &&
             library.summary.pending + library.summary.processing > 0)
@@ -772,6 +780,27 @@ export function AssetLibrarySettings() {
       toast.success(t('Missing asset synchronization queued'))
     },
     onError: (error) => toast.error(errorMessage(error)),
+  })
+  const clearFailedMutation = useMutation({
+    mutationFn: async (id: number) =>
+      assertSuccess(await clearAssetLibraryFailures(id)),
+    onSuccess: async (result) => {
+      await invalidate()
+      setClearFailedTarget(null)
+      toast.success(
+        t(
+          'Deleted {{deleted}} unusable assets and cleared {{dismissed}} failed copies',
+          {
+            deleted: result.deleted_assets,
+            dismissed: result.dismissed_replicas,
+          }
+        )
+      )
+    },
+    onError: (error) => {
+      void invalidate()
+      toast.error(errorMessage(error))
+    },
   })
   const rebuildMutation = useMutation({
     mutationFn: async (id: number) =>
@@ -935,6 +964,7 @@ export function AssetLibrarySettings() {
                       onViewLogs={setLogLibraryId}
                       onSyncMissing={setSyncTarget}
                       onRebuild={setRebuildTarget}
+                      onClearFailed={setClearFailedTarget}
                       onDelete={setDeleteTarget}
                     />
                   ))}
@@ -953,6 +983,7 @@ export function AssetLibrarySettings() {
                           onManageChannels={manageLibraryChannels}
                           onViewLogs={setLogLibraryId}
                           onSyncMissing={setSyncTarget}
+                          onClearFailed={setClearFailedTarget}
                           onDelete={setDeleteTarget}
                         />
                       ))}
@@ -1037,6 +1068,54 @@ export function AssetLibrarySettings() {
             <Button
               disabled={syncMutation.isPending || !syncTarget}
               onClick={() => syncTarget && syncMutation.mutate(syncTarget.id)}
+            >
+              {t('Confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={clearFailedTarget !== null}
+        onOpenChange={(open) =>
+          !open && !clearFailedMutation.isPending && setClearFailedTarget(null)
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Clear failed synchronization')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'Clear {{failed}} failed records on {{library}}? Assets that failed on every account cannot be used and are deleted. Assets still usable on another account are kept; only their failed copy on this account is removed, and "Sync missing assets" can try again later. Failures still waiting for an automatic retry are kept.',
+                {
+                  failed: clearFailedTarget?.summary.failed ?? 0,
+                  library: clearFailedTarget?.name ?? '',
+                }
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {clearPausedUploads > 0 && (
+            <p className='text-muted-foreground text-sm'>
+              {t(
+                'This account cannot upload now (disabled or without an enabled channel), so its {{count}} paused uploads are cleared the same way.',
+                { count: clearPausedUploads }
+              )}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              variant='outline'
+              disabled={clearFailedMutation.isPending}
+              onClick={() => setClearFailedTarget(null)}
+            >
+              {t('Cancel')}
+            </Button>
+            <Button
+              variant='destructive'
+              disabled={clearFailedMutation.isPending || !clearFailedTarget}
+              onClick={() =>
+                clearFailedTarget &&
+                clearFailedMutation.mutate(clearFailedTarget.id)
+              }
             >
               {t('Confirm')}
             </Button>

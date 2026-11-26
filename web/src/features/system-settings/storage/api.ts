@@ -24,6 +24,7 @@ import type {
   AssetChannelConfigInput,
   AssetLibraryConnection,
   AssetLibraryConnectionInput,
+  AssetLibraryFailureCleanup,
   AssetLibraryMergeReport,
   StoragePolicy,
   StoragePolicyInput,
@@ -232,6 +233,16 @@ export async function syncAssetLibraryMissing(id: number) {
     undefined,
     { skipBusinessError: true, skipErrorHandler: true }
   )
+  return response.data
+}
+
+export async function clearAssetLibraryFailures(id: number) {
+  const response = await api.post<
+    StorageAPIResponse<AssetLibraryFailureCleanup>
+  >(`/api/asset-library/admin/libraries/${id}/clear-failed`, undefined, {
+    skipBusinessError: true,
+    skipErrorHandler: true,
+  })
   return response.data
 }
 

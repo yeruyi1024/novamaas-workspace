@@ -329,6 +329,26 @@ func queueAssetReplicas(tx *gorm.DB, assetID int64, channelIDs []int, retryFaile
 		}
 		if createResult.RowsAffected > 0 {
 			activated = true
+		} else {
+			// A copy an administrator cleared from this account (see
+			// ClearAssetReplicaFailure) counts as missing and comes back as a
+			// fresh upload whenever the account is filled again.
+			revive := tx.Model(&AssetReplica{}).Where("asset_id = ? AND operation = ? AND status = ?", assetID, AssetReplicaOperationDelete, AssetReplicaStatusDeleted)
+			if replica.LibraryID != nil {
+				revive = revive.Where("library_id = ?", *replica.LibraryID)
+			} else {
+				revive = revive.Where("channel_id = ? AND library_id IS NULL", channelID)
+			}
+			reviveResult := revive.Updates(map[string]any{
+				"operation": AssetReplicaOperationSync, "status": AssetReplicaStatusPending, "upstream_asset_id": "", "progress": 0,
+				"created_at": now, "next_sync_at": now, "attempts": 0, "last_error": "", "locked_by": "", "lease_until": 0, "updated_at": now,
+			})
+			if reviveResult.Error != nil {
+				return reviveResult.Error
+			}
+			if reviveResult.RowsAffected > 0 {
+				activated = true
+			}
 		}
 		if !retryFailed {
 			continue
@@ -482,8 +502,13 @@ func FinishAssetReplica(id int64, lockedBy string, status string, progress int, 
 			"next_sync_at": nextSyncAt, "locked_by": "", "lease_until": 0,
 			"last_error": lastError, "last_synced_at": now, "updated_at": now,
 		}
-		if assetDeletionRequested(asset, replica) {
+		deletion := assetDeletionRequested(asset, replica)
+		startsDeletion := deletion && replica.Operation != AssetReplicaOperationDelete
+		if deletion {
 			updates = assetReplicaDeletionUpdates(now)
+			if !startsDeletion {
+				delete(updates, "attempts") // only a copy entering deletion gets a fresh budget
+			}
 			updates["last_synced_at"], updates["last_error"] = now, lastError
 			if status == AssetReplicaStatusFailed && replica.Status != AssetReplicaStatusDeleted && replica.UpstreamAssetID != "" && len(operation) > 0 && operation[0] == AssetReplicaOperationDelete {
 				updates["next_sync_at"] = nextSyncAt
@@ -491,15 +516,15 @@ func FinishAssetReplica(id int64, lockedBy string, status string, progress int, 
 		} else if status == AssetReplicaStatusDeleted {
 			return errors.New("asset deletion was not requested")
 		}
-		if status == AssetReplicaStatusFailed {
+		if status == AssetReplicaStatusFailed && !startsDeletion {
 			updates["attempts"] = gorm.Expr("attempts + ?", 1)
-		} else if status == AssetReplicaStatusActive && !assetDeletionRequested(asset, replica) {
+		} else if status == AssetReplicaStatusActive && !deletion {
 			updates["attempts"] = 0
 		}
 		if err := tx.Model(replica).Updates(updates).Error; err != nil {
 			return err
 		}
-		if status == AssetReplicaStatusFailed && nextSyncAt == 0 && asset.Status == AssetStatusProcessing && !assetDeletionRequested(asset, replica) {
+		if status == AssetReplicaStatusFailed && nextSyncAt == 0 && asset.Status == AssetStatusProcessing && !deletion {
 			var remaining int64
 			if err := tx.Model(&AssetReplica{}).Where("asset_id = ? AND status NOT IN ? AND NOT (status = ? AND next_sync_at = 0)", asset.ID,
 				[]string{AssetReplicaStatusDeleted, AssetReplicaStatusRejected}, AssetReplicaStatusFailed).Count(&remaining).Error; err != nil {
